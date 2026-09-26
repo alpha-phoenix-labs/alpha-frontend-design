@@ -1,7 +1,7 @@
 import type { ApiError, FactoryJob, HumanGateState, TestReportV1 } from '@/types/factory/index.ts';
 
 export interface FactoryWorkflowModuleProps {
-  readonly activeJobId: string;
+  readonly activeJobId: string | null;
   readonly job: FactoryJob | null;
   readonly gate: HumanGateState | null;
   readonly testReport: TestReportV1 | null;
@@ -52,7 +52,7 @@ export function FactoryWorkflowModule({
         <div>
           <p className="font-mono text-[10px] tracking-[0.18em] text-spatial-dim uppercase">Craftflow Factory</p>
           <h2 className="mt-2 text-lg font-medium text-white">Workflow production</h2>
-          <p className="mt-1 break-all font-mono text-[10px] text-white/30">{activeJobId}</p>
+          <p className="mt-1 break-all font-mono text-[10px] text-white/30">{activeJobId ?? 'No job created'}</p>
         </div>
         {job === null ? (
           <span className="rounded-full border border-white/10 px-3 py-1 font-mono text-[10px] text-spatial-dim uppercase">
