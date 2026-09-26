@@ -28,18 +28,18 @@ export function AmbientNotificationCard({ notification, onAction }: AmbientNotif
 
   return (
     <div className="pointer-events-none fixed inset-x-4 bottom-4 z-40 flex justify-end sm:inset-x-auto sm:right-12 sm:bottom-12" role="status" aria-live="polite">
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {notification && (
           <motion.section
             key={notification.id}
-            aria-labelledby={titleId}
+            aria-labelledby={`${titleId}-${notification.id}`}
             className="glass-panel pointer-events-auto w-full rounded-3xl border border-white/10 p-6 sm:w-96"
             variants={ambientCardMotion}
             initial="initial"
             animate="animate"
             exit="exit"
           >
-            <AmbientCardBody notification={notification} titleId={titleId} onAction={onAction} />
+            <AmbientCardBody notification={notification} titleId={`${titleId}-${notification.id}`} onAction={onAction} />
           </motion.section>
         )}
       </AnimatePresence>
@@ -65,7 +65,7 @@ function AmbientCardBody({
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-start justify-between gap-3">
-          <h3 id={titleId} className="text-sm font-medium text-white">
+          <h3 id={`${titleId}-${notification.id}`} className="text-sm font-medium text-white">
             {notification.title}
           </h3>
           <time dateTime={notification.createdAt} className="shrink-0 font-mono text-[9px] text-spatial-dim uppercase">

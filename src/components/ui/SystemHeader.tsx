@@ -32,6 +32,7 @@ export function SystemHeader({ metrics, productName = "Craftflow" }: SystemHeade
 
       <div
         className="flex flex-col items-end gap-1 text-right font-mono text-[9px] tracking-widest text-spatial-dim uppercase"
+        role="group"
         aria-label="Systemstatus"
       >
         <div className="flex items-center gap-2">
