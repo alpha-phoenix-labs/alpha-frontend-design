@@ -3,7 +3,7 @@ import type {
   FactoryJob,
   FactoryResult,
   HumanGateState,
-  TestResult,
+  TestReportV1,
   WorkflowExecutionResult,
   WorkflowGenerationResult,
   WorkflowProductionMetrics,
@@ -125,7 +125,7 @@ export class HttpFactoryService implements FactoryService {
   readonly getGeneratedWorkflow = (_jobId: string): Promise<FactoryResult<WorkflowGenerationResult | null>> =>
     Promise.resolve(ok(null));
 
-  readonly getTestStatus = (jobId: string): Promise<FactoryResult<TestResult | null>> =>
+  readonly getTestStatus = (jobId: string): Promise<FactoryResult<TestReportV1 | null>> =>
     this.#readSnapshot(jobId, (snapshot) => snapshot.testResult);
 
   readonly getExecutionStatus = (_jobId: string): Promise<FactoryResult<WorkflowExecutionResult | null>> =>
