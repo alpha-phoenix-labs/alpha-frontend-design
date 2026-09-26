@@ -88,3 +88,10 @@ PR checks, CI, a build or a successful merge alone MUST NOT be reported as techn
 10. META-AUDIT: ask whether the same omitted automatic post-merge step can still pass. If yes, enforcement is INCOMPLETE and approval remains blocked. A rule file alone never satisfies this requirement.
 
 Enforcement status at 2026-09-27 audit: INCOMPLETE. Frontend build/preview triggers have regression coverage in the proposed branch; automatic authenticated browser evidence and promotion enforcement still require implementation and verification. Backend required-check enforcement is absent in the observed ruleset. Do not report this rule as fully enforced or this audit as PASS.
+
+### Three distinct enforcement layers (P1 closure)
+- PRE-MERGE GATE: required PR contexts validate code and delivery configuration. Proposed contexts: frontend `build` + `deploy-test`; backend `verify`. Ruleset mutation requires a separate HUMAN GATE.
+- POST-MERGE TRUTH: automatic push-to-main runs validate the actual merged SHA, including real browser transport. PR runs and workflow_dispatch runs are not substitutes.
+- PROMOTION GATE: the frontend production step must first run `scripts/promotion-gate.mjs`. It requires the current main SHA, successful latest automatic runs and non-skipped jobs for `ci.yml/build`, `cloudflare-deploy-test.yml/deploy-test`, and `real-e2e.yml/real-e2e`. A final main-SHA recheck rejects main advancing during verification.
+- The real E2E workflow/credential mechanism does not exist yet. Its reserved workflow/job names above are requirements, NOT claims of implemented E2E. Until implemented and evidenced, promotion fails closed with `FAIL — POST-MERGE TRUTH MISSING`.
+- Tests of the promotion verifier prove rejection logic only; they do not prove a live browser, Factory connection, deployment or ruleset enforcement. Current main has not incorporated this review branch.

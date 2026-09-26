@@ -22,3 +22,15 @@ test('dispatch-only workflow fails closed', () => assert.throws(() => validate(s
 test('silent failure masking is rejected', () => assert.throws(() => validate(source + '\ncontinue-on-error: true\n')));
 test('empty production mode is rejected', () => assert.throws(() => validate(source.replaceAll(' || inputs.deploy == true', ''))));
 test('automatic production routing is rejected', () => assert.throws(() => validate(source.replace("github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy == true && inputs.g5_preview != true", "github.ref == 'refs/heads/main'"))));
+
+test('G5 preview plus deploy remains a hard error', () => {
+  assert.ok(source.includes("github.event_name == 'workflow_dispatch' && inputs.g5_preview == true && inputs.deploy == true"));
+  assert.match(source, /G5 preview must never use production deploy\.[\s\S]*?exit 1/);
+});
+test('promotion guard precedes production command', () => {
+  const guard=source.indexOf('run: node scripts/promotion-gate.mjs');
+  assert.ok(guard > 0 && guard < source.indexOf('command: deploy'));
+  assert.ok(source.includes("if: " + "$" + "{{ github.event_name == 'workflow_dispatch' && inputs.deploy == true }}"));
+  assert.ok(source.includes('actions: read'));
+  assert.ok(source.includes('ref: ' + '$' + '{{ github.sha }}'));
+});
