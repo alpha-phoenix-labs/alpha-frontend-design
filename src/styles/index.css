@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --blur-glass: 24px;
+  --blur-glass-strong: 40px;
+
+  --color-glass-light: rgb(255 255 255 / 0.1);
+  --color-glass-dark: rgb(0 0 0 / 0.2);
+  --color-glass-edge: rgb(255 255 255 / 0.15);
+  --color-glass-highlight: rgb(255 255 255 / 0.3);
+
+  --radius-glass: 1.5rem;
+
+  --shadow-glass: 0 8px 32px 0 rgb(0 0 0 / 0.25), inset 0 1px 0 0 rgb(255 255 255 / 0.15);
+}
