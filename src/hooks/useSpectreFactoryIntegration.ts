@@ -107,6 +107,16 @@ export async function refreshAfterUnconfirmedMutation(
   await refreshJob(jobId);
 }
 
+export async function recoverStoredFactoryJob(
+  jobId: string,
+  setActiveJob: (jobId: string | null) => void,
+  refreshJob: (jobId: string) => Promise<void>,
+): Promise<void> {
+  setActiveJob(jobId);
+  await refreshJob(jobId);
+}
+
+
 type BusyReporter = (busy: boolean) => void;
 type SubmitPrompt = (request: WorkflowRequest) => Promise<FactoryResult<FactoryJob>>;
 type SubmitClarification = (input: SubmitClarificationInput) => Promise<FactoryResult<FactoryJob>>;
@@ -244,8 +254,7 @@ export function useSpectreFactoryIntegration(): SpectreFactoryIntegration {
     if (activeJobId === null) {
       const storedJobId = readStoredFactoryJobId(window.sessionStorage);
       if (storedJobId !== null) {
-        setActiveJob(storedJobId);
-        void refreshJob(storedJobId);
+        void recoverStoredFactoryJob(storedJobId, setActiveJob, refreshJob);
         return;
       }
     }
