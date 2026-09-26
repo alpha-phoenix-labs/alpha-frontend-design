@@ -4,8 +4,7 @@ import type {
   FactoryResult,
   HumanGateState,
   JobStatus,
-  TestMode,
-  TestResult,
+  TestReportV1,
   WorkflowRequest,
 } from '@/types/factory/index.ts';
 
@@ -48,7 +47,7 @@ export interface BackendJobPayload {
   readonly status: BackendStatus;
   readonly createdAt: string | null;
   readonly updatedAt: string | null;
-  readonly testReport: unknown;
+  readonly testReport: TestReportV1 | null;
   readonly errorMessage: string | null;
   readonly clarificationQuestion: string | null;
 }
@@ -56,11 +55,12 @@ export interface BackendJobPayload {
 /** Everything a single GET of a job yields. */
 export interface FactorySnapshot {
   readonly job: FactoryJob;
-  readonly testResult: TestResult | null;
+  readonly testResult: TestReportV1 | null;
   readonly humanGate: HumanGateState | null;
 }
 
-const TEST_MODES: readonly TestMode[] = ['mock', 'dry_run', 'live'];
+const TEST_REPORT_RESULTS: readonly TestReportV1['result'][] = ['PASS', 'NOT_RUN', 'NOT_PASS'];
+const TEST_REPORT_OPTIONAL_FIELDS = ['reason', 'importedId', 'executionId', 'evidence'] as const;
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 type JsonObject = Readonly<Record<string, unknown>>;
@@ -74,13 +74,61 @@ const isBackendStatus = (value: unknown): value is BackendStatus =>
 const isIsoTimestamp = (value: unknown): value is string =>
   typeof value === 'string' && ISO_TIMESTAMP.test(value) && !Number.isNaN(Date.parse(value));
 
-const isCount = (value: unknown): value is number => Number.isInteger(value) && (value as number) >= 0;
-
 const isNullableString = (value: unknown): value is string | null | undefined =>
   value === undefined || value === null || typeof value === 'string';
 
 export function invalidPayload(message: string): ApiError {
   return { kind: 'invalidResponse', code: 'INVALID_PAYLOAD', message };
+}
+
+/**
+ * Validates and sanitizes the public TestReportV1 at the network boundary.
+ * Unknown response fields are ignored; known fields are never inferred or repaired.
+ */
+export function parseTestReportV1(report: unknown, outerJobId: string): FactoryResult<TestReportV1 | null> {
+  if (report === null) {
+    return { ok: true, value: null };
+  }
+  if (!isObject(report)) {
+    return { ok: false, error: invalidPayload('testReport ist weder null noch ein JSON-Objekt.') };
+  }
+  if (report.contractVersion !== '1.0') {
+    return { ok: false, error: invalidPayload('testReport.contractVersion fehlt oder ist nicht 1.0.') };
+  }
+  if (typeof report.jobId !== 'string' || report.jobId === '') {
+    return { ok: false, error: invalidPayload('testReport.jobId fehlt oder ist kein String.') };
+  }
+  if (report.jobId !== outerJobId) {
+    return { ok: false, error: invalidPayload('testReport.jobId stimmt nicht mit jobId überein.') };
+  }
+  if (
+    typeof report.result !== 'string' ||
+    !(TEST_REPORT_RESULTS as readonly string[]).includes(report.result)
+  ) {
+    return { ok: false, error: invalidPayload('testReport.result ist ungültig.') };
+  }
+
+  const optional: Record<string, string> = {};
+  for (const key of TEST_REPORT_OPTIONAL_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(report, key)) {
+      continue;
+    }
+    const value = report[key];
+    if (typeof value !== 'string') {
+      return { ok: false, error: invalidPayload(`testReport.${key} ist kein String.`) };
+    }
+    optional[key] = value;
+  }
+
+  return {
+    ok: true,
+    value: {
+      contractVersion: '1.0',
+      jobId: report.jobId,
+      result: report.result as TestReportV1['result'],
+      ...optional,
+    },
+  };
 }
 
 /**
@@ -122,6 +170,12 @@ export function parseJobPayload(raw: unknown, requireTimestamps: boolean): Facto
   ) {
     return { ok: false, error: invalidPayload('WAITING_FOR_USER benötigt eine clarificationQuestion.') };
   }
+
+  const parsedTestReport = parseTestReportV1(testReport, jobId);
+  if (!parsedTestReport.ok) {
+    return { ok: false, error: parsedTestReport.error };
+  }
+
   return {
     ok: true,
     value: {
@@ -130,40 +184,11 @@ export function parseJobPayload(raw: unknown, requireTimestamps: boolean): Facto
       status,
       createdAt: isIsoTimestamp(createdAt) ? createdAt : null,
       updatedAt: isIsoTimestamp(updatedAt) ? updatedAt : null,
-      testReport: testReport ?? null,
+      testReport: parsedTestReport.value,
       errorMessage: errorMessage ?? null,
       clarificationQuestion: clarificationQuestion ?? null,
     },
   };
-}
-
-/** Maps a test report to {@link TestResult} only if every required field is present and valid; never fills in zeros. */
-export function mapTestReport(jobId: string, report: unknown): TestResult | null {
-  if (!isObject(report)) {
-    return null;
-  }
-  const { testMode, testCount, passed, failed, retryLoops, repairLoops, completedAt } = report;
-  if (
-    typeof testMode !== 'string' ||
-    !(TEST_MODES as readonly string[]).includes(testMode) ||
-    !isCount(testCount) ||
-    !isCount(passed) ||
-    !isCount(failed) ||
-    !isCount(retryLoops) ||
-    !isCount(repairLoops)
-  ) {
-    return null;
-  }
-  const result: TestResult = {
-    jobId,
-    testMode: testMode as TestMode,
-    testCount,
-    passed,
-    failed,
-    retryLoops,
-    repairLoops,
-  };
-  return isIsoTimestamp(completedAt) ? { ...result, completedAt } : result;
 }
 
 /** Human gate derived from the backend status; only open gates can be derived without inventing timestamps. */
@@ -207,7 +232,7 @@ export function mapSnapshot(payload: BackendJobPayload, request: WorkflowRequest
     ok: true,
     value: {
       job,
-      testResult: mapTestReport(payload.jobId, payload.testReport),
+      testResult: payload.testReport,
       humanGate: mapHumanGate(payload, payload.updatedAt),
     },
   };

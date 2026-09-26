@@ -3,6 +3,7 @@ import type {
   FactoryJob,
   FactoryResult,
   HumanGateState,
+  TestReportV1,
   TestResult,
   WorkflowProductionMetrics,
 } from '@/types/factory/index.ts';
@@ -134,6 +135,38 @@ describe('factoryStore', () => {
     expect(store.getState().testResults['job-1']).toEqual(currentTest);
     expect(store.getState().productionMetrics['job-1']).toEqual(currentMetrics);
     expect('job-1' in store.getState().humanGates).toBe(false);
+  });
+
+  it('stores public TestReportV1 verbatim, removes it on null, and never derives metrics from it', async () => {
+    let round = 0;
+    const report: TestReportV1 = {
+      contractVersion: '1.0',
+      jobId: 'job-1',
+      result: 'NOT_PASS',
+      reason: 'EXECUTION_FAILED',
+      importedId: 'wf-1',
+      executionId: 'exec-1',
+      evidence: 'trace-1',
+    };
+    const store = createFactoryStore(
+      serviceWith({
+        getJobStatus: () => Promise.resolve({ ok: true, value: job(4, 'testing') }),
+        getGeneratedWorkflow: () => Promise.resolve({ ok: true, value: null }),
+        getTestStatus: () => Promise.resolve({ ok: true, value: round++ === 0 ? report : null }),
+        getExecutionStatus: () => Promise.resolve({ ok: true, value: null }),
+        getHumanGateState: () => Promise.resolve({ ok: true, value: null }),
+        getProductionMetrics: () => Promise.resolve({ ok: true, value: null }),
+      }),
+    );
+
+    await store.getState().refreshJob('job-1');
+    expect(store.getState().testResults['job-1']).toEqual(report);
+    expect(store.getState().jobs['job-1']?.status).toBe('testing');
+    expect('job-1' in store.getState().productionMetrics).toBe(false);
+
+    await store.getState().refreshJob('job-1');
+    expect('job-1' in store.getState().testResults).toBe(false);
+    expect('job-1' in store.getState().productionMetrics).toBe(false);
   });
 
   it('submitApproval stores the returned job', async () => {

@@ -10,7 +10,7 @@ Die Typen sind contract-first angelegt und bewusst minimal. Der bekannte Teil-2-
 - Die Basis-URL ist ein Origin ohne `/api`; die vereinbarten Endpunkte liegen unter `<URL>/api/orchestrator` und `<URL>/api/orchestrator/approve`.
 - `http` mit fehlender/ungültiger URL oder ein unbekannter Modus → `UnavailableFactoryService` mit `FACTORY_CONFIG_INVALID`; es gibt keinen stillen Rückfall auf Mock.
 - `VITE_*`-Werte landen im Browser-Bundle und dürfen keine Secrets oder Zugangsdaten enthalten.
-- Der konkrete `testReport`-Backendvertrag bleibt für Teil 3 offen; der Adapter rät keine fehlenden Felder und liefert bei nicht passender Struktur keinen Testbericht.
+- Der HTTP-`testReport`-Vertrag ist als `TestReportV1` eingefroren (Backend-Referenz `85ce155202f977a68e087ccd76017fb8853650f5`): `contractVersion: '1.0'`, `jobId`, `result: 'PASS' | 'NOT_RUN' | 'NOT_PASS'` sowie optional `reason`, `importedId`, `executionId`, `evidence`. Ungültige nicht-null Reports werden mit `INVALID_PAYLOAD` abgewiesen; unbekannte Zusatzfelder werden ignoriert und nicht gespeichert.
 
 ## Offene Felder je Typ
 
@@ -19,7 +19,8 @@ Die Typen sind contract-first angelegt und bewusst minimal. Der bekannte Teil-2-
 | `WorkflowRequest` | Kontext (Kunde, Projekt), Anhänge, Zielsystem, Identität des Anfragenden, Idempotenzschlüssel |
 | `FactoryJob` | Format der Job-ID, Fortschrittsangabe, Verweise auf Generierungs-, Test- und Ausführungs-IDs, ob `error` auch bei `blocked` gesetzt wird |
 | `WorkflowGenerationResult` | Name, Zusammenfassung, Node-Anzahl, Version; die Workflow-Definition bleibt für die UI bewusst opak |
-| `TestResult` | Einzelne Testfälle und Details, Startzeitpunkt, Testlauf-ID, welche `TestMode`-Werte die Factory tatsächlich anbietet |
+| `TestReportV1` | Public HTTP Contract V1 ist geschlossen; spätere Erweiterungen benötigen eine neue Contract-Version |
+| `TestResult` | Legacy/Mock-Testmetriken; ausdrücklich nicht Teil des HTTP-`testReport`-Pfads |
 | `WorkflowExecutionResult` | Ausgabedaten, Trigger-Art, welche `JobStatus`-Werte für eine Ausführung gültig sind |
 | `HumanGateState` | Kommentar, Identität des Freigebenden, Timeout, serverseitige Folgezustände nach einer Ablehnung |
 | `WorkflowProductionMetrics` | Kosten je Modell und je Agent, Zusammensetzung von `platformCostMicros`, ob die Factory Micros liefert oder die Umrechnung im Live-Adapter erfolgt |
@@ -51,7 +52,7 @@ Typ `WorkflowProductionMetrics` in `src/types/factory/productionMetrics.ts`, gel
 | `updatedAt` | Zeitpunkt der letzten Änderung |
 
 - Beträge sind ganze Zahlen in Micros: 1 USD = 1.000.000 (`MICROS_PER_CURRENCY_UNIT`). Das vermeidet Rundungsdrift beim Summieren; die Anzeige rechnet in der UI um.
-- Alle Werte sind kumulativ seit Einreichung und wachsen nur. `WorkflowRequest.testMode` und `TestResult.testMode` verwenden denselben Typ `TestMode`; `TestResult` enthält zusätzlich `retryLoops`.
+- Alle Produktionsmetrik-Werte sind kumulativ seit Einreichung und wachsen nur. `TestResult` und die Testfelder in `WorkflowProductionMetrics` gehören zum isolierten Mock/Legacy-Metrikmodell; sie werden nicht aus `TestReportV1` erzeugt oder abgeleitet.
 - Der Mock liefert Metriken ab `queued`: Tokens, Aufrufe und API-Kosten wachsen anteilig in `generating`, `importing`, `testing` und `approved`; Tests, PASS/FAIL, Retry- und Reparaturschleifen entstehen erst in `testing` aus einer festen Ereignisfolge je Szenario; jede Reparatur kostet zusätzliche Tokens und Aufrufe. Der Plattformanteil ist proportional zur Produktionszeit. Beträge und Tarife des Mocks sind fiktiv.
 - Offen für den Live-Vertrag: ob die Factory Micros oder Dezimalbeträge liefert, weitere Währungen, echte Tarife und die Zusammensetzung des Plattformanteils, Aufschlüsselung je Modell und Agent, ob abgelehnte oder abgebrochene Jobs weiter Kosten erzeugen.
 

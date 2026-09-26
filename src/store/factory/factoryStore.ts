@@ -4,8 +4,8 @@ import type {
   ApiError,
   FactoryJob,
   FactoryResult,
+  FactoryTestReport,
   HumanGateState,
-  TestResult,
   WorkflowExecutionResult,
   WorkflowGenerationResult,
   WorkflowProductionMetrics,
@@ -27,7 +27,7 @@ export interface FactoryState {
   readonly jobIds: readonly string[];
   readonly activeJobId: string | null;
   readonly generationResults: ById<WorkflowGenerationResult>;
-  readonly testResults: ById<TestResult>;
+  readonly testResults: ById<FactoryTestReport>;
   readonly executionResults: ById<WorkflowExecutionResult>;
   readonly humanGates: ById<HumanGateState>;
   /** Production metrics per job; an entry keeps its reference while the values are unchanged. */
@@ -123,7 +123,17 @@ export function createFactoryStore(service: FactoryService) {
         applyResult(generation, (value) =>
           set((state) => ({ generationResults: { ...state.generationResults, [jobId]: value } })),
         );
-        applyResult(test, (value) => set((state) => ({ testResults: { ...state.testResults, [jobId]: value } })));
+        if (test.ok && test.value === null) {
+          set((state) => {
+            if (!(jobId in state.testResults)) {
+              return state;
+            }
+            const { [jobId]: _removed, ...testResults } = state.testResults;
+            return { testResults };
+          });
+        } else {
+          applyResult(test, (value) => set((state) => ({ testResults: { ...state.testResults, [jobId]: value } })));
+        }
         applyResult(execution, (value) =>
           set((state) => ({ executionResults: { ...state.executionResults, [jobId]: value } })),
         );

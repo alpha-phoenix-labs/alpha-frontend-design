@@ -6,6 +6,8 @@ export type {
   FactoryJob,
   WorkflowGenerationResult,
   TestResult,
+  TestReportV1,
+  FactoryTestReport,
   WorkflowExecutionResult,
   HumanGateStatus,
   HumanGateState,
