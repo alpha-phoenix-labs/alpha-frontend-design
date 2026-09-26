@@ -26,3 +26,6 @@ export { useUiSound, playUiSound, SOUND_FILES, UI_SOUND_VOLUME, type SoundName, 
 export { useIntentInputFocus } from '@/hooks/useIntentInputFocus.ts';
 export { usePrefersReducedMotion, prefersReducedMotion } from '@/hooks/usePrefersReducedMotion.ts';
 export { useFactoryJobPolling, FACTORY_POLL_INTERVAL_MS } from '@/hooks/useFactoryJobPolling.ts';
+
+export { useSpectreFactoryIntegration } from '@/hooks/useSpectreFactoryIntegration.ts';
+export type { SpectreFactoryIntegration, ApprovalGateSnapshot } from '@/hooks/useSpectreFactoryIntegration.ts';

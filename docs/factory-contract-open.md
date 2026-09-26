@@ -65,7 +65,7 @@ Typ `WorkflowProductionMetrics` in `src/types/factory/productionMetrics.ts`, gel
 ## Polling oder Push
 
 - Nicht festgelegt, ob Statusänderungen per Polling, Server-Sent Events, WebSocket oder Webhook an die UI gelangen.
-- Aktuell: Polling über `useFactoryJobPolling(jobId, 1000)`, das `refreshJob` im Factory-Store aufruft. Das Polling endet erst beim Unmount oder bei `jobId = null`, weil keine Endzustände vereinbart sind.
+- G4: Polling läuft über `useFactoryJobPolling(jobId, status, 2000)` und ruft ausschließlich `refreshJob` im Factory-Store auf. Es läuft auch am Human Gate weiter, stoppt aber bei `completed`, `failed` und `blocked` sowie bei Jobwechsel, Unmount oder fehlender `jobId`.
 
 ## Typisierung in `vite-env.d.ts`
 
