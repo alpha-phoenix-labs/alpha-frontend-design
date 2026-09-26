@@ -11,3 +11,4 @@ export type {
   HumanGateState,
   ProductionCost,
 } from '@/types/factory/contracts.ts';
+export type { FactoryResult } from '@/types/factory/result.ts';
