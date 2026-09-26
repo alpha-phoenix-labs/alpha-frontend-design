@@ -70,3 +70,21 @@ Schreibbereich:
 - Keine Inhalte aus nicht freigegebenen Repositories übernehmen.
 - Keine Umgehung von Branch-, Review- oder Human-Gate-Regeln.
 - Keine Platzhalter als abgeschlossen melden.
+
+## POST-MERGE TRUTH RULE — CF-PM-001 (binding)
+
+Applies to every ASTRA, Builder and agent change in the active Craftflow delivery path.
+PR checks, CI, a build or a successful merge alone MUST NOT be reported as technical completion.
+
+1. Before changing a workflow record TRIGGER -> EXECUTION -> RESULT -> ENFORCEMENT, for the exact repository, branch and commit SHA.
+2. Every mandatory main post-merge process MUST run automatically for every main update, produce a machine-verifiable visible result, and fail closed. A workflow_dispatch-only mandatory process is FAIL — MANUAL DEPENDENCY.
+3. Required steps missing, skipped, cancelled, timed out, pending, stale or associated with another SHA MUST NOT count as success. Failure of a dependency MUST propagate through an always-running final gate; continue-on-error or silent fallback MUST NOT hide failures.
+4. The mandatory process inventory MUST cover build, real-mode preview upload, real browser -> frontend -> HTTP -> Factory proof, backend deployment SHA and runtime verification. Publish repository SHAs, run URLs, preview version and actual outcomes. A preview upload or health-only response is NOT E2E.
+5. Frontend main pushes MUST use VITE_FACTORY_MODE=http and VITE_FACTORY_API_BASE_URL=https://n8n-workflow-factory.onrender.com and MUST NOT route production traffic. Production remains a separate explicit human-authorized action.
+6. Promotion/release MUST be technically blocked unless every required post-merge result for that exact SHA succeeds. Required PR checks MUST enforce trigger/configuration regression tests. Ruleset enforcement MUST be read back; documentation is not enforcement.
+7. Before approving a mechanism, test removal of a main trigger, a skipped/failed prerequisite, unavailable runtime, missing/stale evidence and absent credentials. Each MUST produce a visible failure and prevent technical completion/promotion.
+8. Every audit MUST separately report PASS, FAIL, UNKNOWN / INSUFFICIENT EVIDENCE, NOT PROVEN and NOT AUDITED — TIME LIMIT. Never upgrade incomplete evidence to PASS.
+9. No merge, production deploy, secret rotation, paid resource or contract change is authorized by this rule.
+10. META-AUDIT: ask whether the same omitted automatic post-merge step can still pass. If yes, enforcement is INCOMPLETE and approval remains blocked. A rule file alone never satisfies this requirement.
+
+Enforcement status at 2026-09-27 audit: INCOMPLETE. Frontend build/preview triggers have regression coverage in the proposed branch; automatic authenticated browser evidence and promotion enforcement still require implementation and verification. Backend required-check enforcement is absent in the observed ruleset. Do not report this rule as fully enforced or this audit as PASS.
