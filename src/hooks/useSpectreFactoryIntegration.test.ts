@@ -8,6 +8,7 @@ import {
   clarificationInput,
   publicTestReport,
   readStoredFactoryJobId,
+  recoverStoredFactoryJob,
   refreshAfterUnconfirmedMutation,
   submitApprovalOnce,
   submitClarificationOnce,
@@ -119,6 +120,17 @@ describe('Spectre factory integration helpers', () => {
     expect(result).toMatchObject({ ok: false, error: { code: 'VERSION_CONFLICT' } });
     expect(submit).toHaveBeenCalledTimes(1);
     expect(submit).toHaveBeenCalledWith({ jobId: 'job-1', version: 5, approve: true });
+  });
+
+  it('reload recovery restores a known job id and performs one read refresh', async () => {
+    const setActiveJob = vi.fn();
+    const refresh = vi.fn(() => Promise.resolve());
+
+    await recoverStoredFactoryJob('job-1', setActiveJob, refresh);
+
+    expect(setActiveJob).toHaveBeenCalledWith('job-1');
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledWith('job-1');
   });
 
   it('manual unknown-mutation recovery performs two sequential read refreshes and no mutation', async () => {
