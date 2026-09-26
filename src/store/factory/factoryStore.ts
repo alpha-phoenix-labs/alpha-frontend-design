@@ -122,7 +122,18 @@ export function createFactoryStore(service: FactoryService) {
         applyResult(execution, (value) =>
           set((state) => ({ executionResults: { ...state.executionResults, [jobId]: value } })),
         );
-        applyResult(gate, (value) => set((state) => ({ humanGates: { ...state.humanGates, [jobId]: value } })));
+        if (gate.ok && gate.value === null) {
+          // A closed gate removes the stored entry; on error the entry stays unchanged.
+          set((state) => {
+            if (!(jobId in state.humanGates)) {
+              return state;
+            }
+            const { [jobId]: _removed, ...humanGates } = state.humanGates;
+            return { humanGates };
+          });
+        } else {
+          applyResult(gate, (value) => set((state) => ({ humanGates: { ...state.humanGates, [jobId]: value } })));
+        }
         applyResult(metrics, (value) =>
           set((state) =>
             shallow(state.productionMetrics[jobId], value)

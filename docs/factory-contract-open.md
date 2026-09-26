@@ -12,6 +12,8 @@ Die Typen sind contract-first angelegt und bewusst minimal. Alles, was die Refer
   - `reason: 'httpContractOpen'`, wenn eine Basis-URL gesetzt ist, der Endpunktvertrag aber fehlt.
 - Ein späterer Live-Adapter implementiert das Interface `FactoryService`; die Auswahl erfolgt nur in `src/services/factory/index.ts`.
 
+**Update Modus mock/http:** Inzwischen steuert `VITE_FACTORY_MODE` die Auswahl. Leer oder nicht gesetzt: Mock (unverändert). `http`: `HttpFactoryService` gegen `VITE_FACTORY_API_BASE_URL`, angegeben als Origin ohne `/api` (HTTPS, außer localhost; ohne Query, Hash und Zugangsdaten). Die Endpunkte liegen unter `<URL>/api/orchestrator`. `http` ohne gültige URL oder ein unbekannter Modus liefert bei jedem Aufruf `FACTORY_CONFIG_INVALID`, ohne Fallback auf den Mock.
+
 ## Offene Felder je Typ
 
 | Typ | Offen |

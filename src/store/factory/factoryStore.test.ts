@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { FactoryJob, FactoryResult } from '@/types/factory/index.ts';
+import type { FactoryJob, FactoryResult, HumanGateState } from '@/types/factory/index.ts';
 import { HttpFactoryService, UnavailableFactoryService, type FactoryService } from '@/services/factory/index.ts';
 import { createFactoryStore } from '@/store/factory/factoryStore.ts';
 
@@ -88,5 +88,30 @@ describe('factoryStore', () => {
     await store.getState().submitClarification({ jobId: 'job-1', response: 'HubSpot' });
     expect(submitClarification).toHaveBeenCalledWith({ jobId: 'job-1', response: 'HubSpot' });
     expect(store.getState().jobs['job-1']?.status).toBe('generating');
+  });
+
+  it('refreshJob removes the gate on a successful null and keeps it on error', async () => {
+    const gates: FactoryResult<HumanGateState | null>[] = [
+      { ok: true, value: { jobId: 'job-1', type: 'approval', status: 'awaiting_human', requestedAt: '2026-09-26T10:05:00.000Z' } },
+      { ok: false, error: { kind: 'network', code: 'NETWORK', message: 'offline' } },
+      { ok: true, value: null },
+    ];
+    const store = createFactoryStore(
+      serviceWith({
+        getJobStatus: () => Promise.resolve({ ok: true, value: job(3, 'awaiting_human') }),
+        getGeneratedWorkflow: () => Promise.resolve({ ok: true, value: null }),
+        getTestStatus: () => Promise.resolve({ ok: true, value: null }),
+        getExecutionStatus: () => Promise.resolve({ ok: true, value: null }),
+        getHumanGateState: () =>
+          Promise.resolve(gates.shift() ?? { ok: false, error: { kind: 'unknown', code: 'X', message: 'x' } }),
+        getProductionMetrics: () => Promise.resolve({ ok: true, value: null }),
+      }),
+    );
+    await store.getState().refreshJob('job-1');
+    expect(store.getState().humanGates['job-1']).toMatchObject({ type: 'approval', status: 'awaiting_human' });
+    await store.getState().refreshJob('job-1');
+    expect(store.getState().humanGates['job-1']).toMatchObject({ type: 'approval', status: 'awaiting_human' });
+    await store.getState().refreshJob('job-1');
+    expect('job-1' in store.getState().humanGates).toBe(false);
   });
 });
