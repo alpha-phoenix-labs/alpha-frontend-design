@@ -12,3 +12,5 @@ export { AmbientNotificationCard } from "@/components/ui/AmbientNotificationCard
 export type { AmbientNotificationCardProps } from "@/components/ui/AmbientNotificationCard.tsx";
 export { spatialEase, spatialDuration, moduleCardMotion, intentNodeMotion, ambientCardMotion } from "@/components/ui/motion.ts";
 export type { CubicBezier } from "@/components/ui/motion.ts";
+export { FactoryWorkflowModule } from "@/components/ui/FactoryWorkflowModule.tsx";
+export type { FactoryWorkflowModuleProps } from "@/components/ui/FactoryWorkflowModule.tsx";
