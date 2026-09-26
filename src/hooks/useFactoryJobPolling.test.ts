@@ -44,14 +44,17 @@ describe('factory polling lifecycle', () => {
 
   it('job switch cleanup stops the old job before the new loop starts', async () => {
     vi.useFakeTimers();
-    const refresh = vi.fn(() => Promise.resolve());
+    const seen: string[] = [];
+    const refresh = vi.fn(async (jobId: string) => {
+      seen.push(jobId);
+    });
 
     const stopOld = startFactoryJobPolling('job-old', 'generating', refresh);
     stopOld();
     const stopNew = startFactoryJobPolling('job-new', 'generating', refresh);
     await vi.advanceTimersByTimeAsync(FACTORY_POLL_INTERVAL_MS);
 
-    expect(refresh.mock.calls.map(([jobId]) => jobId)).toEqual(['job-old', 'job-new', 'job-new']);
+    expect(seen).toEqual(['job-old', 'job-new', 'job-new']);
     stopNew();
   });
 
