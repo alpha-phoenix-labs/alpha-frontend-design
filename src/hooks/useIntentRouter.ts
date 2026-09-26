@@ -19,13 +19,8 @@ export const INTENT_KEYWORDS = {
   spatialModel: ['3d', 'raum', 'bild'],
 } as const satisfies Readonly<Record<IntentKind, readonly string[]>>;
 
-/** Animation timings of the reference in milliseconds. */
+/** Reference timing: the module exit animation (0.5 s) completes before the intent node returns. */
 export const INTENT_TIMING = {
-  /** Intent node recedes or returns (power3.out, 0.8 s). */
-  intentNodeTransitionMs: 800,
-  /** Delay before a spawned module fades in (0.1 s). */
-  moduleEnterDelayMs: 100,
-  /** Module exit animation before the intent node returns (0.5 s). */
   moduleExitMs: 500,
 } as const;
 

@@ -22,18 +22,14 @@ export interface FactoryServiceSelection {
   readonly baseUrlConfigured: boolean;
 }
 
-function readBaseUrl(): string | null {
+function isBaseUrlConfigured(): boolean {
   const raw: unknown = import.meta.env.VITE_FACTORY_API_BASE_URL;
-  if (typeof raw !== 'string') {
-    return null;
-  }
-  const trimmed = raw.trim();
-  return trimmed === '' ? null : trimmed;
+  return typeof raw === 'string' && raw.trim() !== '';
 }
 
 /** Determines which factory service implementation is used and why. */
 export function getFactoryServiceSelection(): FactoryServiceSelection {
-  const baseUrlConfigured = readBaseUrl() !== null;
+  const baseUrlConfigured = isBaseUrlConfigured();
   return {
     mode: 'mock',
     reason: baseUrlConfigured ? 'httpContractOpen' : 'baseUrlMissing',
@@ -41,7 +37,7 @@ export function getFactoryServiceSelection(): FactoryServiceSelection {
   };
 }
 
-/** Creates a fresh factory service according to the central selection. */
+/** Creates a fresh factory service; always the mock while the HTTP endpoint contract is open. */
 export function createFactoryService(mockOptions: MockFactoryServiceOptions = {}): FactoryService {
   return new MockFactoryService(mockOptions);
 }
