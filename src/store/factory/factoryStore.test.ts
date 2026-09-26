@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { FactoryJob, FactoryResult, HumanGateState } from '@/types/factory/index.ts';
+import type {
+  FactoryJob,
+  FactoryResult,
+  HumanGateState,
+  TestResult,
+  WorkflowProductionMetrics,
+} from '@/types/factory/index.ts';
 import { HttpFactoryService, UnavailableFactoryService, type FactoryService } from '@/services/factory/index.ts';
 import { createFactoryStore } from '@/store/factory/factoryStore.ts';
 
@@ -58,6 +64,76 @@ describe('factoryStore', () => {
     await store.getState().refreshJob('job-1');
     await store.getState().refreshJob('job-1');
     expect(store.getState().jobs['job-1']).toMatchObject({ version: 5, status: 'approved' });
+  });
+
+  it('ignores stale snapshot and all associated state', async () => {
+    let round = 0;
+    const currentTest: TestResult = {
+      jobId: 'job-1',
+      testMode: 'mock',
+      testCount: 10,
+      passed: 10,
+      failed: 0,
+      retryLoops: 0,
+      repairLoops: 0,
+    };
+    const staleTest: TestResult = { ...currentTest, testCount: 9, passed: 9 };
+    const currentMetrics: WorkflowProductionMetrics = {
+      jobId: 'job-1',
+      currency: 'USD',
+      apiCostMicros: 1000,
+      platformCostMicros: 0,
+      totalCostMicros: 1000,
+      tokensIn: 10,
+      tokensOut: 10,
+      modelCalls: 1,
+      agentCalls: 1,
+      productionTimeMs: 1000,
+      testMode: 'mock',
+      testCount: 10,
+      passed: 10,
+      failed: 0,
+      retryLoops: 0,
+      repairLoops: 0,
+      updatedAt: '2026-09-26T10:10:00.000Z',
+    };
+    const staleMetrics: WorkflowProductionMetrics = {
+      ...currentMetrics,
+      apiCostMicros: 900,
+      totalCostMicros: 900,
+      productionTimeMs: 900,
+      testCount: 9,
+      passed: 9,
+      updatedAt: '2026-09-26T10:09:00.000Z',
+    };
+    const staleGate: HumanGateState = {
+      jobId: 'job-1',
+      type: 'clarification',
+      status: 'awaiting_human',
+      requestedAt: '2026-09-26T10:09:00.000Z',
+      question: 'Veraltete Frage?',
+    };
+    const store = createFactoryStore(
+      serviceWith({
+        getJobStatus: () => {
+          round += 1;
+          return Promise.resolve({ ok: true, value: round === 1 ? job(10, 'approved') : job(9, 'awaiting_human') });
+        },
+        getGeneratedWorkflow: () => Promise.resolve({ ok: true, value: null }),
+        getTestStatus: () => Promise.resolve({ ok: true, value: round === 1 ? currentTest : staleTest }),
+        getExecutionStatus: () => Promise.resolve({ ok: true, value: null }),
+        getHumanGateState: () => Promise.resolve({ ok: true, value: round === 1 ? null : staleGate }),
+        getProductionMetrics: () => Promise.resolve({ ok: true, value: round === 1 ? currentMetrics : staleMetrics }),
+      }),
+    );
+
+    await store.getState().refreshJob('job-1');
+    await store.getState().refreshJob('job-1');
+
+    expect(store.getState().jobs['job-1']).toMatchObject({ version: 10, status: 'approved' });
+    expect(store.getState().testResults['job-1']).toEqual(currentTest);
+    expect(store.getState().productionMetrics['job-1']).toEqual(currentMetrics);
+    expect('job-1' in store.getState().humanGates).toBe(false);
   });
 
   it('submitApproval stores the returned job', async () => {

@@ -110,11 +110,16 @@ export function createFactoryStore(service: FactoryService) {
           service.getHumanGateState(jobId),
           service.getProductionMetrics(jobId),
         ]);
-        if (job.ok) {
-          storeJob(job.value);
-        } else {
+        if (!job.ok) {
           set({ lastError: job.error });
+          return;
         }
+        const storedJob = get().jobs[jobId];
+        if (storedJob !== undefined && storedJob.version > job.value.version) {
+          // Snapshot consistency: never apply companion state from an older job version.
+          return;
+        }
+        storeJob(job.value);
         applyResult(generation, (value) =>
           set((state) => ({ generationResults: { ...state.generationResults, [jobId]: value } })),
         );

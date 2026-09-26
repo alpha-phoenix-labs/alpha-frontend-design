@@ -1,18 +1,16 @@
 # Factory-Vertrag: offene Punkte
 
 Stand: 26.09.2026. Gilt für `src/types/factory/`, `src/services/factory/` und `src/store/factory/`.
-Die Typen sind contract-first angelegt und bewusst minimal. Alles, was die Referenzen (UI-Plan, Spatial-Core-Referenz, Zukunft-des-Interfaces) nicht festlegen, steht hier und muss vor der Live-Anbindung mit der Factory geklärt werden (Human Gate: API-Vertrag anfordern).
+Die Typen sind contract-first angelegt und bewusst minimal. Der bekannte Teil-2-Backend-Vertrag ist im HTTP-Adapter umgesetzt; weiterhin offene Felder und spätere UI-/Produktionsfragen werden in diesem Dokument ausdrücklich als offen markiert.
 
-## Fehlender HTTP-Endpunktvertrag
+## Factory-Verbindung: Mock und HTTP
 
-- Es gibt keine vereinbarten Pfade, Methoden, Payloads, Authentifizierung oder Fehlerformate der Factory-API.
-- Deshalb existiert kein HTTP-Client und es stehen keine Endpunkt-Strings im Code.
-- `getFactoryServiceSelection()` liefert immer `mode: 'mock'`:
-  - `reason: 'baseUrlMissing'`, wenn `VITE_FACTORY_API_BASE_URL` leer oder nicht gesetzt ist,
-  - `reason: 'httpContractOpen'`, wenn eine Basis-URL gesetzt ist, der Endpunktvertrag aber fehlt.
-- Ein späterer Live-Adapter implementiert das Interface `FactoryService`; die Auswahl erfolgt nur in `src/services/factory/index.ts`.
-
-**Update Modus mock/http:** Inzwischen steuert `VITE_FACTORY_MODE` die Auswahl. Leer oder nicht gesetzt: Mock (unverändert). `http`: `HttpFactoryService` gegen `VITE_FACTORY_API_BASE_URL`, angegeben als Origin ohne `/api` (HTTPS, außer localhost; ohne Query, Hash und Zugangsdaten). Die Endpunkte liegen unter `<URL>/api/orchestrator`. `http` ohne gültige URL oder ein unbekannter Modus liefert bei jedem Aufruf `FACTORY_CONFIG_INVALID`, ohne Fallback auf den Mock.
+- `VITE_FACTORY_MODE` leer oder `mock` → `MockFactoryService`; damit bleibt das eingefrorene bisherige Verhalten erhalten.
+- `VITE_FACTORY_MODE=http` + gültige `VITE_FACTORY_API_BASE_URL` → `HttpFactoryService`.
+- Die Basis-URL ist ein Origin ohne `/api`; die vereinbarten Endpunkte liegen unter `<URL>/api/orchestrator` und `<URL>/api/orchestrator/approve`.
+- `http` mit fehlender/ungültiger URL oder ein unbekannter Modus → `UnavailableFactoryService` mit `FACTORY_CONFIG_INVALID`; es gibt keinen stillen Rückfall auf Mock.
+- `VITE_*`-Werte landen im Browser-Bundle und dürfen keine Secrets oder Zugangsdaten enthalten.
+- Der konkrete `testReport`-Backendvertrag bleibt für Teil 3 offen; der Adapter rät keine fehlenden Felder und liefert bei nicht passender Struktur keinen Testbericht.
 
 ## Offene Felder je Typ
 
@@ -23,14 +21,15 @@ Die Typen sind contract-first angelegt und bewusst minimal. Alles, was die Refer
 | `WorkflowGenerationResult` | Name, Zusammenfassung, Node-Anzahl, Version; die Workflow-Definition bleibt für die UI bewusst opak |
 | `TestResult` | Einzelne Testfälle und Details, Startzeitpunkt, Testlauf-ID, welche `TestMode`-Werte die Factory tatsächlich anbietet |
 | `WorkflowExecutionResult` | Ausgabedaten, Trigger-Art, welche `JobStatus`-Werte für eine Ausführung gültig sind |
-| `HumanGateState` | Kommentar, Identität des Freigebenden, Timeout, Payload von `submitApproval` |
+| `HumanGateState` | Kommentar, Identität des Freigebenden, Timeout, serverseitige Folgezustände nach einer Ablehnung |
 | `WorkflowProductionMetrics` | Kosten je Modell und je Agent, Zusammensetzung von `platformCostMicros`, ob die Factory Micros liefert oder die Umrechnung im Live-Adapter erfolgt |
 | `ApiError` | Katalog der Server-Fehlercodes, Retry-Hinweis, Detail-Payload |
 
-## Human Gate: Ablehnung undefiniert
+## Human Gate: Approval und Ablehnung
 
-- `JobStatus` kennt `awaiting_human` und `approved`, aber keinen Ablehnungszustand.
-- `submitApproval(jobId)` kann daher nur freigeben. Ob eine Ablehnung zu `failed`, `blocked` oder zurück zu `generating` führt und welche Begründung mitgeschickt wird, ist offen.
+- `submitApproval({ jobId, version, approve })` unterstützt sowohl Freigabe (`approve: true`) als auch Ablehnung (`approve: false`).
+- Die Entscheidung ist versionsgebunden. Ein `VERSION_CONFLICT` wird nicht automatisch erneut freigegeben; zuerst muss der aktuelle Jobzustand geladen und eine neue menschliche Entscheidung getroffen werden.
+- Welchen serverseitigen Folgezustand eine Ablehnung erzeugt, bestimmt das Backend; das Frontend erfindet dafür keinen neuen `JobStatus`.
 
 ## Produktionsmetriken pro Workflow (Punkt H)
 
@@ -73,6 +72,7 @@ Benötigt (Zuständigkeit Alpha-Deploy), ausschließlich gelesen in `src/service
 
 ```ts
 interface ImportMetaEnv {
+  readonly VITE_FACTORY_MODE?: string;
   readonly VITE_FACTORY_API_BASE_URL?: string;
 }
 

@@ -95,8 +95,8 @@ export function parseJobPayload(raw: unknown, requireTimestamps: boolean): Facto
   if (typeof jobId !== 'string' || jobId === '') {
     return { ok: false, error: invalidPayload('jobId fehlt oder ist kein String.') };
   }
-  if (!Number.isInteger(version)) {
-    return { ok: false, error: invalidPayload('version fehlt oder ist keine ganze Zahl.') };
+  if (!Number.isInteger(version) || (version as number) < 0) {
+    return { ok: false, error: invalidPayload('version fehlt, ist keine ganze Zahl oder ist negativ.') };
   }
   if (typeof status !== 'string') {
     return { ok: false, error: invalidPayload('status fehlt oder ist kein String.') };
@@ -115,6 +115,12 @@ export function parseJobPayload(raw: unknown, requireTimestamps: boolean): Facto
   }
   if (!isNullableString(errorMessage)) {
     return { ok: false, error: invalidPayload('errorMessage ist weder String noch null.') };
+  }
+  if (
+    status === 'WAITING_FOR_USER' &&
+    (typeof clarificationQuestion !== 'string' || clarificationQuestion.trim() === '')
+  ) {
+    return { ok: false, error: invalidPayload('WAITING_FOR_USER benötigt eine clarificationQuestion.') };
   }
   return {
     ok: true,

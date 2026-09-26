@@ -108,6 +108,14 @@ describe('HttpFactoryService', () => {
     expect(await service(fetch).getTestStatus('job-1')).toEqual({ ok: true, value: null });
   });
 
+  it('rejects WAITING_FOR_USER without clarificationQuestion', async () => {
+    const { fetch } = fakeFetch(() => json(backendJob({ status: 'WAITING_FOR_USER', clarificationQuestion: null })));
+    expect(await service(fetch).getJobStatus('job-1')).toMatchObject({
+      ok: false,
+      error: { kind: 'invalidResponse', code: 'INVALID_PAYLOAD' },
+    });
+  });
+
   it('maps the clarification gate', async () => {
     const { fetch } = fakeFetch(() => json(backendJob({ status: 'WAITING_FOR_USER', clarificationQuestion: 'Welches CRM?' })));
     const http = service(fetch);
@@ -153,6 +161,43 @@ describe('HttpFactoryService', () => {
     const second = await http.getJobStatus('job-1');
     expect(calls).toHaveLength(2);
     expect(second.ok && second.value.version).toBe(4);
+  });
+
+  it('successful mutation with invalid JSON yields MUTATION_UNCONFIRMED without retry', async () => {
+    const { fetch, calls } = fakeFetch(() => text('not-json', 200));
+    const result = await service(fetch).submitWorkflowRequest({ description: 'Baue X', testMode: 'mock' });
+    expect(result).toMatchObject({ ok: false, error: { code: 'MUTATION_UNCONFIRMED' } });
+    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+  });
+
+  it('failed confirmation GET yields MUTATION_UNCONFIRMED and preserves jobId', async () => {
+    const postBody = {
+      jobId: 'job-1',
+      version: 1,
+      status: 'CREATED',
+      testReport: null,
+      errorMessage: null,
+      clarificationQuestion: null,
+    };
+    const { fetch, calls } = fakeFetch(
+      () => json(postBody),
+      () => Promise.reject(new TypeError('confirmation failed')),
+    );
+    const result = await service(fetch).submitWorkflowRequest({ description: 'Baue X', testMode: 'mock' });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'MUTATION_UNCONFIRMED', jobId: 'job-1' },
+    });
+    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+    expect(calls.filter((call) => call.method === 'GET')).toHaveLength(1);
+  });
+
+  it('network failure before a POST response stays NETWORK', async () => {
+    const { fetch, calls } = fakeFetch(() => Promise.reject(new TypeError('Failed to fetch')));
+    const result = await service(fetch).submitWorkflowRequest({ description: 'Baue X', testMode: 'mock' });
+    expect(result).toMatchObject({ ok: false, error: { code: 'NETWORK' } });
+    expect(result).not.toMatchObject({ ok: false, error: { code: 'MUTATION_UNCONFIRMED' } });
+    expect(calls).toHaveLength(1);
   });
 
   it('clarification body is exactly {jobId, humanResponse}, followed by a GET', async () => {
@@ -257,6 +302,21 @@ describe('HttpFactoryService', () => {
       ok: false,
       error: { kind: 'invalidResponse', code: 'UNKNOWN_FACTORY_STATUS' },
     });
+  });
+
+  it.each([-1, -999])('negative version %i yields INVALID_PAYLOAD', async (version) => {
+    const { fetch } = fakeFetch(() => json(backendJob({ version })));
+    expect(await service(fetch).getJobStatus('job-1')).toMatchObject({
+      ok: false,
+      error: { kind: 'invalidResponse', code: 'INVALID_PAYLOAD' },
+    });
+  });
+
+  it.each([0, 7])('non-negative integer version %i is accepted', async (version) => {
+    const { fetch } = fakeFetch(() => json(backendJob({ version })));
+    const result = await service(fetch).getJobStatus('job-1');
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.value.version).toBe(version);
   });
 
   it.each([

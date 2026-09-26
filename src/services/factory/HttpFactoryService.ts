@@ -31,12 +31,34 @@ export interface HttpFactoryServiceOptions {
   readonly postTimeoutMs?: number;
 }
 
-type HttpOutcome = { readonly ok: true; readonly body: unknown } | { readonly ok: false; readonly error: ApiError };
+type HttpOutcome =
+  | { readonly ok: true; readonly body: unknown }
+  | { readonly ok: false; readonly error: ApiError; readonly successfulResponse: boolean };
+
+type MutationUnconfirmedError = ApiError & { readonly jobId?: string };
 
 const ok = <T>(value: T): FactoryResult<T> => ({ ok: true, value });
 const fail = <T>(error: ApiError): FactoryResult<T> => ({ ok: false, error });
 
 const validationError = (message: string): ApiError => ({ kind: 'unknown', code: 'VALIDATION', message });
+
+function mutationUnconfirmed(error: ApiError, jobId?: string): MutationUnconfirmedError {
+  const message =
+    jobId === undefined
+      ? `Mutation möglicherweise erfolgreich, aber nicht bestätigt: ${error.message}`
+      : `Mutation für Job ${jobId} möglicherweise erfolgreich, aber nicht bestätigt: ${error.message}`;
+  return jobId === undefined
+    ? { ...error, code: 'MUTATION_UNCONFIRMED', message }
+    : { ...error, code: 'MUTATION_UNCONFIRMED', message, jobId };
+}
+
+function jobIdOf(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null || !('jobId' in value)) {
+    return undefined;
+  }
+  const jobId = (value as { readonly jobId?: unknown }).jobId;
+  return typeof jobId === 'string' && jobId.trim() !== '' ? jobId : undefined;
+}
 
 function httpErrorCode(status: number): string {
   if (status === 400) return 'VALIDATION';
@@ -131,7 +153,12 @@ export class HttpFactoryService implements FactoryService {
         approve: input.approve,
       });
       // No retry on 409: the caller refreshes and decides again on the current version.
-      return outcome.ok ? await this.#jobAfterMutation(input.jobId) : fail(outcome.error);
+      if (!outcome.ok) {
+        return outcome.successfulResponse
+          ? fail(mutationUnconfirmed(outcome.error, input.jobId))
+          : fail(outcome.error);
+      }
+      return this.#jobAfterMutation(input.jobId);
     } finally {
       this.#approvals.delete(input.jobId);
     }
@@ -141,7 +168,11 @@ export class HttpFactoryService implements FactoryService {
     if (input.jobId.trim() === '' || input.response.trim() === '') {
       return fail(validationError('Job-ID und Antwort dürfen nicht leer sein.'));
     }
-    const posted = await this.#post('/api/orchestrator', { jobId: input.jobId, humanResponse: input.response });
+    const posted = await this.#post(
+      '/api/orchestrator',
+      { jobId: input.jobId, humanResponse: input.response },
+      input.jobId,
+    );
     return posted.ok ? this.#jobAfterMutation(input.jobId) : posted;
   };
 
@@ -149,19 +180,24 @@ export class HttpFactoryService implements FactoryService {
     Promise.resolve(ok(null));
 
   /** POSTs to the orchestrator and validates the job payload of the answer; resolves to the job id. */
-  async #post(path: string, body: object): Promise<FactoryResult<string>> {
+  async #post(path: string, body: object, knownJobId?: string): Promise<FactoryResult<string>> {
     const outcome = await this.#send('POST', path, this.#postTimeoutMs, body);
     if (!outcome.ok) {
-      return fail(outcome.error);
+      return outcome.successfulResponse
+        ? fail(mutationUnconfirmed(outcome.error, knownJobId))
+        : fail(outcome.error);
     }
     const payload = parseJobPayload(outcome.body, false);
-    return payload.ok ? ok(payload.value.jobId) : payload;
+    if (!payload.ok) {
+      return fail(mutationUnconfirmed(payload.error, jobIdOf(outcome.body) ?? knownJobId));
+    }
+    return ok(payload.value.jobId);
   }
 
   /** Fresh GET after a mutation (never joins a GET started before it) to obtain timestamps and the current state. */
   async #jobAfterMutation(jobId: string): Promise<FactoryResult<FactoryJob>> {
     const snapshot = await this.#loadSnapshot(jobId, true);
-    return snapshot.ok ? ok(snapshot.value.job) : snapshot;
+    return snapshot.ok ? ok(snapshot.value.job) : fail(mutationUnconfirmed(snapshot.error, jobId));
   }
 
   #readSnapshot<T>(jobId: string, pick: (snapshot: FactorySnapshot) => T): Promise<FactoryResult<T>> {
@@ -205,6 +241,7 @@ export class HttpFactoryService implements FactoryService {
   async #send(method: 'GET' | 'POST', path: string, timeoutMs: number, body?: object): Promise<HttpOutcome> {
     const controller = new AbortController();
     let timedOut = false;
+    let successfulResponse = false;
     const timer = setTimeout(() => {
       timedOut = true;
       controller.abort();
@@ -217,6 +254,7 @@ export class HttpFactoryService implements FactoryService {
         headers: body === undefined ? { Accept: 'application/json' } : { Accept: 'application/json', 'Content-Type': 'application/json' },
       };
       const response = await this.#fetch(`${this.#baseUrl}${path}`, body === undefined ? init : { ...init, body: JSON.stringify(body) });
+      successfulResponse = response.ok;
       const text = await response.text();
       if (!response.ok) {
         return {
@@ -227,19 +265,29 @@ export class HttpFactoryService implements FactoryService {
             code: httpErrorCode(response.status),
             message: errorMessageOf(text, response.status),
           },
+          successfulResponse: false,
         };
       }
       try {
         return { ok: true, body: JSON.parse(text) as unknown };
       } catch {
-        return { ok: false, error: { kind: 'invalidResponse', code: 'INVALID_PAYLOAD', message: 'Antwort ist kein gültiges JSON.' } };
+        return {
+          ok: false,
+          error: { kind: 'invalidResponse', code: 'INVALID_PAYLOAD', message: 'Antwort ist kein gültiges JSON.' },
+          successfulResponse: true,
+        };
       }
     } catch (cause) {
       return timedOut
-        ? { ok: false, error: { kind: 'network', code: 'TIMEOUT', message: `Keine Antwort nach ${timeoutMs} ms.` } }
+        ? {
+            ok: false,
+            error: { kind: 'network', code: 'TIMEOUT', message: `Keine Antwort nach ${timeoutMs} ms.` },
+            successfulResponse,
+          }
         : {
             ok: false,
             error: { kind: 'network', code: 'NETWORK', message: cause instanceof Error ? cause.message : 'Netzwerkfehler.' },
+            successfulResponse,
           };
     } finally {
       clearTimeout(timer);
