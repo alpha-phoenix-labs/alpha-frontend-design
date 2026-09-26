@@ -1,0 +1,14 @@
+export { SystemHeader } from "@/components/ui/SystemHeader.tsx";
+export type { SystemHeaderProps } from "@/components/ui/SystemHeader.tsx";
+export { IntentNode } from "@/components/ui/IntentNode.tsx";
+export type { IntentNodeProps } from "@/components/ui/IntentNode.tsx";
+export { ModuleStage } from "@/components/ui/ModuleStage.tsx";
+export type { ModuleStageProps } from "@/components/ui/ModuleStage.tsx";
+export { CostEstimateModule } from "@/components/ui/CostEstimateModule.tsx";
+export type { CostEstimateModuleProps } from "@/components/ui/CostEstimateModule.tsx";
+export { SpatialModelModule } from "@/components/ui/SpatialModelModule.tsx";
+export type { SpatialModelModuleProps } from "@/components/ui/SpatialModelModule.tsx";
+export { AmbientNotificationCard } from "@/components/ui/AmbientNotificationCard.tsx";
+export type { AmbientNotificationCardProps } from "@/components/ui/AmbientNotificationCard.tsx";
+export { spatialEase, spatialDuration, moduleCardMotion, intentNodeMotion, ambientCardMotion } from "@/components/ui/motion.ts";
+export type { CubicBezier } from "@/components/ui/motion.ts";
