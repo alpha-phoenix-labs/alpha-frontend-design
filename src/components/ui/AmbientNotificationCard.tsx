@@ -65,7 +65,7 @@ function AmbientCardBody({
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-start justify-between gap-3">
-          <h3 id={`${titleId}-${notification.id}`} className="text-sm font-medium text-white">
+          <h3 id={titleId} className="text-sm font-medium text-white">
             {notification.title}
           </h3>
           <time dateTime={notification.createdAt} className="shrink-0 font-mono text-[9px] text-spatial-dim uppercase">
