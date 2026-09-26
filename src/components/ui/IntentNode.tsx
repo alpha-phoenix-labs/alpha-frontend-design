@@ -34,7 +34,7 @@ export function IntentNode({
 
   return (
     <motion.div
-      className="pointer-events-auto absolute z-50 w-full max-w-xl"
+      className={`pointer-events-auto absolute w-full max-w-xl ${posture === "idle" ? "z-50" : "z-0"}`}
       variants={intentNodeMotion}
       initial={false}
       animate={posture}

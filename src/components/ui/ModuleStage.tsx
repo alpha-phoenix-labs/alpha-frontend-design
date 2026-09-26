@@ -16,7 +16,7 @@ export function ModuleStage({ state, renderModule, onExitComplete }: ModuleStage
         {state.status === "active" && (
           <motion.div
             key={state.module.id}
-            className="flex w-full justify-center"
+            className="relative z-10 flex w-full justify-center"
             variants={moduleCardMotion}
             initial="initial"
             animate="animate"
