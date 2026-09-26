@@ -27,13 +27,14 @@ export function startFactoryJobPolling(
   refreshJob: (jobId: string) => Promise<void>,
   intervalMs: number = FACTORY_POLL_INTERVAL_MS,
 ): () => void {
-  if (!shouldPollFactoryJob(jobId, status)) {
+  const pollJobId = jobId;
+  if (pollJobId === null || !shouldPollFactoryJob(pollJobId, status)) {
     return () => undefined;
   }
 
-  void refreshJob(jobId);
+  void refreshJob(pollJobId);
   const timer = setInterval(() => {
-    void refreshJob(jobId);
+    void refreshJob(pollJobId);
   }, intervalMs);
 
   return () => clearInterval(timer);
