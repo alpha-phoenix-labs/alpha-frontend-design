@@ -10,7 +10,11 @@ import type {
   WorkflowProductionMetrics,
   WorkflowRequest,
 } from '@/types/factory/index.ts';
-import type { FactoryService } from '@/services/factory/FactoryService.ts';
+import type {
+  FactoryService,
+  SubmitApprovalInput,
+  SubmitClarificationInput,
+} from '@/services/factory/FactoryService.ts';
 import { totalProductionCostMicros } from '@/services/factory/productionMetrics.ts';
 import {
   MOCK_LOOP_USAGE,
@@ -41,6 +45,7 @@ interface MockJobRecord {
   readonly createdAtMs: number;
   readonly scenario: MockScenarioDefinition;
   approvedAtMs: number | null;
+  rejectedAtMs: number | null;
 }
 
 interface ResolvedStep {
@@ -97,6 +102,10 @@ function applyTestEvent(figures: TestFigures, event: MockTestEvent): TestFigures
   }
 }
 
+function gateNotOpen(jobId: string): ApiError {
+  return { kind: 'unknown', code: 'gate_not_open', message: `Job ${jobId} wartet derzeit nicht auf diese Eingabe.` };
+}
+
 function jobNotFound(jobId: string): ApiError {
   return { kind: 'unknown', code: 'job_not_found', message: `Job ${jobId} ist unbekannt.` };
 }
@@ -131,6 +140,7 @@ export class MockFactoryService implements FactoryService {
         createdAtMs: this.#now(),
         scenario: MOCK_SCENARIOS[this.#scenario],
         approvedAtMs: null,
+        rejectedAtMs: null,
       };
       this.#jobs.set(record.id, record);
       return { ok: true, value: this.#toJob(record) };
@@ -182,29 +192,49 @@ export class MockFactoryService implements FactoryService {
   readonly getHumanGateState = (jobId: string): Promise<FactoryResult<HumanGateState | null>> =>
     this.#withJob(jobId, (record) => this.#gateOf(record));
 
-  readonly submitApproval = (jobId: string): Promise<FactoryResult<HumanGateState>> =>
+  readonly submitApproval = (input: SubmitApprovalInput): Promise<FactoryResult<FactoryJob>> =>
     this.#respond(() => {
-      const record = this.#jobs.get(jobId);
+      const record = this.#jobs.get(input.jobId);
       if (record === undefined) {
-        return { ok: false, error: jobNotFound(jobId) };
+        return { ok: false, error: jobNotFound(input.jobId) };
       }
-      if (record.approvedAtMs === null) {
-        if (this.#currentStep(record).status !== 'awaiting_human') {
-          return {
-            ok: false,
-            error: {
-              kind: 'unknown',
-              code: 'gate_not_open',
-              message: `Job ${jobId} wartet derzeit nicht auf eine Freigabe.`,
-            },
-          };
-        }
+      const current = this.#toJob(record);
+      if (input.version !== current.version) {
+        return {
+          ok: false,
+          error: {
+            kind: 'http',
+            httpStatus: 409,
+            code: 'VERSION_CONFLICT',
+            message: `Job ${input.jobId} liegt in Version ${current.version} vor, nicht ${input.version}.`,
+          },
+        };
+      }
+      if (current.status !== 'awaiting_human' || record.approvedAtMs !== null || record.rejectedAtMs !== null) {
+        return { ok: false, error: gateNotOpen(input.jobId) };
+      }
+      if (input.approve) {
         record.approvedAtMs = this.#now();
+      } else {
+        record.rejectedAtMs = this.#now();
       }
-      const gate = this.#gateOf(record);
-      return gate === null
-        ? { ok: false, error: { kind: 'unknown', code: 'gate_not_open', message: `Job ${jobId} hat kein Human Gate.` } }
-        : { ok: true, value: gate };
+      return { ok: true, value: this.#toJob(record) };
+    });
+
+  readonly submitClarification = (input: SubmitClarificationInput): Promise<FactoryResult<FactoryJob>> =>
+    this.#respond(() => {
+      if (input.jobId.trim() === '' || input.response.trim() === '') {
+        return {
+          ok: false,
+          error: { kind: 'unknown', code: 'VALIDATION', message: 'Job-ID und Antwort dürfen nicht leer sein.' },
+        };
+      }
+      const record = this.#jobs.get(input.jobId);
+      if (record === undefined) {
+        return { ok: false, error: jobNotFound(input.jobId) };
+      }
+      // The mock scenarios only simulate the approval gate; a clarification gate is never open.
+      return { ok: false, error: gateNotOpen(input.jobId) };
     });
 
   readonly getProductionMetrics = (jobId: string): Promise<FactoryResult<WorkflowProductionMetrics | null>> =>
@@ -279,6 +309,8 @@ export class MockFactoryService implements FactoryService {
     if (record.approvedAtMs !== null) {
       const approvedAt = record.approvedAtMs;
       absolute.push(...MOCK_POST_APPROVAL_STEPS.map((step) => ({ status: step.status, atMs: approvedAt + step.atMs })));
+    } else if (record.rejectedAtMs !== null) {
+      absolute.push({ status: 'failed', atMs: record.rejectedAtMs });
     }
     const now = this.#now();
     const resolved: ResolvedStep[] = [];
@@ -338,14 +370,15 @@ export class MockFactoryService implements FactoryService {
 
   #gateOf(record: MockJobRecord): HumanGateState | null {
     const awaiting = this.#stepOf(record, 'awaiting_human');
-    if (awaiting === null) {
+    if (awaiting === null || record.rejectedAtMs !== null) {
       return null;
     }
     if (record.approvedAtMs === null) {
-      return { jobId: record.id, status: 'awaiting_human', requestedAt: iso(awaiting.enteredAtMs) };
+      return { jobId: record.id, type: 'approval', status: 'awaiting_human', requestedAt: iso(awaiting.enteredAtMs) };
     }
     return {
       jobId: record.id,
+      type: 'approval',
       status: 'approved',
       requestedAt: iso(awaiting.enteredAtMs),
       approvedAt: iso(record.approvedAtMs),
@@ -358,11 +391,16 @@ export class MockFactoryService implements FactoryService {
     const isFinalStep = current.endsAtMs === null && record.scenario.steps[record.scenario.steps.length - 1]?.status === current.status;
     const job: FactoryJob = {
       id: record.id,
+      // Every entered step is one backend change, so the number of reached steps is a monotonic version.
+      version: steps.length,
       status: current.status,
       request: record.request,
       createdAt: iso(record.createdAtMs),
       updatedAt: iso(current.enteredAtMs),
     };
+    if (record.rejectedAtMs !== null && current.status === 'failed') {
+      return { ...job, error: { kind: 'unknown', code: 'APPROVAL_REJECTED', message: 'Die Freigabe wurde abgelehnt.' } };
+    }
     return isFinalStep && record.scenario.finalError !== undefined ? { ...job, error: record.scenario.finalError } : job;
   }
 }

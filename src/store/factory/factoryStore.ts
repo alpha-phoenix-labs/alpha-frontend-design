@@ -11,7 +11,12 @@ import type {
   WorkflowProductionMetrics,
   WorkflowRequest,
 } from '@/types/factory/index.ts';
-import { getFactoryService, type FactoryService } from '@/services/factory/index.ts';
+import {
+  getFactoryService,
+  type FactoryService,
+  type SubmitApprovalInput,
+  type SubmitClarificationInput,
+} from '@/services/factory/index.ts';
 
 type ById<T> = Readonly<Record<string, T>>;
 
@@ -32,15 +37,17 @@ export interface FactoryState {
   readonly submitWorkflowRequest: (request: WorkflowRequest) => Promise<FactoryResult<FactoryJob>>;
   /** Reloads the job and every result that is available for it. */
   readonly refreshJob: (jobId: string) => Promise<void>;
-  /** Approves the human gate of a job and stores the resulting gate state. */
-  readonly submitApproval: (jobId: string) => Promise<FactoryResult<HumanGateState>>;
+  /** Decides the approval gate of a job and stores the updated job; on a version conflict the job is refreshed. */
+  readonly submitApproval: (input: SubmitApprovalInput) => Promise<FactoryResult<FactoryJob>>;
+  /** Answers the clarification gate of a job and stores the updated job; on a version conflict the job is refreshed. */
+  readonly submitClarification: (input: SubmitClarificationInput) => Promise<FactoryResult<FactoryJob>>;
   readonly setActiveJob: (jobId: string | null) => void;
   readonly clearLastError: () => void;
 }
 
 /** Creates a factory store bound to the given service. */
 export function createFactoryStore(service: FactoryService) {
-  return create<FactoryState>()((set) => {
+  return create<FactoryState>()((set, get) => {
     const applyResult = <T>(result: FactoryResult<T | null>, apply: (value: T) => void): void => {
       if (!result.ok) {
         set({ lastError: result.error });
@@ -49,11 +56,30 @@ export function createFactoryStore(service: FactoryService) {
       }
     };
 
+    /** Stores a job unless a newer version of it is already stored (out-of-order responses). */
     const storeJob = (job: FactoryJob): void =>
-      set((state) => ({
-        jobs: { ...state.jobs, [job.id]: job },
-        jobIds: state.jobIds.includes(job.id) ? state.jobIds : [...state.jobIds, job.id],
-      }));
+      set((state) => {
+        const stored = state.jobs[job.id];
+        if (stored !== undefined && stored.version > job.version) {
+          return state;
+        }
+        return {
+          jobs: { ...state.jobs, [job.id]: job },
+          jobIds: state.jobIds.includes(job.id) ? state.jobIds : [...state.jobIds, job.id],
+        };
+      });
+
+    /** Stores the job of a gate decision; after a version conflict the current job is reloaded. */
+    const applyGateResult = async (jobId: string, result: FactoryResult<FactoryJob>): Promise<void> => {
+      if (result.ok) {
+        storeJob(result.value);
+        return;
+      }
+      set({ lastError: result.error });
+      if (result.error.code === 'VERSION_CONFLICT') {
+        await get().refreshJob(jobId);
+      }
+    };
 
     return {
       jobs: {},
@@ -105,9 +131,14 @@ export function createFactoryStore(service: FactoryService) {
           ),
         );
       },
-      submitApproval: async (jobId) => {
-        const result = await service.submitApproval(jobId);
-        applyResult(result, (value) => set((state) => ({ humanGates: { ...state.humanGates, [jobId]: value } })));
+      submitApproval: async (input) => {
+        const result = await service.submitApproval(input);
+        await applyGateResult(input.jobId, result);
+        return result;
+      },
+      submitClarification: async (input) => {
+        const result = await service.submitClarification(input);
+        await applyGateResult(input.jobId, result);
         return result;
       },
       setActiveJob: (jobId) => set({ activeJobId: jobId }),
