@@ -30,7 +30,7 @@ export interface WorkflowGenerationResult {
   readonly generatedAt: IsoTimestamp;
 }
 
-/** Test run summary for a generated workflow. */
+/** Legacy/mock-only test summary. Not part of the backend public HTTP contract. */
 export interface TestResult {
   readonly jobId: string;
   readonly testMode: TestMode;
@@ -39,9 +39,23 @@ export interface TestResult {
   readonly failed: number;
   readonly retryLoops: number;
   readonly repairLoops: number;
-  /** Set once the test run has finished. */
+  /** Set once the mock test run has finished. */
   readonly completedAt?: IsoTimestamp;
 }
+
+/** Public test-report DTO returned by the Factory backend API. */
+export interface TestReportV1 {
+  readonly contractVersion: '1.0';
+  readonly jobId: string;
+  readonly result: 'PASS' | 'NOT_RUN' | 'NOT_PASS';
+  readonly reason?: string;
+  readonly importedId?: string;
+  readonly executionId?: string;
+  readonly evidence?: string;
+}
+
+/** Store/service test-report value: public HTTP V1 or the isolated legacy mock summary. */
+export type FactoryTestReport = TestReportV1 | TestResult;
 
 /** Execution state of a workflow run; status uses the central {@link JobStatus}. */
 export interface WorkflowExecutionResult {
