@@ -11,5 +11,8 @@
   // Produktiv-Domain als Workers Custom Domain (Cloudflare legt DNS-Eintrag und Zertifikat selbst an).
   "routes": [
     { "pattern": "control.vantarialabs.tech", "custom_domain": true }
-  ]
+  ],
+  // workers.dev-Adresse und Preview-URLs für PR-Vorschauen (versions upload) bleiben zusätzlich aktiv.
+  "workers_dev": true,
+  "preview_urls": true
 }
