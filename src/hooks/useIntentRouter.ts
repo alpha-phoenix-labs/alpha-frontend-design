@@ -13,9 +13,9 @@ import { getCostEstimate } from '@/services/estimate/costEstimateService.ts';
 import { playUiSound } from '@/hooks/useUiSound.ts';
 import { prefersReducedMotion } from '@/hooks/usePrefersReducedMotion.ts';
 
-/** Keywords per intent kind from the reference; matched case-insensitively as substrings, in this order. */
+/** Keywords per intent kind from the reference, plus "kostet" so "Was kostet das?" opens the calculator; matched case-insensitively as substrings, in this order. */
 export const INTENT_KEYWORDS = {
-  calculator: ['kosten', 'preis', 'kalk'],
+  calculator: ['kosten', 'kostet', 'preis', 'kalk'],
   spatialModel: ['3d', 'raum', 'bild'],
 } as const satisfies Readonly<Record<IntentKind, readonly string[]>>;
 

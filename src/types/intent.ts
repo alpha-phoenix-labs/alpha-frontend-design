@@ -1,4 +1,4 @@
-/** Intent categories recognised by the intent node (reference: "kosten|preis|kalk" → calculator, "3d|raum|bild" → spatialModel). */
+/** Intent categories recognised by the intent node (reference: "kosten|kostet|preis|kalk" → calculator, "3d|raum|bild" → spatialModel). */
 export type IntentKind = 'calculator' | 'spatialModel';
 
 /** All intent kinds in a stable order. */
