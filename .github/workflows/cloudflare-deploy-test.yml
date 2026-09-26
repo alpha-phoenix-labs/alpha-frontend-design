@@ -7,6 +7,10 @@ on:
         description: "Produktiv-Deploy ausführen (wirkt nur auf main, sonst nur versions upload)"
         type: boolean
         default: false
+      g5_preview:
+        description: "G5 Preview-Build mit realem Factory-HTTP-Modus (niemals Production-Traffic)"
+        type: boolean
+        default: false
   pull_request:
     branches:
       - main
@@ -21,6 +25,10 @@ concurrency:
 jobs:
   deploy-test:
     runs-on: ubuntu-latest
+
+    env:
+      VITE_FACTORY_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.g5_preview == true && 'http' || '' }}
+      VITE_FACTORY_API_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.g5_preview == true && 'https://n8n-workflow-factory.onrender.com' || '' }}
 
     steps:
       - name: Checkout
@@ -38,6 +46,18 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Guard G5 preview from production routing
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.g5_preview == true && inputs.deploy == true }}
+        run: |
+          echo "::error::G5 preview must never use production deploy."
+          exit 1
+
+      - name: Verify G5 preview build configuration
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.g5_preview == true }}
+        run: |
+          test "$VITE_FACTORY_MODE" = "http"
+          test "$VITE_FACTORY_API_BASE_URL" = "https://n8n-workflow-factory.onrender.com"
+
       - name: Build
         run: npm run build
 
@@ -52,9 +72,9 @@ jobs:
           wranglerVersion: "4.141.0"
           command: versions upload
 
-      # Produktiv-Deploy nur bei manuellem Start auf main mit deploy=true.
+      # Produktiv-Deploy nur bei manuellem Start auf main mit deploy=true und niemals im G5-Preview-Modus.
       - name: Deploy to Cloudflare
-        if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy == true }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy == true && inputs.g5_preview != true }}
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
