@@ -12,8 +12,11 @@ export interface WorkflowRequest {
 /** A factory job and its current status. */
 export interface FactoryJob {
   readonly id: string;
+  /** Optimistic-locking version of the job; increases with every backend change. */
+  readonly version: number;
   readonly status: JobStatus;
-  readonly request: WorkflowRequest;
+  /** Original request; only known to the client that submitted it (the backend never returns it). */
+  readonly request?: WorkflowRequest;
   readonly createdAt: IsoTimestamp;
   readonly updatedAt: IsoTimestamp;
   /** Present when the job ended in or passed through an error. */
@@ -50,18 +53,34 @@ export interface WorkflowExecutionResult {
   readonly error?: ApiError;
 }
 
-/** Job statuses relevant to the human approval gate. */
+/** Job statuses relevant to the human gate. */
 export type HumanGateStatus = Extract<JobStatus, 'awaiting_human' | 'approved'>;
 
-/** Human approval gate for a job; discriminated by `status`. */
+/**
+ * Kind of human gate:
+ * - `clarification`: the factory needs an answer to `question` before it can continue.
+ * - `approval`: the generated workflow waits for a release decision.
+ */
+export type HumanGateType = 'clarification' | 'approval';
+
+/** Human gate of a job; discriminated by `type` and `status`. */
 export type HumanGateState =
   | {
       readonly jobId: string;
+      readonly type: 'clarification';
+      readonly status: 'awaiting_human';
+      readonly requestedAt: IsoTimestamp;
+      readonly question: string;
+    }
+  | {
+      readonly jobId: string;
+      readonly type: 'approval';
       readonly status: 'awaiting_human';
       readonly requestedAt: IsoTimestamp;
     }
   | {
       readonly jobId: string;
+      readonly type: 'approval';
       readonly status: 'approved';
       readonly requestedAt: IsoTimestamp;
       readonly approvedAt: IsoTimestamp;

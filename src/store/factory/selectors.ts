@@ -114,7 +114,7 @@ export const useProductionTestFigures = (jobId: string | null): ProductionTestFi
 
 export type FactoryActions = Pick<
   FactoryState,
-  'submitWorkflowRequest' | 'refreshJob' | 'submitApproval' | 'setActiveJob' | 'clearLastError'
+  'submitWorkflowRequest' | 'refreshJob' | 'submitApproval' | 'submitClarification' | 'setActiveJob' | 'clearLastError'
 >;
 
 export const useFactoryActions = (): FactoryActions =>
@@ -123,6 +123,7 @@ export const useFactoryActions = (): FactoryActions =>
       submitWorkflowRequest: state.submitWorkflowRequest,
       refreshJob: state.refreshJob,
       submitApproval: state.submitApproval,
+      submitClarification: state.submitClarification,
       setActiveJob: state.setActiveJob,
       clearLastError: state.clearLastError,
     })),
