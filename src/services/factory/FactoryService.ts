@@ -2,10 +2,10 @@ import type {
   FactoryJob,
   FactoryResult,
   HumanGateState,
-  ProductionCost,
   TestResult,
   WorkflowExecutionResult,
   WorkflowGenerationResult,
+  WorkflowProductionMetrics,
   WorkflowRequest,
 } from '@/types/factory/index.ts';
 
@@ -21,5 +21,6 @@ export interface FactoryService {
   readonly getExecutionStatus: (jobId: string) => Promise<FactoryResult<WorkflowExecutionResult | null>>;
   readonly getHumanGateState: (jobId: string) => Promise<FactoryResult<HumanGateState | null>>;
   readonly submitApproval: (jobId: string) => Promise<FactoryResult<HumanGateState>>;
-  readonly getProductionCost: (jobId: string) => Promise<FactoryResult<ProductionCost | null>>;
+  /** Cumulative production metrics of the job's workflow; `totalCostMicros` equals `apiCostMicros + platformCostMicros`. */
+  readonly getProductionMetrics: (jobId: string) => Promise<FactoryResult<WorkflowProductionMetrics | null>>;
 }

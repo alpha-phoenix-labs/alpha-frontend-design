@@ -4,21 +4,26 @@ import type {
   FactoryResult,
   HumanGateState,
   JobStatus,
-  ProductionCost,
   TestResult,
   WorkflowExecutionResult,
   WorkflowGenerationResult,
+  WorkflowProductionMetrics,
   WorkflowRequest,
 } from '@/types/factory/index.ts';
 import type { FactoryService } from '@/services/factory/FactoryService.ts';
+import { totalProductionCostMicros } from '@/services/factory/productionMetrics.ts';
 import {
-  MOCK_COST_PROFILE,
+  MOCK_LOOP_USAGE,
+  MOCK_PHASE_USAGE,
+  MOCK_PLATFORM_COST_MICROS_PER_SECOND,
   MOCK_POST_APPROVAL_STEPS,
   MOCK_RESPONSE_DELAY_MS,
   MOCK_SCENARIOS,
   type MockFactoryScenario,
   type MockScenarioDefinition,
   type MockStatusStep,
+  type MockTestEvent,
+  type MockUsage,
 } from '@/mocks/factory.ts';
 
 /** Options of the mock factory service. */
@@ -45,8 +50,52 @@ interface ResolvedStep {
   readonly endsAtMs: number | null;
 }
 
+/** Test counters after a number of simulated test events. */
+interface TestFigures {
+  readonly testCount: number;
+  readonly passed: number;
+  readonly failed: number;
+  readonly retryLoops: number;
+  readonly repairLoops: number;
+}
+
+const NO_TESTS: TestFigures = { testCount: 0, passed: 0, failed: 0, retryLoops: 0, repairLoops: 0 };
+const NO_USAGE: MockUsage = { tokensIn: 0, tokensOut: 0, modelCalls: 0, agentCalls: 0, apiCostMicros: 0 };
+
 const iso = (ms: number): string => new Date(ms).toISOString();
-const roundCost = (value: number): number => Math.round(value * 10000) / 10000;
+const padSequence = (sequence: number): string => sequence.toString().padStart(4, '0');
+
+const addUsage = (total: MockUsage, usage: MockUsage, factor: number): MockUsage => ({
+  tokensIn: total.tokensIn + usage.tokensIn * factor,
+  tokensOut: total.tokensOut + usage.tokensOut * factor,
+  modelCalls: total.modelCalls + usage.modelCalls * factor,
+  agentCalls: total.agentCalls + usage.agentCalls * factor,
+  apiCostMicros: total.apiCostMicros + usage.apiCostMicros * factor,
+});
+
+/** Applies test events in order; a recovered retry or repair turns one failing test into a passing one. */
+function applyTestEvent(figures: TestFigures, event: MockTestEvent): TestFigures {
+  switch (event.kind) {
+    case 'pass':
+      return { ...figures, passed: figures.passed + 1 };
+    case 'fail':
+      return { ...figures, failed: figures.failed + 1 };
+    case 'retry':
+    case 'repair': {
+      const loops =
+        event.kind === 'retry'
+          ? { retryLoops: figures.retryLoops + 1, repairLoops: figures.repairLoops }
+          : { retryLoops: figures.retryLoops, repairLoops: figures.repairLoops + 1 };
+      const recovers = event.recovered && figures.failed > 0;
+      return {
+        ...figures,
+        ...loops,
+        passed: recovers ? figures.passed + 1 : figures.passed,
+        failed: recovers ? figures.failed - 1 : figures.failed,
+      };
+    }
+  }
+}
 
 function jobNotFound(jobId: string): ApiError {
   return { kind: 'unknown', code: 'job_not_found', message: `Job ${jobId} ist unbekannt.` };
@@ -76,7 +125,7 @@ export class MockFactoryService implements FactoryService {
       }
       this.#sequence += 1;
       const record: MockJobRecord = {
-        id: `mock-job-${this.#sequence.toString().padStart(4, '0')}`,
+        id: `mock-job-${padSequence(this.#sequence)}`,
         sequence: this.#sequence,
         request,
         createdAtMs: this.#now(),
@@ -98,7 +147,7 @@ export class MockFactoryService implements FactoryService {
       }
       return {
         jobId: record.id,
-        workflowId: `mock-workflow-${record.sequence.toString().padStart(4, '0')}`,
+        workflowId: this.#workflowIdOf(record),
         generatedAt: iso(generated.enteredAtMs),
       };
     });
@@ -109,17 +158,8 @@ export class MockFactoryService implements FactoryService {
       if (testing === null) {
         return null;
       }
-      const profile = record.scenario.tests;
-      const progress = this.#progress(testing);
-      const base = {
-        jobId: record.id,
-        testMode: record.request.testMode,
-        testCount: profile.testCount,
-        passed: Math.round(profile.passed * progress),
-        failed: Math.round(profile.failed * progress),
-        repairLoops: Math.round(profile.repairLoops * progress),
-      };
-      return testing.endsAtMs !== null && progress >= 1 ? { ...base, completedAt: iso(testing.endsAtMs) } : base;
+      const base = { jobId: record.id, testMode: record.request.testMode, ...this.#testFiguresOf(record) };
+      return testing.endsAtMs !== null && this.#progress(testing) >= 1 ? { ...base, completedAt: iso(testing.endsAtMs) } : base;
     });
 
   readonly getExecutionStatus = (jobId: string): Promise<FactoryResult<WorkflowExecutionResult | null>> =>
@@ -130,7 +170,7 @@ export class MockFactoryService implements FactoryService {
       }
       const base = {
         jobId: record.id,
-        executionId: `mock-execution-${record.sequence.toString().padStart(4, '0')}`,
+        executionId: `mock-execution-${padSequence(record.sequence)}`,
         startedAt: iso(approved.enteredAtMs),
       };
       const completed = this.#stepOf(record, 'completed');
@@ -167,35 +207,41 @@ export class MockFactoryService implements FactoryService {
         : { ok: true, value: gate };
     });
 
-  readonly getProductionCost = (jobId: string): Promise<FactoryResult<ProductionCost | null>> =>
+  readonly getProductionMetrics = (jobId: string): Promise<FactoryResult<WorkflowProductionMetrics | null>> =>
     this.#withJob(jobId, (record) => {
-      const generating = this.#stepOf(record, 'generating');
-      if (generating === null) {
-        return null;
-      }
-      const { generation, perRepairLoop, platformCost } = MOCK_COST_PROFILE;
-      const generationShare = this.#progress(generating);
-      const testing = this.#stepOf(record, 'testing');
-      const testProfile = record.scenario.tests;
-      const testShare = testing === null ? 0 : this.#progress(testing);
-      const loops = testProfile.repairLoops * testShare;
-      const current = this.#currentStep(record);
-      const endMs = current.endsAtMs === null ? current.enteredAtMs : this.#now();
-      const apiCost = roundCost(generation.apiCost * generationShare + perRepairLoop.apiCost * loops);
-      return {
-        jobId: record.id,
-        apiCost,
-        tokensIn: Math.round(generation.tokensIn * generationShare + perRepairLoop.tokensIn * loops),
-        tokensOut: Math.round(generation.tokensOut * generationShare + perRepairLoop.tokensOut * loops),
-        modelCalls: Math.round(generation.modelCalls * generationShare + perRepairLoop.modelCalls * loops),
-        durationMs: Math.max(0, endMs - record.createdAtMs),
-        testMode: record.request.testMode,
-        testCount: testProfile.testCount,
-        passed: Math.round(testProfile.passed * testShare),
-        failed: Math.round(testProfile.failed * testShare),
-        repairLoops: Math.round(loops),
-        totalCost: roundCost(apiCost + platformCost),
+      const steps = this.#reachedSteps(record);
+      const tests = this.#testFiguresOf(record);
+      const phaseUsage = steps.reduce((total, step) => {
+        const usage = MOCK_PHASE_USAGE[step.status];
+        return usage === undefined ? total : addUsage(total, usage, this.#progress(step));
+      }, NO_USAGE);
+      const usage = addUsage(
+        addUsage(phaseUsage, MOCK_LOOP_USAGE.retry, tests.retryLoops),
+        MOCK_LOOP_USAGE.repair,
+        tests.repairLoops,
+      );
+      const productionTimeMs = this.#productionTimeMs(steps);
+      const costParts = {
+        apiCostMicros: Math.round(usage.apiCostMicros),
+        platformCostMicros: Math.round((productionTimeMs / 1000) * MOCK_PLATFORM_COST_MICROS_PER_SECOND),
       };
+      const current = this.#currentStep(record);
+      const updatedAtMs = current.endsAtMs === null ? current.enteredAtMs : this.#now();
+      const metrics: WorkflowProductionMetrics = {
+        jobId: record.id,
+        currency: 'USD',
+        ...costParts,
+        totalCostMicros: totalProductionCostMicros(costParts),
+        tokensIn: Math.round(usage.tokensIn),
+        tokensOut: Math.round(usage.tokensOut),
+        modelCalls: Math.round(usage.modelCalls),
+        agentCalls: Math.round(usage.agentCalls),
+        productionTimeMs,
+        testMode: record.request.testMode,
+        ...tests,
+        updatedAt: iso(updatedAtMs),
+      };
+      return this.#stepOf(record, 'generated') === null ? metrics : { ...metrics, workflowId: this.#workflowIdOf(record) };
     });
 
   #respond<T>(produce: () => FactoryResult<T>): Promise<FactoryResult<T>> {
@@ -261,6 +307,33 @@ export class MockFactoryService implements FactoryService {
     }
     const span = step.endsAtMs - step.enteredAtMs;
     return span <= 0 ? 1 : Math.min(1, Math.max(0, (this.#now() - step.enteredAtMs) / span));
+  }
+
+  #workflowIdOf(record: MockJobRecord): string {
+    return `mock-workflow-${padSequence(record.sequence)}`;
+  }
+
+  /** Test counters so far; events are spread evenly over the `testing` step, the planned count is known at its start. */
+  #testFiguresOf(record: MockJobRecord): TestFigures {
+    const testing = this.#stepOf(record, 'testing');
+    if (testing === null) {
+      return NO_TESTS;
+    }
+    const events = record.scenario.testEvents;
+    const applied = Math.floor(events.length * this.#progress(testing));
+    const testCount = events.filter((event) => event.kind === 'pass' || event.kind === 'fail').length;
+    return events.slice(0, applied).reduce(applyTestEvent, { ...NO_TESTS, testCount });
+  }
+
+  /** Elapsed time of all reached steps, excluding the wait at the human gate and steps that last until further action. */
+  #productionTimeMs(steps: readonly ResolvedStep[]): number {
+    const now = this.#now();
+    return steps.reduce((total, step) => {
+      if (step.status === 'awaiting_human' || step.endsAtMs === null) {
+        return total;
+      }
+      return total + Math.max(0, Math.min(step.endsAtMs, now) - step.enteredAtMs);
+    }, 0);
   }
 
   #gateOf(record: MockJobRecord): HumanGateState | null {

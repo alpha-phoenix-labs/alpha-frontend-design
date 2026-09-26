@@ -11,7 +11,7 @@ export interface ModuleStageProps {
 
 export function ModuleStage({ state, renderModule, onExitComplete }: ModuleStageProps) {
   return (
-    <div className="pointer-events-none flex h-full w-full max-w-6xl items-center justify-center gap-8">
+    <div className="pointer-events-none flex h-full w-full max-w-6xl items-center justify-center gap-8 pt-48">
       <AnimatePresence mode="wait" {...(onExitComplete ? { onExitComplete } : {})}>
         {state.status === "active" && (
           <motion.div

@@ -9,6 +9,7 @@ export type {
   WorkflowExecutionResult,
   HumanGateStatus,
   HumanGateState,
-  ProductionCost,
 } from '@/types/factory/contracts.ts';
+export { MICROS_PER_CURRENCY_UNIT } from '@/types/factory/productionMetrics.ts';
+export type { TestMode, CostCurrency, WorkflowProductionMetrics } from '@/types/factory/productionMetrics.ts';
 export type { FactoryResult } from '@/types/factory/result.ts';

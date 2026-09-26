@@ -19,10 +19,10 @@ Die Typen sind contract-first angelegt und bewusst minimal. Alles, was die Refer
 | `WorkflowRequest` | Kontext (Kunde, Projekt), Anhänge, Zielsystem, Identität des Anfragenden, Idempotenzschlüssel |
 | `FactoryJob` | Format der Job-ID, Fortschrittsangabe, Verweise auf Generierungs-, Test- und Ausführungs-IDs, ob `error` auch bei `blocked` gesetzt wird |
 | `WorkflowGenerationResult` | Name, Zusammenfassung, Node-Anzahl, Version; die Workflow-Definition bleibt für die UI bewusst opak |
-| `TestResult` | Einzelne Testfälle und Details, Startzeitpunkt, Testlauf-ID |
+| `TestResult` | Einzelne Testfälle und Details, Startzeitpunkt, Testlauf-ID, welche `TestMode`-Werte die Factory tatsächlich anbietet |
 | `WorkflowExecutionResult` | Ausgabedaten, Trigger-Art, welche `JobStatus`-Werte für eine Ausführung gültig sind |
 | `HumanGateState` | Kommentar, Identität des Freigebenden, Timeout, Payload von `submitApproval` |
-| `ProductionCost` | Währung und Einheit von `apiCost` und `totalCost`, Kosten je Modell, ob `durationMs` Wall-Clock-Zeit ist |
+| `WorkflowProductionMetrics` | Kosten je Modell und je Agent, Zusammensetzung von `platformCostMicros`, ob die Factory Micros liefert oder die Umrechnung im Live-Adapter erfolgt |
 | `ApiError` | Katalog der Server-Fehlercodes, Retry-Hinweis, Detail-Payload |
 
 ## Human Gate: Ablehnung undefiniert
@@ -30,10 +30,29 @@ Die Typen sind contract-first angelegt und bewusst minimal. Alles, was die Refer
 - `JobStatus` kennt `awaiting_human` und `approved`, aber keinen Ablehnungszustand.
 - `submitApproval(jobId)` kann daher nur freigeben. Ob eine Ablehnung zu `failed`, `blocked` oder zurück zu `generating` führt und welche Begründung mitgeschickt wird, ist offen.
 
-## Währung und Einheit der Kosten
+## Produktionsmetriken pro Workflow (Punkt H)
 
-- `apiCost` und `totalCost` sind reine Zahlen. Währung (EUR oder USD), Einheit (Hauptwährung mit Nachkommastellen oder Cent) und Rundung sind nicht festgelegt.
-- Der Mock liefert einheitenlose Dezimalwerte. `totalCost` enthält dort `apiCost` plus einen festen Plattformanteil; die echte Zusammensetzung ist offen.
+Typ `WorkflowProductionMetrics` in `src/types/factory/productionMetrics.ts`, geliefert von `FactoryService.getProductionMetrics(jobId)` (Mock und künftiger Live-Adapter über dasselbe Interface), im Store unter `productionMetrics[jobId]`.
+
+| Feld | Bedeutung |
+| --- | --- |
+| `jobId`, `workflowId?` | Job und erzeugter Workflow; `workflowId` erst nach `generated` |
+| `currency` | Währung aller Beträge, derzeit nur `'USD'` |
+| `apiCostMicros` | API-Kosten der Modellaufrufe |
+| `platformCostMicros` | Plattformanteil (Rechenzeit, Testausführung) |
+| `totalCostMicros` | Gesamtproduktionskosten, immer `apiCostMicros + platformCostMicros` (`totalProductionCostMicros()` in `src/services/factory/productionMetrics.ts`) |
+| `tokensIn`, `tokensOut` | Input- und Output-Tokens |
+| `modelCalls`, `agentCalls` | Modell- und Agentenaufrufe |
+| `productionTimeMs` | Aktive Produktionszeit in Millisekunden, ohne Wartezeit am Human Gate |
+| `testMode` | `TestMode`: `'mock'` (externe Systeme simuliert), `'dry_run'` (echte Nodes ohne schreibende Nebenwirkungen), `'live'` (echte Zielsysteme) |
+| `testCount`, `passed`, `failed` | Geplante Tests sowie aktuell bestandene (PASS) und fehlschlagende (FAIL) Tests; `passed + failed <= testCount` |
+| `retryLoops`, `repairLoops` | Unveränderte Wiederholungen fehlgeschlagener Tests und modellgestützte Reparaturen mit Neutest |
+| `updatedAt` | Zeitpunkt der letzten Änderung |
+
+- Beträge sind ganze Zahlen in Micros: 1 USD = 1.000.000 (`MICROS_PER_CURRENCY_UNIT`). Das vermeidet Rundungsdrift beim Summieren; die Anzeige rechnet in der UI um.
+- Alle Werte sind kumulativ seit Einreichung und wachsen nur. `WorkflowRequest.testMode` und `TestResult.testMode` verwenden denselben Typ `TestMode`; `TestResult` enthält zusätzlich `retryLoops`.
+- Der Mock liefert Metriken ab `queued`: Tokens, Aufrufe und API-Kosten wachsen anteilig in `generating`, `importing`, `testing` und `approved`; Tests, PASS/FAIL, Retry- und Reparaturschleifen entstehen erst in `testing` aus einer festen Ereignisfolge je Szenario; jede Reparatur kostet zusätzliche Tokens und Aufrufe. Der Plattformanteil ist proportional zur Produktionszeit. Beträge und Tarife des Mocks sind fiktiv.
+- Offen für den Live-Vertrag: ob die Factory Micros oder Dezimalbeträge liefert, weitere Währungen, echte Tarife und die Zusammensetzung des Plattformanteils, Aufschlüsselung je Modell und Agent, ob abgelehnte oder abgebrochene Jobs weiter Kosten erzeugen.
 
 ## Erlaubte Übergänge und Endzustände
 

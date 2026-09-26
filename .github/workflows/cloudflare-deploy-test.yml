@@ -1,0 +1,63 @@
+name: Cloudflare Deploy Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Produktiv-Deploy ausführen (wirkt nur auf main, sonst nur versions upload)"
+        type: boolean
+        default: false
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      # Pull Requests und jeder manuelle Start ohne deploy=true auf main:
+      # lädt eine Version ohne Live-Traffic hoch, kein Produktiv-Deploy.
+      - name: Upload version to Cloudflare (no traffic)
+        if: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy == true) }}
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.141.0"
+          command: versions upload
+
+      # Produktiv-Deploy nur bei manuellem Start auf main mit deploy=true.
+      - name: Deploy to Cloudflare
+        if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy == true }}
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.141.0"
+          command: deploy

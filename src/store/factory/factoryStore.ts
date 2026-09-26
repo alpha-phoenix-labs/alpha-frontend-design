@@ -1,13 +1,14 @@
 import { create } from 'zustand';
+import { shallow } from 'zustand/shallow';
 import type {
   ApiError,
   FactoryJob,
   FactoryResult,
   HumanGateState,
-  ProductionCost,
   TestResult,
   WorkflowExecutionResult,
   WorkflowGenerationResult,
+  WorkflowProductionMetrics,
   WorkflowRequest,
 } from '@/types/factory/index.ts';
 import { getFactoryService, type FactoryService } from '@/services/factory/index.ts';
@@ -24,7 +25,8 @@ export interface FactoryState {
   readonly testResults: ById<TestResult>;
   readonly executionResults: ById<WorkflowExecutionResult>;
   readonly humanGates: ById<HumanGateState>;
-  readonly productionCosts: ById<ProductionCost>;
+  /** Production metrics per job; an entry keeps its reference while the values are unchanged. */
+  readonly productionMetrics: ById<WorkflowProductionMetrics>;
   readonly lastError: ApiError | null;
   /** Submits a request, stores the new job and makes it the active job. */
   readonly submitWorkflowRequest: (request: WorkflowRequest) => Promise<FactoryResult<FactoryJob>>;
@@ -61,7 +63,7 @@ export function createFactoryStore(service: FactoryService) {
       testResults: {},
       executionResults: {},
       humanGates: {},
-      productionCosts: {},
+      productionMetrics: {},
       lastError: null,
       submitWorkflowRequest: async (request) => {
         const result = await service.submitWorkflowRequest(request);
@@ -74,13 +76,13 @@ export function createFactoryStore(service: FactoryService) {
         return result;
       },
       refreshJob: async (jobId) => {
-        const [job, generation, test, execution, gate, cost] = await Promise.all([
+        const [job, generation, test, execution, gate, metrics] = await Promise.all([
           service.getJobStatus(jobId),
           service.getGeneratedWorkflow(jobId),
           service.getTestStatus(jobId),
           service.getExecutionStatus(jobId),
           service.getHumanGateState(jobId),
-          service.getProductionCost(jobId),
+          service.getProductionMetrics(jobId),
         ]);
         if (job.ok) {
           storeJob(job.value);
@@ -95,8 +97,12 @@ export function createFactoryStore(service: FactoryService) {
           set((state) => ({ executionResults: { ...state.executionResults, [jobId]: value } })),
         );
         applyResult(gate, (value) => set((state) => ({ humanGates: { ...state.humanGates, [jobId]: value } })));
-        applyResult(cost, (value) =>
-          set((state) => ({ productionCosts: { ...state.productionCosts, [jobId]: value } })),
+        applyResult(metrics, (value) =>
+          set((state) =>
+            shallow(state.productionMetrics[jobId], value)
+              ? state
+              : { productionMetrics: { ...state.productionMetrics, [jobId]: value } },
+          ),
         );
       },
       submitApproval: async (jobId) => {
