@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { MotionConfig } from "framer-motion";
 import {
   AmbientNotificationCard,
   CostEstimateModule,
@@ -58,7 +59,7 @@ export default function App() {
   useMetricsSampling();
 
   return (
-    <>
+    <MotionConfig reducedMotion="user">
       <Suspense fallback={null}>
         <NeuralTerrainCanvas />
       </Suspense>
@@ -67,6 +68,6 @@ export default function App() {
         <Workspace />
       </div>
       <AmbientSlot />
-    </>
+    </MotionConfig>
   );
 }
