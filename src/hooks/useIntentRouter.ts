@@ -3,6 +3,7 @@ import type { ActiveModule, CostEstimate, IntentKind, IntentNodePosture, ModuleS
 import {
   useActiveModule,
   useIntentActions,
+  useIntentFocusRequest,
   useIntentNodePosture,
   useIntentText,
   useModuleState,
@@ -28,11 +29,7 @@ export const INTENT_TIMING = {
   moduleExitMs: 500,
 } as const;
 
-/** Input texts the reference writes into the intent node after actions. */
-export const INTENT_STATUS_TEXT = {
-  committing: 'Syncing to Project...',
-  reviewing: 'Reviewing Draft...',
-} as const;
+export { INTENT_STATUS_TEXT } from '@/store/index.ts';
 
 const ROUTING_ORDER: readonly IntentKind[] = ['calculator', 'spatialModel'];
 
@@ -49,12 +46,14 @@ export interface IntentRouter {
   readonly onValueChange: (value: string) => void;
   /** Routes and submits the text; returns the recognised kind or null (input is kept when nothing matches). */
   readonly onSubmit: (value: string) => IntentKind | null;
+  /** Changes whenever the intent input should be focused (e.g. after "Review Draft"). */
+  readonly focusRequest: number;
   readonly moduleState: ModuleState;
   readonly activeModule: ActiveModule | null;
   /** Estimate for the active calculator module, otherwise null. */
   readonly costEstimate: CostEstimate | null;
   readonly closeModule: () => void;
-  /** "Commit to Project": closes the module and shows the syncing text in the input. */
+  /** "Commit to Project": closes the module and writes "Syncing to Project..." into the input. */
   readonly commitEstimate: () => void;
   /** Pass to ModuleStage `onExitComplete`; returns the intent node once the exit animation ended. */
   readonly onModuleExitComplete: () => void;
@@ -64,8 +63,9 @@ export function useIntentRouter(): IntentRouter {
   const posture = useIntentNodePosture();
   const value = useIntentText();
   const moduleState = useModuleState();
+  const focusRequest = useIntentFocusRequest();
   const activeModule = useActiveModule();
-  const { setIntentText, submitIntent, closeModule: closeModuleInStore } = useIntentActions();
+  const { setIntentText, submitIntent, closeModule: closeModuleInStore, commitActiveModule } = useIntentActions();
   const { settleIntentNode } = useUiActions();
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -91,21 +91,26 @@ export function useIntentRouter(): IntentRouter {
     [clearSettleTimer, submitIntent],
   );
 
-  const closeModule = useCallback(() => {
-    playUiSound('uiClick');
-    closeModuleInStore();
+  const scheduleSettle = useCallback(() => {
     clearSettleTimer();
     const delay = prefersReducedMotion() ? 0 : INTENT_TIMING.moduleExitMs;
     settleTimer.current = setTimeout(() => {
       settleTimer.current = null;
       settleIntentNode();
     }, delay);
-  }, [clearSettleTimer, closeModuleInStore, settleIntentNode]);
+  }, [clearSettleTimer, settleIntentNode]);
+
+  const closeModule = useCallback(() => {
+    playUiSound('uiClick');
+    closeModuleInStore();
+    scheduleSettle();
+  }, [closeModuleInStore, scheduleSettle]);
 
   const commitEstimate = useCallback(() => {
-    closeModule();
-    setIntentText(INTENT_STATUS_TEXT.committing);
-  }, [closeModule, setIntentText]);
+    playUiSound('uiClick');
+    commitActiveModule();
+    scheduleSettle();
+  }, [commitActiveModule, scheduleSettle]);
 
   const onModuleExitComplete = useCallback(() => {
     clearSettleTimer();
@@ -119,6 +124,7 @@ export function useIntentRouter(): IntentRouter {
     value,
     onValueChange: setIntentText,
     onSubmit,
+    focusRequest,
     moduleState,
     activeModule,
     costEstimate,

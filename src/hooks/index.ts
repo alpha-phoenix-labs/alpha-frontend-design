@@ -23,5 +23,6 @@ export {
   type SystemMetricsOptions,
 } from '@/hooks/useSystemMetrics.ts';
 export { useUiSound, playUiSound, SOUND_FILES, UI_SOUND_VOLUME, type SoundName, type UiSound } from '@/hooks/useUiSound.ts';
+export { useIntentInputFocus } from '@/hooks/useIntentInputFocus.ts';
 export { usePrefersReducedMotion, prefersReducedMotion } from '@/hooks/usePrefersReducedMotion.ts';
 export { useFactoryJobPolling, FACTORY_POLL_INTERVAL_MS } from '@/hooks/useFactoryJobPolling.ts';

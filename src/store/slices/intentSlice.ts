@@ -9,11 +9,21 @@ export interface IntentSubmission {
   readonly submittedAt: IsoTimestamp;
 }
 
+/** Texts the reference writes into the intent input after actions. */
+export const INTENT_STATUS_TEXT = {
+  /** After "Commit to Project" on the cost estimate. */
+  committing: 'Syncing to Project...',
+  /** After "Review Draft" on an ambient notification. */
+  reviewing: 'Reviewing Draft...',
+} as const;
+
 /** Intent input, last submission and the single module stage. */
 export interface IntentSlice {
   readonly intentText: string;
   readonly lastSubmission: IntentSubmission | null;
   readonly moduleState: ModuleState;
+  /** Incremented whenever the intent input should receive focus; the UI focuses on change. */
+  readonly focusRequest: number;
   readonly setIntentText: (text: string) => void;
   /**
    * Records a submission. With a recognised kind the current module is replaced,
@@ -24,6 +34,9 @@ export interface IntentSlice {
   readonly openModule: (kind: IntentKind, intentText: string) => ActiveModule;
   /** Removes the active module. The intent node stays receded until `settleIntentNode`. */
   readonly closeModule: () => void;
+  /** "Commit to Project": removes the active module and writes the syncing text into the input. */
+  readonly commitActiveModule: () => void;
+  readonly requestIntentFocus: () => void;
 }
 
 let moduleSequence = 0;
@@ -37,6 +50,7 @@ export const createIntentSlice: StateCreator<CraftflowState, [], [], IntentSlice
   intentText: '',
   lastSubmission: null,
   moduleState: { status: 'idle' },
+  focusRequest: 0,
   setIntentText: (text) => set({ intentText: text }),
   submitIntent: (text, kind) => {
     const submittedAt = new Date().toISOString();
@@ -59,4 +73,6 @@ export const createIntentSlice: StateCreator<CraftflowState, [], [], IntentSlice
     return module;
   },
   closeModule: () => set({ moduleState: { status: 'idle' } }),
+  commitActiveModule: () => set({ moduleState: { status: 'idle' }, intentText: INTENT_STATUS_TEXT.committing }),
+  requestIntentFocus: () => set((state) => ({ focusRequest: state.focusRequest + 1 })),
 });

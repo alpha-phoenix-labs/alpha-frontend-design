@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { AmbientActionKind, AmbientNotification } from '@/types/index.ts';
-import { useActiveNotification, useAmbientActions, useIntentActions } from '@/store/index.ts';
+import { useActiveNotification, useAmbientActions } from '@/store/index.ts';
 import { playUiSound } from '@/hooks/useUiSound.ts';
-import { INTENT_STATUS_TEXT } from '@/hooks/useIntentRouter.ts';
 
 /** Delay of the simulated ambient task from the reference (6 s). */
 export const AMBIENT_SIMULATION_DELAY_MS = 6000;
@@ -26,7 +25,10 @@ export interface AmbientSimulationOptions {
   readonly onReview?: (notification: AmbientNotification) => void;
 }
 
-/** Props-compatible with AmbientNotificationCard. */
+/**
+ * Props-compatible with AmbientNotificationCard. `onAction('dismiss')` removes the card;
+ * `onAction('review')` removes it, writes "Reviewing Draft..." into the intent input and requests focus.
+ */
 export interface AmbientSimulation {
   readonly notification: AmbientNotification | null;
   readonly onAction: (kind: AmbientActionKind, notificationId: string) => void;
@@ -39,8 +41,7 @@ export interface AmbientSimulation {
 export function useAmbientSimulation(options: AmbientSimulationOptions = {}): AmbientSimulation {
   const { enabled = true, delayMs = AMBIENT_SIMULATION_DELAY_MS, onReview } = options;
   const notification = useActiveNotification();
-  const { pushNotification, dismissNotification } = useAmbientActions();
-  const { setIntentText } = useIntentActions();
+  const { pushNotification, dismissNotification, reviewNotification } = useAmbientActions();
   const onReviewRef = useRef(onReview);
 
   useEffect(() => {
@@ -62,16 +63,17 @@ export function useAmbientSimulation(options: AmbientSimulationOptions = {}): Am
 
   const onAction = useCallback(
     (kind: AmbientActionKind, notificationId: string) => {
+      if (kind === 'dismiss') {
+        dismissNotification(notificationId);
+        return;
+      }
       const target = notification !== null && notification.id === notificationId ? notification : null;
-      dismissNotification(notificationId);
-      if (kind === 'review') {
-        setIntentText(INTENT_STATUS_TEXT.reviewing);
-        if (target !== null) {
-          onReviewRef.current?.(target);
-        }
+      reviewNotification(notificationId);
+      if (target !== null) {
+        onReviewRef.current?.(target);
       }
     },
-    [dismissNotification, notification, setIntentText],
+    [dismissNotification, notification, reviewNotification],
   );
 
   return { notification, onAction };

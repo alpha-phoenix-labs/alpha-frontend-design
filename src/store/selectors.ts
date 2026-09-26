@@ -15,6 +15,7 @@ export const selectSoundMuted = (state: CraftflowState): boolean => state.soundM
 export const selectIntentNodePosture = (state: CraftflowState): IntentNodePosture => state.intentNodePosture;
 export const selectIntentText = (state: CraftflowState): string => state.intentText;
 export const selectLastSubmission = (state: CraftflowState): IntentSubmission | null => state.lastSubmission;
+export const selectFocusRequest = (state: CraftflowState): number => state.focusRequest;
 export const selectModuleState = (state: CraftflowState): ModuleState => state.moduleState;
 export const selectActiveModule = (state: CraftflowState): ActiveModule | null =>
   state.moduleState.status === 'active' ? state.moduleState.module : null;
@@ -32,6 +33,7 @@ export const useSoundMuted = (): boolean => useCraftflowStore(selectSoundMuted);
 export const useIntentNodePosture = (): IntentNodePosture => useCraftflowStore(selectIntentNodePosture);
 export const useIntentText = (): string => useCraftflowStore(selectIntentText);
 export const useLastSubmission = (): IntentSubmission | null => useCraftflowStore(selectLastSubmission);
+export const useIntentFocusRequest = (): number => useCraftflowStore(selectFocusRequest);
 export const useModuleState = (): ModuleState => useCraftflowStore(selectModuleState);
 export const useActiveModule = (): ActiveModule | null => useCraftflowStore(selectActiveModule);
 export const useActiveModuleKind = (): IntentKind | null => useCraftflowStore(selectActiveModuleKind);
@@ -47,8 +49,14 @@ export const useHeaderMetrics = (): Pick<SystemMetrics, 'latencyMs' | 'vramUsedG
   );
 
 export type UiActions = Pick<CraftflowState, 'setSoundMuted' | 'toggleSoundMuted' | 'settleIntentNode'>;
-export type IntentActions = Pick<CraftflowState, 'setIntentText' | 'submitIntent' | 'openModule' | 'closeModule'>;
-export type AmbientActions = Pick<CraftflowState, 'pushNotification' | 'dismissNotification' | 'clearNotifications'>;
+export type IntentActions = Pick<
+  CraftflowState,
+  'setIntentText' | 'submitIntent' | 'openModule' | 'closeModule' | 'commitActiveModule' | 'requestIntentFocus'
+>;
+export type AmbientActions = Pick<
+  CraftflowState,
+  'pushNotification' | 'dismissNotification' | 'reviewNotification' | 'clearNotifications'
+>;
 export type MetricsActions = Pick<CraftflowState, 'recordMetricsSample'>;
 
 export const useUiActions = (): UiActions =>
@@ -67,6 +75,8 @@ export const useIntentActions = (): IntentActions =>
       submitIntent: state.submitIntent,
       openModule: state.openModule,
       closeModule: state.closeModule,
+      commitActiveModule: state.commitActiveModule,
+      requestIntentFocus: state.requestIntentFocus,
     })),
   );
 
@@ -75,6 +85,7 @@ export const useAmbientActions = (): AmbientActions =>
     useShallow((state) => ({
       pushNotification: state.pushNotification,
       dismissNotification: state.dismissNotification,
+      reviewNotification: state.reviewNotification,
       clearNotifications: state.clearNotifications,
     })),
   );
