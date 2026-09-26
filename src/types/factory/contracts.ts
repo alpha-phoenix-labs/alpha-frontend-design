@@ -1,11 +1,12 @@
 import type { IsoTimestamp } from '@/types/common.ts';
 import type { ApiError } from '@/types/factory/apiError.ts';
 import type { JobStatus } from '@/types/factory/jobStatus.ts';
+import type { TestMode } from '@/types/factory/productionMetrics.ts';
 
 /** Request to generate a workflow from a natural-language description. */
 export interface WorkflowRequest {
   readonly description: string;
-  readonly testMode: boolean;
+  readonly testMode: TestMode;
 }
 
 /** A factory job and its current status. */
@@ -29,10 +30,11 @@ export interface WorkflowGenerationResult {
 /** Test run summary for a generated workflow. */
 export interface TestResult {
   readonly jobId: string;
-  readonly testMode: boolean;
+  readonly testMode: TestMode;
   readonly testCount: number;
   readonly passed: number;
   readonly failed: number;
+  readonly retryLoops: number;
   readonly repairLoops: number;
   /** Set once the test run has finished. */
   readonly completedAt?: IsoTimestamp;
@@ -64,19 +66,3 @@ export type HumanGateState =
       readonly requestedAt: IsoTimestamp;
       readonly approvedAt: IsoTimestamp;
     };
-
-/** Production cost and metrics of a job (field set from the UI plan). Monetary values are plain numbers; currency and unit are not yet specified. */
-export interface ProductionCost {
-  readonly jobId: string;
-  readonly apiCost: number;
-  readonly tokensIn: number;
-  readonly tokensOut: number;
-  readonly modelCalls: number;
-  readonly durationMs: number;
-  readonly testMode: boolean;
-  readonly testCount: number;
-  readonly passed: number;
-  readonly failed: number;
-  readonly repairLoops: number;
-  readonly totalCost: number;
-}

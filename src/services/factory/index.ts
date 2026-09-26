@@ -4,6 +4,7 @@ import { MockFactoryService, type MockFactoryServiceOptions } from '@/services/f
 export type { FactoryService } from '@/services/factory/FactoryService.ts';
 export { MockFactoryService, type MockFactoryServiceOptions } from '@/services/factory/MockFactoryService.ts';
 export type { MockFactoryScenario } from '@/mocks/factory.ts';
+export { totalProductionCostMicros, type ProductionCostParts } from '@/services/factory/productionMetrics.ts';
 
 /** Implementation in use. Only the mock exists until an HTTP endpoint contract is agreed. */
 export type FactoryServiceMode = 'mock';
