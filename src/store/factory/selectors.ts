@@ -2,9 +2,9 @@ import { useShallow } from 'zustand/react/shallow';
 import type {
   ApiError,
   FactoryJob,
+  FactoryTestReport,
   HumanGateState,
   JobStatus,
-  TestResult,
   WorkflowExecutionResult,
   WorkflowGenerationResult,
   WorkflowProductionMetrics,
@@ -66,7 +66,7 @@ export const useFactoryJobStatus = (jobId: string | null): JobStatus =>
   useFactoryStore((state) => lookup(state.jobs, jobId)?.status ?? 'idle');
 export const useWorkflowGenerationResult = (jobId: string | null): WorkflowGenerationResult | null =>
   useFactoryStore((state) => lookup(state.generationResults, jobId));
-export const useTestResult = (jobId: string | null): TestResult | null =>
+export const useTestResult = (jobId: string | null): FactoryTestReport | null =>
   useFactoryStore((state) => lookup(state.testResults, jobId));
 export const useWorkflowExecutionResult = (jobId: string | null): WorkflowExecutionResult | null =>
   useFactoryStore((state) => lookup(state.executionResults, jobId));
