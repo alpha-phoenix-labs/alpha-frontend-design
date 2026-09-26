@@ -192,12 +192,28 @@ describe('HttpFactoryService', () => {
     expect(calls.filter((call) => call.method === 'GET')).toHaveLength(1);
   });
 
-  it('network failure before a POST response stays NETWORK', async () => {
+  it('POST dispatched -> transport failure before response -> MUTATION_UNCONFIRMED', async () => {
     const { fetch, calls } = fakeFetch(() => Promise.reject(new TypeError('Failed to fetch')));
     const result = await service(fetch).submitWorkflowRequest({ description: 'Baue X', testMode: 'mock' });
-    expect(result).toMatchObject({ ok: false, error: { code: 'NETWORK' } });
-    expect(result).not.toMatchObject({ ok: false, error: { code: 'MUTATION_UNCONFIRMED' } });
-    expect(calls).toHaveLength(1);
+    expect(result).toMatchObject({ ok: false, error: { code: 'MUTATION_UNCONFIRMED' } });
+    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+  });
+
+  it('POST timeout after dispatch yields MUTATION_UNCONFIRMED', async () => {
+    vi.useFakeTimers();
+    const hanging = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+        }),
+    );
+    const pending = service(hanging as unknown as typeof fetch, { postTimeoutMs: 50 }).submitWorkflowRequest({
+      description: 'Baue X',
+      testMode: 'mock',
+    });
+    await vi.advanceTimersByTimeAsync(60);
+    expect(await pending).toMatchObject({ ok: false, error: { code: 'MUTATION_UNCONFIRMED' } });
+    expect(hanging).toHaveBeenCalledTimes(1);
   });
 
   it('clarification body is exactly {jobId, humanResponse}, followed by a GET', async () => {

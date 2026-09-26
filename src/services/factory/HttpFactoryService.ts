@@ -33,7 +33,7 @@ export interface HttpFactoryServiceOptions {
 
 type HttpOutcome =
   | { readonly ok: true; readonly body: unknown }
-  | { readonly ok: false; readonly error: ApiError; readonly successfulResponse: boolean };
+  | { readonly ok: false; readonly error: ApiError; readonly mutationUnconfirmed: boolean };
 
 type MutationUnconfirmedError = ApiError & { readonly jobId?: string };
 
@@ -154,7 +154,7 @@ export class HttpFactoryService implements FactoryService {
       });
       // No retry on 409: the caller refreshes and decides again on the current version.
       if (!outcome.ok) {
-        return outcome.successfulResponse
+        return outcome.mutationUnconfirmed
           ? fail(mutationUnconfirmed(outcome.error, input.jobId))
           : fail(outcome.error);
       }
@@ -183,7 +183,7 @@ export class HttpFactoryService implements FactoryService {
   async #post(path: string, body: object, knownJobId?: string): Promise<FactoryResult<string>> {
     const outcome = await this.#send('POST', path, this.#postTimeoutMs, body);
     if (!outcome.ok) {
-      return outcome.successfulResponse
+      return outcome.mutationUnconfirmed
         ? fail(mutationUnconfirmed(outcome.error, knownJobId))
         : fail(outcome.error);
     }
@@ -241,7 +241,8 @@ export class HttpFactoryService implements FactoryService {
   async #send(method: 'GET' | 'POST', path: string, timeoutMs: number, body?: object): Promise<HttpOutcome> {
     const controller = new AbortController();
     let timedOut = false;
-    let successfulResponse = false;
+    let requestDispatched = false;
+    let response: Response | undefined;
     const timer = setTimeout(() => {
       timedOut = true;
       controller.abort();
@@ -253,8 +254,9 @@ export class HttpFactoryService implements FactoryService {
         signal: controller.signal,
         headers: body === undefined ? { Accept: 'application/json' } : { Accept: 'application/json', 'Content-Type': 'application/json' },
       };
-      const response = await this.#fetch(`${this.#baseUrl}${path}`, body === undefined ? init : { ...init, body: JSON.stringify(body) });
-      successfulResponse = response.ok;
+      const requestInit = body === undefined ? init : { ...init, body: JSON.stringify(body) };
+      requestDispatched = true;
+      response = await this.#fetch(`${this.#baseUrl}${path}`, requestInit);
       const text = await response.text();
       if (!response.ok) {
         return {
@@ -265,7 +267,7 @@ export class HttpFactoryService implements FactoryService {
             code: httpErrorCode(response.status),
             message: errorMessageOf(text, response.status),
           },
-          successfulResponse: false,
+          mutationUnconfirmed: false,
         };
       }
       try {
@@ -274,21 +276,30 @@ export class HttpFactoryService implements FactoryService {
         return {
           ok: false,
           error: { kind: 'invalidResponse', code: 'INVALID_PAYLOAD', message: 'Antwort ist kein gültiges JSON.' },
-          successfulResponse: true,
+          mutationUnconfirmed: method === 'POST',
         };
       }
     } catch (cause) {
-      return timedOut
-        ? {
-            ok: false,
-            error: { kind: 'network', code: 'TIMEOUT', message: `Keine Antwort nach ${timeoutMs} ms.` },
-            successfulResponse,
-          }
-        : {
-            ok: false,
-            error: { kind: 'network', code: 'NETWORK', message: cause instanceof Error ? cause.message : 'Netzwerkfehler.' },
-            successfulResponse,
-          };
+      if (response !== undefined && !response.ok) {
+        return {
+          ok: false,
+          error: {
+            kind: 'http',
+            httpStatus: response.status,
+            code: httpErrorCode(response.status),
+            message: `HTTP ${response.status}`,
+          },
+          mutationUnconfirmed: false,
+        };
+      }
+      const error: ApiError = timedOut
+        ? { kind: 'network', code: 'TIMEOUT', message: `Keine Antwort nach ${timeoutMs} ms.` }
+        : { kind: 'network', code: 'NETWORK', message: cause instanceof Error ? cause.message : 'Netzwerkfehler.' };
+      return {
+        ok: false,
+        error,
+        mutationUnconfirmed: method === 'POST' && requestDispatched,
+      };
     } finally {
       clearTimeout(timer);
     }
