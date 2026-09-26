@@ -1,8 +1,8 @@
 import type {
   FactoryJob,
   FactoryResult,
+  FactoryTestReport,
   HumanGateState,
-  TestResult,
   WorkflowExecutionResult,
   WorkflowGenerationResult,
   WorkflowProductionMetrics,
@@ -31,7 +31,7 @@ export interface FactoryService {
   readonly submitWorkflowRequest: (request: WorkflowRequest) => Promise<FactoryResult<FactoryJob>>;
   readonly getJobStatus: (jobId: string) => Promise<FactoryResult<FactoryJob>>;
   readonly getGeneratedWorkflow: (jobId: string) => Promise<FactoryResult<WorkflowGenerationResult | null>>;
-  readonly getTestStatus: (jobId: string) => Promise<FactoryResult<TestResult | null>>;
+  readonly getTestStatus: (jobId: string) => Promise<FactoryResult<FactoryTestReport | null>>;
   readonly getExecutionStatus: (jobId: string) => Promise<FactoryResult<WorkflowExecutionResult | null>>;
   readonly getHumanGateState: (jobId: string) => Promise<FactoryResult<HumanGateState | null>>;
   /** Approves (`approve: true`) or rejects the approval gate at the given job version; returns the updated job. */
