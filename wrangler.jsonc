@@ -1,0 +1,11 @@
+{
+  // Cloudflare Workers mit Static Assets: liefert nur das Vite-Build-Verzeichnis aus, ohne Worker-Code.
+  // Mit dieser Datei überspringt `wrangler deploy` die Auto-Konfiguration, die sonst Pakete installiert,
+  // package.json-Skripte überschreibt und vite.config.ts anfasst.
+  "name": "alpha-frontend-design",
+  "compatibility_date": "2026-09-25",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
