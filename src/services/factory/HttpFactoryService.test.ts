@@ -83,8 +83,15 @@ describe('HttpFactoryService', () => {
     });
   });
 
-  it('GET maps version, status, error and test report without inventing values', async () => {
-    const report = { testMode: 'dry_run', testCount: 4, passed: 3, failed: 1, retryLoops: 0, repairLoops: 1 };
+  it('GET maps TestReportV1 without inventing or leaking fields', async () => {
+    const report = {
+      contractVersion: '1.0',
+      jobId: 'job-1',
+      result: 'NOT_PASS',
+      reason: 'EXECUTION_FAILED',
+      evidence: 'trace-1',
+      internalExtra: 'ignore-me',
+    };
     const { fetch } = fakeFetch(() => json(backendJob({ version: 7, status: 'FAILED', errorMessage: 'kaputt', testReport: report })));
     const http = service(fetch);
     const [job, test] = await Promise.all([http.getJobStatus('job-1'), http.getTestStatus('job-1')]);
@@ -100,12 +107,25 @@ describe('HttpFactoryService', () => {
       },
     });
     expect(job.ok && 'request' in job.value).toBe(false);
-    expect(test).toEqual({ ok: true, value: { jobId: 'job-1', ...report } });
+    expect(test).toEqual({
+      ok: true,
+      value: {
+        contractVersion: '1.0',
+        jobId: 'job-1',
+        result: 'NOT_PASS',
+        reason: 'EXECUTION_FAILED',
+        evidence: 'trace-1',
+      },
+    });
   });
 
-  it('incomplete test report maps to null', async () => {
-    const { fetch } = fakeFetch(() => json(backendJob({ testReport: { passed: 3 } })));
-    expect(await service(fetch).getTestStatus('job-1')).toEqual({ ok: true, value: null });
+  it('legacy metric test report is rejected instead of silently mapping to null', async () => {
+    const legacy = { testMode: 'dry_run', testCount: 4, passed: 3, failed: 1, retryLoops: 0, repairLoops: 1 };
+    const { fetch } = fakeFetch(() => json(backendJob({ testReport: legacy })));
+    expect(await service(fetch).getTestStatus('job-1')).toMatchObject({
+      ok: false,
+      error: { kind: 'invalidResponse', code: 'INVALID_PAYLOAD' },
+    });
   });
 
   it('rejects WAITING_FOR_USER without clarificationQuestion', async () => {
