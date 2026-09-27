@@ -39,6 +39,7 @@ test('real E2E starts unauthenticated at the frontend before login', () => {
   assert.ok(gate >= 0 && login > gate, 'frontend auth gate must execute before backend login');
   assert.match(smoke, /AUTH_GATE_NOT_ENFORCED/);
   assert.match(smoke, /unauthenticatedProbeStatus !== 401/);
+  assert.match(smoke, /unauthenticatedMutationStatus !== 401/);
   assert.match(smoke, /workspaceVisibleBeforeLogin/);
   assert.match(smoke, /workspaceVisibleAfterLogin/);
   assert.match(smoke, /auth-login-link/);
@@ -75,15 +76,15 @@ test('smoke evidence never logs cookie values', () => {
   assert.doesNotMatch(smoke, /cookie\.value/);
 });
 
-test('real E2E workflow proves unavailable backend produces visible failure', () => {
+test('real E2E workflow proves unavailable backend locks the actual frontend UI', () => {
   assert.match(source, /Prove unavailable backend fails closed/);
+  assert.match(source, /id: backend_unavailable/);
   assert.match(source, /node scripts\/real-e2e-backend-unavailable-negative\.mjs/);
-  assert.match(unavailableNegative, /reserveAndReleasePort/);
-  assert.match(unavailableNegative, /outcome\.code !== 0/);
-  assert.match(unavailableNegative, /REAL_E2E_EVIDENCE=/);
-  assert.match(unavailableNegative, /::error::/);
-  assert.match(unavailableNegative, /!combined\.includes\('REAL_E2E_PASS'\)/);
+  assert.match(unavailableNegative, /VITE_FACTORY_API_BASE_URL: unavailableBackendUrl/);
+  assert.match(unavailableNegative, /auth-gate-unavailable/);
+  assert.match(unavailableNegative, /BACKEND_UNAVAILABLE_DID_NOT_FAIL_CLOSED/);
   assert.match(unavailableNegative, /BACKEND_UNAVAILABLE_NEGATIVE_PASS/);
+  assert.doesNotMatch(unavailableNegative, /real-e2e-smoke\.mjs/);
 });
 
 test('UI status gate rejects invisible, missing, empty and non-exact status', () => {
@@ -116,4 +117,17 @@ test('cookie security attributes are a hard fail-closed gate', () => {
     [{ secure: true, sameSite: 'None' }, { secure: false, sameSite: 'None' }],
   ]) assert.equal(cookieSecurityPass(cookies), false);
   assert.ok(smoke.includes('evidence.cookie.securityAttributesValid &&'));
+});
+
+
+test('real E2E has an always-running final security gate that rejects skipped steps', () => {
+  assert.match(source, /id: backend_unavailable/);
+  assert.match(source, /id: status_mismatch/);
+  assert.match(source, /id: real_browser/);
+  assert.match(source, /name: Enforce every E2E security gate/);
+  assert.match(source, /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/);
+  assert.match(source, /BACKEND_UNAVAILABLE_OUTCOME/);
+  assert.match(source, /STATUS_MISMATCH_OUTCOME/);
+  assert.match(source, /REAL_BROWSER_OUTCOME/);
+  assert.match(source, /SYSTEM_E2E_SECURITY_GATE=PASS/);
 });
