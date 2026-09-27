@@ -1,0 +1,51 @@
+name: Backend Isolated Full Drive E2E
+
+on:
+  push:
+    branches:
+      - verify/backend-isolated-full-drive-20260927
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-isolated-full-drive-e2e
+  cancel-in-progress: true
+
+jobs:
+  backend-isolated-full-drive-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      E2E_BACKEND_URL: https://n8n-workflow-factory.onrender.com
+      E2E_OWNER_EMAIL: ${{ secrets.E2E_OWNER_EMAIL }}
+      E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
+
+    steps:
+      - name: Checkout exact verification SHA
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Require OWNER browser credentials
+        run: |
+          test -n "$E2E_OWNER_EMAIL" || { echo "::error::E2E_OWNER_EMAIL secret missing"; exit 1; }
+          test -n "$E2E_OWNER_PASSWORD" || { echo "::error::E2E_OWNER_PASSWORD secret missing"; exit 1; }
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install pinned browser runner
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install chromium
+
+      - name: Run isolated backend through Google Drive COMPLETE
+        run: node scripts/backend-isolated-full-drive-e2e.mjs
