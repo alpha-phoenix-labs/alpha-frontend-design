@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import net from 'node:net';
+import { chromium } from 'playwright';
 
 const reserveAndReleasePort = async () => {
   const server = net.createServer();
@@ -14,45 +15,69 @@ const reserveAndReleasePort = async () => {
   return port;
 };
 
-const port = await reserveAndReleasePort();
-const child = spawn(process.execPath, ['scripts/real-e2e-smoke.mjs'], {
-  env: {
-    ...process.env,
-    E2E_PREVIEW_URL: 'https://example.com',
-    E2E_BACKEND_URL: `http://127.0.0.1:${port}`,
-    E2E_OWNER_EMAIL: 'negative-test@example.invalid',
-    E2E_OWNER_PASSWORD: 'negative-test-not-a-secret',
-    E2E_FACTORY_JOB_ID: 'negative-backend-unavailable',
+const backendPort = await reserveAndReleasePort();
+const frontendPort = await reserveAndReleasePort();
+const frontendUrl = `http://127.0.0.1:${frontendPort}`;
+const unavailableBackendUrl = `http://127.0.0.1:${backendPort}`;
+
+const vite = spawn(
+  process.execPath,
+  ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(frontendPort), '--strictPort'],
+  {
+    env: {
+      ...process.env,
+      VITE_FACTORY_MODE: 'http',
+      VITE_FACTORY_API_BASE_URL: unavailableBackendUrl,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
   },
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
+);
 
-let stdout = '';
-let stderr = '';
-child.stdout.on('data', (chunk) => { stdout += String(chunk); });
-child.stderr.on('data', (chunk) => { stderr += String(chunk); });
+let viteOutput = '';
+vite.stdout.on('data', (chunk) => { viteOutput += String(chunk).slice(-2000); });
+vite.stderr.on('data', (chunk) => { viteOutput += String(chunk).slice(-2000); });
 
-const outcome = await Promise.race([
-  new Promise((resolve) => child.once('close', (code, signal) => resolve({ code, signal, timedOut: false }))),
-  new Promise((resolve) => setTimeout(() => {
-    child.kill('SIGKILL');
-    resolve({ code: null, signal: 'SIGKILL', timedOut: true });
-  }, 20_000)),
-]);
+const waitForFrontend = async () => {
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(frontendUrl, { signal: AbortSignal.timeout(1000) });
+      if (response.ok) return;
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error('NEGATIVE_FRONTEND_START_TIMEOUT');
+};
 
-const combined = stdout + '\n' + stderr;
-const visibleFailure =
-  outcome.timedOut === false &&
-  outcome.code !== 0 &&
-  combined.includes('REAL_E2E_EVIDENCE=') &&
-  combined.includes('::error::') &&
-  !combined.includes('REAL_E2E_PASS');
+let browser;
+try {
+  await waitForFrontend();
+  browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto(frontendUrl, { waitUntil: 'domcontentloaded', timeout: 20_000 });
 
-if (!visibleFailure) {
-  console.error('::error::BACKEND_UNAVAILABLE_NEGATIVE_TEST_FAILED');
-  console.error(JSON.stringify({ outcome, stdout: stdout.slice(-1000), stderr: stderr.slice(-1000) }));
-  process.exit(1);
+  const unavailable = page.getByTestId('auth-gate-unavailable');
+  await unavailable.waitFor({ state: 'visible', timeout: 10_000 });
+
+  const workspaceVisible =
+    (await page.getByPlaceholder('Describe the workflow you want Craftflow to build').count()) > 0;
+  const loginVisible = (await page.getByTestId('auth-login-link').count()) > 0;
+
+  if (workspaceVisible || loginVisible) {
+    throw new Error('BACKEND_UNAVAILABLE_DID_NOT_FAIL_CLOSED');
+  }
+
+  console.log('BACKEND_UNAVAILABLE_NEGATIVE_PASS=' + JSON.stringify({
+    failClosedVisible: true,
+    workspaceVisible,
+    loginVisible,
+  }));
+} catch (error) {
+  console.error('::error::' + (error instanceof Error ? error.message : 'BACKEND_UNAVAILABLE_NEGATIVE_TEST_FAILED'));
+  if (viteOutput) console.error(viteOutput.slice(-1000));
+  process.exitCode = 1;
+} finally {
+  if (browser) await browser.close();
+  vite.kill('SIGTERM');
 }
-
-console.log('BACKEND_UNAVAILABLE_NEGATIVE_PASS');
-console.log(JSON.stringify({ childExitCode: outcome.code, visiblyFailed: true }));
