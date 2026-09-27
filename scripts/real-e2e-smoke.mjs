@@ -24,6 +24,14 @@ const evidence = {
   backendOrigin: new URL(backendUrl).origin,
   sameOrigin: new URL(previewUrl).origin === new URL(backendUrl).origin,
   credentialsMode: 'include',
+  authGate: {
+    unauthenticatedProbeStatus: null,
+    unauthenticatedResponseSeenByBrowser: false,
+    loginLinkVisible: false,
+    loginHref: null,
+    workspaceVisibleBeforeLogin: null,
+    workspaceVisibleAfterLogin: false,
+  },
   login: { ok: false, finalUrl: null },
   cookie: { present: false, securityAttributesValid: false, sentToFactoryGet: false, metadata: [] },
   runtimeTruth: {
@@ -68,8 +76,42 @@ page.on('requestfailed', (request) => {
 });
 
 try {
+  evidence.phase = 'unauthenticated-preview';
+  const unauthenticatedProbe = page.waitForResponse(
+    (response) => response.url() === evidence.runtimeTruth.url && response.request().method() === 'GET',
+    { timeout: 20_000 },
+  ).catch(() => null);
+  await page.goto(previewUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  const unauthenticatedResponse = await unauthenticatedProbe;
+  if (unauthenticatedResponse) {
+    evidence.authGate.unauthenticatedResponseSeenByBrowser = true;
+    evidence.authGate.unauthenticatedProbeStatus = unauthenticatedResponse.status();
+  }
+
+  evidence.phase = 'auth-gate';
+  const loginLink = page.getByTestId('auth-login-link');
+  try {
+    await loginLink.waitFor({ state: 'visible', timeout: 10_000 });
+    evidence.authGate.loginLinkVisible = true;
+    evidence.authGate.loginHref = await loginLink.getAttribute('href');
+  } catch {
+    evidence.authGate.loginLinkVisible = false;
+  }
+  evidence.authGate.workspaceVisibleBeforeLogin =
+    (await page.getByPlaceholder('Describe the workflow you want Craftflow to build').count()) > 0;
+
+  if (
+    evidence.authGate.unauthenticatedProbeStatus !== 401 ||
+    !evidence.authGate.unauthenticatedResponseSeenByBrowser ||
+    !evidence.authGate.loginLinkVisible ||
+    evidence.authGate.loginHref !== `${backendUrl}/api/auth/signin` ||
+    evidence.authGate.workspaceVisibleBeforeLogin
+  ) {
+    throw new Error('AUTH_GATE_NOT_ENFORCED');
+  }
+
   evidence.phase = 'login-navigation';
-  await page.goto(`${backendUrl}/api/auth/signin`, { waitUntil: 'networkidle', timeout: 30_000 });
+  await page.goto(evidence.authGate.loginHref, { waitUntil: 'networkidle', timeout: 30_000 });
   evidence.phase = 'login-form';
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
@@ -102,8 +144,18 @@ try {
     throw new Error('AUTH_SESSION_NOT_ESTABLISHED');
   }
 
-  evidence.phase = 'preview-navigation';
-  await page.goto(previewUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+  evidence.phase = 'authenticated-preview';
+  await page.goto(previewUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  const workspace = page.getByPlaceholder('Describe the workflow you want Craftflow to build');
+  try {
+    await workspace.waitFor({ state: 'visible', timeout: 10_000 });
+    evidence.authGate.workspaceVisibleAfterLogin = true;
+  } catch {
+    evidence.authGate.workspaceVisibleAfterLogin = false;
+  }
+  if (!evidence.authGate.workspaceVisibleAfterLogin) {
+    throw new Error('AUTH_GATE_DID_NOT_RELEASE');
+  }
 
   evidence.phase = 'runtime-truth';
   evidence.runtimeTruth.attempted = true;
@@ -174,6 +226,12 @@ try {
   console.log('REAL_E2E_EVIDENCE=' + JSON.stringify(evidence));
 
   const pass =
+    evidence.authGate.unauthenticatedProbeStatus === 401 &&
+    evidence.authGate.unauthenticatedResponseSeenByBrowser &&
+    evidence.authGate.loginLinkVisible &&
+    evidence.authGate.loginHref === `${backendUrl}/api/auth/signin` &&
+    evidence.authGate.workspaceVisibleBeforeLogin === false &&
+    evidence.authGate.workspaceVisibleAfterLogin &&
     evidence.login.ok &&
     evidence.cookie.present &&
     evidence.cookie.securityAttributesValid &&
