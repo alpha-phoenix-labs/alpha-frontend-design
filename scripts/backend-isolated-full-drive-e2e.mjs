@@ -43,24 +43,24 @@ const fail = (message) => { throw new Error(message); };
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext();
 const page = await context.newPage();
+let cookieHeader = '';
 
-const api = async (path, init = {}) =>
-  page.evaluate(async ({ url, path, init }) => {
-    const response = await fetch(url + path, {
-      credentials: 'include',
-      cache: 'no-store',
-      ...init,
-      headers: {
-        Accept: 'application/json',
-        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-        ...(init.headers || {}),
-      },
-    });
-    const text = await response.text();
-    let body = null;
-    try { body = JSON.parse(text); } catch {}
-    return { status: response.status, ok: response.ok, body, text };
-  }, { url: backendUrl, path, init });
+const api = async (path, init = {}) => {
+  const response = await fetch(backendUrl + path, {
+    cache: 'no-store',
+    ...init,
+    headers: {
+      Accept: 'application/json',
+      Cookie: cookieHeader,
+      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(init.headers || {}),
+    },
+  });
+  const text = await response.text();
+  let body = null;
+  try { body = JSON.parse(text); } catch {}
+  return { status: response.status, ok: response.ok, body, text };
+};
 
 try {
   evidence.phase = 'owner-login';
@@ -74,6 +74,11 @@ try {
 
   evidence.browserPageUrl = page.url();
   evidence.browserOrigin = await page.evaluate(() => location.origin);
+  const cookies = await context.cookies(backendUrl);
+  cookieHeader = cookies.map(({ name, value }) => `${name}=${value}`).join('; ');
+  if (!cookieHeader.includes('next-auth.session-token')) {
+    fail('BACKEND_SESSION_COOKIE_MISSING');
+  }
 
   evidence.phase = 'runtime-truth';
   const truth = await api('/api/runtime-truth');
