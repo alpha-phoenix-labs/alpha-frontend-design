@@ -53,6 +53,7 @@ const line = output.split('\n').filter(line => line.startsWith('REAL_E2E_EVIDENC
 assert.ok(line, 'Real browser evidence is required');
 const evidence = JSON.parse(line.slice('REAL_E2E_EVIDENCE='.length));
 assert.equal(evidence.login.ok, true);
+assert.equal(evidence.cookie.securityAttributesValid, true);
 assert.equal(evidence.cookie.sentToFactoryGet, true);
 assert.equal(evidence.runtimeTruth.status, 200);
 assert.equal(evidence.get.status, 200);

@@ -80,3 +80,19 @@ test('UI status gate rejects invisible, missing, empty and non-exact status', ()
   assert.match(source, /E2E_EXPECTED_FACTORY_STATUS: completed/);
   assert.match(source, /node scripts\/real-e2e-status-mismatch-negative\.mjs/);
 });
+
+
+test('cookie security attributes are a hard fail-closed gate', () => {
+  const expression = smoke.match(/evidence\.cookie\.securityAttributesValid = ([\s\S]*?);/)[1];
+  const cookieSecurityPass = new Function('sessionCookies', 'return ' + expression);
+  assert.equal(cookieSecurityPass([{ secure: true, sameSite: 'None' }]), true);
+  for (const cookies of [
+    [],
+    [{ secure: false, sameSite: 'None' }],
+    [{ secure: true, sameSite: 'Lax' }],
+    [{ secure: true, sameSite: 'Strict' }],
+    [{ secure: true, sameSite: undefined }],
+    [{ secure: true, sameSite: 'None' }, { secure: false, sameSite: 'None' }],
+  ]) assert.equal(cookieSecurityPass(cookies), false);
+  assert.ok(smoke.includes('evidence.cookie.securityAttributesValid &&'));
+});

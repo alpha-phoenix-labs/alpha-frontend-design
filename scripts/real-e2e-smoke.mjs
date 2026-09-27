@@ -25,7 +25,7 @@ const evidence = {
   sameOrigin: new URL(previewUrl).origin === new URL(backendUrl).origin,
   credentialsMode: 'include',
   login: { ok: false, finalUrl: null },
-  cookie: { present: false, sentToFactoryGet: false, metadata: [] },
+  cookie: { present: false, securityAttributesValid: false, sentToFactoryGet: false, metadata: [] },
   runtimeTruth: {
     attempted: false,
     url: `${backendUrl}/api/runtime-truth`,
@@ -94,6 +94,9 @@ try {
     secure,
     sameSite,
   }));
+  evidence.cookie.securityAttributesValid =
+    sessionCookies.length > 0 &&
+    sessionCookies.every((cookie) => cookie.secure === true && cookie.sameSite === 'None');
 
   if (!evidence.login.ok || !evidence.cookie.present) {
     throw new Error('AUTH_SESSION_NOT_ESTABLISHED');
@@ -173,6 +176,7 @@ try {
   const pass =
     evidence.login.ok &&
     evidence.cookie.present &&
+    evidence.cookie.securityAttributesValid &&
     evidence.runtimeTruth.attempted &&
     evidence.runtimeTruth.status === 200 &&
     evidence.runtimeTruth.responseSeenByBrowser &&
