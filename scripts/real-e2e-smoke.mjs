@@ -27,6 +27,7 @@ const evidence = {
   authGate: {
     unauthenticatedProbeStatus: null,
     unauthenticatedResponseSeenByBrowser: false,
+    unauthenticatedMutationStatus: null,
     loginLinkVisible: false,
     loginHref: null,
     workspaceVisibleBeforeLogin: null,
@@ -100,9 +101,21 @@ try {
   evidence.authGate.workspaceVisibleBeforeLogin =
     (await page.getByPlaceholder('Describe the workflow you want Craftflow to build').count()) > 0;
 
+  const unauthenticatedMutation = await page.evaluate(async (url) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({}),
+    });
+    return response.status;
+  }, `${backendUrl}/api/orchestrator`);
+  evidence.authGate.unauthenticatedMutationStatus = unauthenticatedMutation;
+
   if (
     evidence.authGate.unauthenticatedProbeStatus !== 401 ||
     !evidence.authGate.unauthenticatedResponseSeenByBrowser ||
+    evidence.authGate.unauthenticatedMutationStatus !== 401 ||
     !evidence.authGate.loginLinkVisible ||
     evidence.authGate.loginHref !== `${backendUrl}/api/auth/signin` ||
     evidence.authGate.workspaceVisibleBeforeLogin
@@ -228,6 +241,7 @@ try {
   const pass =
     evidence.authGate.unauthenticatedProbeStatus === 401 &&
     evidence.authGate.unauthenticatedResponseSeenByBrowser &&
+    evidence.authGate.unauthenticatedMutationStatus === 401 &&
     evidence.authGate.loginLinkVisible &&
     evidence.authGate.loginHref === `${backendUrl}/api/auth/signin` &&
     evidence.authGate.workspaceVisibleBeforeLogin === false &&
