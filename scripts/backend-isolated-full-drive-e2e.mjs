@@ -16,6 +16,9 @@ const prompt =
 const evidence = {
   phase: 'initialization',
   backendUrl,
+  browserPageUrl: null,
+  browserOrigin: null,
+  createFailureText: null,
   jobId: null,
   createdStatus: null,
   snapshotStatus: null,
@@ -53,9 +56,10 @@ const api = async (path, init = {}) =>
         ...(init.headers || {}),
       },
     });
+    const text = await response.text();
     let body = null;
-    try { body = await response.json(); } catch {}
-    return { status: response.status, ok: response.ok, body };
+    try { body = JSON.parse(text); } catch {}
+    return { status: response.status, ok: response.ok, body, text };
   }, { url: backendUrl, path, init });
 
 try {
@@ -68,6 +72,9 @@ try {
     page.locator('button[type="submit"]').click(),
   ]);
 
+  evidence.browserPageUrl = page.url();
+  evidence.browserOrigin = await page.evaluate(() => location.origin);
+
   evidence.phase = 'runtime-truth';
   const truth = await api('/api/runtime-truth');
   if (truth.status !== 200) fail(`BACKEND_AUTH_NOT_PROVEN:${truth.status}`);
@@ -78,7 +85,8 @@ try {
     body: JSON.stringify({ prompt }),
   });
   if (!created.ok || typeof created.body?.jobId !== 'string') {
-    fail(`BACKEND_CREATE_FAILED:${created.status}`);
+    evidence.createFailureText = created.text ?? null;
+    fail(`BACKEND_CREATE_FAILED:${created.status}:${created.text ?? 'NO_BODY'}`);
   }
 
   evidence.jobId = created.body.jobId;
