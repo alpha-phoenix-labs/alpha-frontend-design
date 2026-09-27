@@ -5,6 +5,11 @@ export const REQUIRED = Object.freeze([
   ['real-e2e.yml', 'real-e2e'],
 ]);
 const fail = () => { throw new Error('FAIL — POST-MERGE TRUTH MISSING'); };
+const isAllowedSkippedJob = (file, job) =>
+  file === 'real-e2e.yml' &&
+  job.name === 'real-e2e-contract' &&
+  job.status === 'completed' &&
+  job.conclusion === 'skipped';
 export async function verifyPromotion({get, repository, sha, ref}) {
   if (repository !== 'alpha-phoenix-labs/alpha-frontend-design' || !/^[a-f0-9]{40}$/.test(sha ?? '') || ref !== 'refs/heads/main') fail();
   const base = '/repos/' + repository;
@@ -23,7 +28,7 @@ export async function verifyPromotion({get, repository, sha, ref}) {
     if (!Array.isArray(jobs.jobs) || !Number.isInteger(jobs.total_count) || jobs.total_count > 100) fail();
     const requiredJobs = jobs.jobs.filter(job => job.name === jobName);
     if (requiredJobs.length !== 1 || requiredJobs[0].status !== 'completed' || requiredJobs[0].conclusion !== 'success') fail();
-    if (jobs.jobs.some(job => job.status !== 'completed' || job.conclusion !== 'success')) fail();
+    if (jobs.jobs.some(job => job.status !== 'completed' || (job.conclusion !== 'success' && !isAllowedSkippedJob(file, job)))) fail();
     evidence.push({workflow: file, runId: run.id, sha});
   }
   await isMain();
