@@ -13,14 +13,16 @@ These rulesets were read back after the human-approved configuration change. A r
 
 ## Proven post-merge frontend truth
 
-Frontend main SHA `84fec1982784532c203268c2ac702075e27c78f8` was verified by automatic `push` runs:
-- CI/build run 36282142088: PASS
-- Cloudflare Deploy Test/deploy-test run 36282142104: PASS
-- Real E2E/real-e2e run 36282142075: PASS
+P1 implementation merge SHA `07e76c48bb7ebd04a708c123d69d9f6cdf3c1b4c` was verified by automatic `push` runs:
+- CI/build run 36314457748: PASS
+- Cloudflare Deploy Test/deploy-test run 36314457552: PASS
+- Real E2E/real-e2e run 36314457569: PASS
 
 The main-push build used `VITE_FACTORY_MODE=http` and `VITE_FACTORY_API_BASE_URL=https://n8n-workflow-factory.onrender.com`.
-Cloudflare used `versions upload`; production deployment was skipped.
-The browser E2E established an OWNER session, sent the secure session cookie with the Factory GET, received HTTP 200, and rendered job status `completed`.
+Cloudflare used `versions upload`; the production deployment step was skipped.
+The browser E2E checked out the exact implementation SHA, established an OWNER session, sent a secure `SameSite=None` session cookie with the Factory GET, received HTTP 200, matched UI status `completed`, proved the unavailable-backend and wrong-expected-status negative paths fail closed, and emitted `REAL_E2E_PASS`.
+
+This SHA is the evidenced P1 implementation baseline, not a permanent claim about the repository's future `main` head. Any later documentation-only merge can advance `main`; current repository truth must always be read live rather than inferred from this historical audit record.
 
 ## Backend truth
 
@@ -51,17 +53,18 @@ The Factory read remains application-driven through the bundled `FactoryStore ->
 
 Because `real-e2e` is runtime-bound, promotion cannot pass merely from frontend CI plus a responsive backend; the tested live Render deployment must match the versioned backend release identity.
 
-## Current repair status
+## P1 closure status
 
-The runtime-truth endpoint and backend documentation changes were merged through backend PR #23 and are live on the pinned backend main SHA.
-The frontend backend-SHA binding and documentation changes are on branch `repair/p1-backend-sha-binding-20260927`.
-Neither repair branch is authorized for merge by this document. No production deployment is authorized.
+Backend PR #23 is MERGED. Backend `main` and Render LIVE are both `43ef17acf0cd60aa8cd894139cae6489cf7f32bd`, and backend `verify` passed.
 
-Required merge order for a later human gate:
-1. backend PR #23: MERGED; required `verify`: PASS; Render: LIVE on the pinned backend main SHA
-2. frontend backend pin: updated to that exact live SHA
-3. frontend repair -> required checks + real E2E -> merge only after a separate human gate
-4. require all automatic post-merge frontend main runs to PASS on the exact resulting frontend main SHA
+Frontend PR #13 is MERGED by squash as `07e76c48bb7ebd04a708c123d69d9f6cdf3c1b4c`. The versioned backend runtime pin is `43ef17acf0cd60aa8cd894139cae6489cf7f32bd`, exactly matching backend `main` and Render LIVE.
+
+All mandatory automatic post-merge frontend checks passed on the exact P1 implementation merge SHA:
+- `build`: PASS
+- `deploy-test`: PASS
+- `real-e2e`: PASS
+
+No production Cloudflare deployment was authorized or executed by this P1 closure. P1 final hardening is technically complete at the evidenced implementation baseline above. Any later production promotion remains a separate HUMAN GATE and must independently satisfy the promotion gate against the then-current exact `main` SHA.
 
 ## Separate stale work
 
