@@ -47,7 +47,7 @@ page.on('request', (request) => {
 });
 
 page.on('requestfailed', (request) => {
-  if (request.url().startsWith(backendUrl)) {
+  if (request.url() === evidence.get.url && request.method() === 'GET') {
     evidence.browser.requestFailed = request.failure()?.errorText ?? 'REQUEST_FAILED';
   }
 });
