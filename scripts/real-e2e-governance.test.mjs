@@ -4,6 +4,7 @@ import { test } from 'node:test';
 
 const source = readFileSync(new URL('../.github/workflows/real-e2e.yml', import.meta.url), 'utf8');
 const smoke = readFileSync(new URL('./real-e2e-smoke.mjs', import.meta.url), 'utf8');
+const backendPin = JSON.parse(readFileSync(new URL('../config/backend-runtime-truth.json', import.meta.url), 'utf8'));
 
 test('real E2E runs automatically for PR and main push', () => {
   assert.match(source, /\n  pull_request:\n    branches:\n      - main\n/);
@@ -30,8 +31,21 @@ test('smoke test is read-only and exercises the application recovery path', () =
   assert.match(smoke, /craftflow\.factory\.activeJobId\.v1/);
   assert.match(smoke, /method\(\) === 'GET'/);
   assert.doesNotMatch(smoke, /method:\s*['"]POST['"]/);
-  assert.doesNotMatch(smoke, /fetch\s*\(/);
+  assert.doesNotMatch(smoke, /fetch\([^)]*orchestrator/);
   assert.match(smoke, /\[data-testid="factory-status"\]/);
+});
+
+test('real E2E is pinned to the expected backend main and Render service identity', () => {
+  assert.deepEqual(backendPin, {
+    repository: 'alpha-phoenix-labs/n8n-workflow-factory',
+    branch: 'main',
+    commitSha: '63898e42fd331c0a17f540538f5ba47e0ae3f84f',
+    serviceId: 'srv-daqk0sp7lnhs73d9nr7g',
+  });
+  assert.match(smoke, /\/api\/runtime-truth/);
+  assert.match(smoke, /BACKEND_RUNTIME_TRUTH_MISMATCH/);
+  assert.match(smoke, /runtimeTruth\.body\?\.commitSha === backendPin\.commitSha/);
+  assert.match(smoke, /runtimeTruth\.body\?\.serviceId === backendPin\.serviceId/);
 });
 
 test('smoke evidence never logs cookie values', () => {
