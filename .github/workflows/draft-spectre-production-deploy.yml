@@ -56,3 +56,25 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.141.0"
           command: deploy
+
+      - name: Install production smoke browser
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install chromium
+
+      - name: Verify OWNER gate on control.vantarialabs.tech
+        run: |
+          node <<'NODE'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage();
+            await page.goto('https://control.vantarialabs.tech', { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.getByTestId('auth-login-button').waitFor({ state: 'visible', timeout: 20000 });
+            console.log('CONTROL_OWNER_GATE_LIVE_PASS');
+            await browser.close();
+          })().catch((error) => {
+            console.error('::error::' + (error?.message || String(error)));
+            process.exit(1);
+          });
+          NODE
