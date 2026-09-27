@@ -49,7 +49,7 @@ test('n8n IDs follow the public contract while Drive artifact IDs remain strict'
 
 test('full business E2E performs approval through the rendered frontend', () => {
   assert.match(business, /factory-status/);
-  assert.match(business, /WAITING_FOR_APPROVAL/);
+  assert.match(business, /awaiting_human/);
   assert.match(business, /approval-version/);
   assert.match(business, /getByRole\('button', \{ name: 'Approve' \}\)\.click\(\)/);
   assert.match(business, /\/api\/orchestrator\/approve/);
