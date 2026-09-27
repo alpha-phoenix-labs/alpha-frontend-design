@@ -1,0 +1,91 @@
+name: Real E2E
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: real-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-e2e:
+    runs-on: ubuntu-latest
+    env:
+      VITE_FACTORY_MODE: http
+      VITE_FACTORY_API_BASE_URL: https://n8n-workflow-factory.onrender.com
+      E2E_BACKEND_URL: https://n8n-workflow-factory.onrender.com
+      E2E_FACTORY_JOB_ID: cmuh65gdm000033lz59wtkm57
+      E2E_OWNER_EMAIL: ${{ secrets.E2E_OWNER_EMAIL }}
+      E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
+
+    steps:
+      - name: Checkout exact SHA
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Require approved browser credentials
+        run: |
+          test -n "$E2E_OWNER_EMAIL" || { echo "::error::E2E_OWNER_EMAIL secret missing"; exit 1; }
+          test -n "$E2E_OWNER_PASSWORD" || { echo "::error::E2E_OWNER_PASSWORD secret missing"; exit 1; }
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Verify HTTP-mode build configuration
+        run: |
+          test "$VITE_FACTORY_MODE" = "http"
+          test "$VITE_FACTORY_API_BASE_URL" = "https://n8n-workflow-factory.onrender.com"
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build exact SHA
+        run: npm run build
+
+      - name: Upload isolated Cloudflare preview
+        id: upload
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.141.0"
+          command: versions upload
+
+      - name: Resolve preview URL
+        id: preview
+        env:
+          WRANGLER_OUTPUT: ${{ steps.upload.outputs.command-output }}
+        run: |
+          URL="$(printf '%s\n' "$WRANGLER_OUTPUT" | sed -n 's/.*Version Preview URL: \(https:\/\/[^ ]*\).*/\1/p' | tail -1)"
+          test -n "$URL" || { echo "::error::Cloudflare preview URL missing"; exit 1; }
+          case "$URL" in
+            https://*-alpha-frontend-design.vantaria-labs.workers.dev) ;;
+            *) echo "::error::Unexpected preview origin"; exit 1 ;;
+          esac
+          echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned browser runner
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install chromium
+
+      - name: Run read-only browser Factory GET
+        env:
+          E2E_PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
+        run: node scripts/real-e2e-smoke.mjs

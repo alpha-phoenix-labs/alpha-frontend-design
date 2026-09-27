@@ -25,7 +25,7 @@ export interface HttpFactoryServiceOptions {
   /** Validated base URL without trailing slash; endpoints live under `${baseUrl}/api/orchestrator`. */
   readonly baseUrl: string;
   readonly fetch?: typeof fetch;
-  /** Credentials mode of every request; defaults to `same-origin`. */
+  /** Credentials mode of every request; defaults to `include`. */
   readonly credentials?: RequestCredentials;
   readonly getTimeoutMs?: number;
   readonly postTimeoutMs?: number;
@@ -102,7 +102,7 @@ export class HttpFactoryService implements FactoryService {
   constructor(options: HttpFactoryServiceOptions) {
     this.#baseUrl = options.baseUrl;
     this.#fetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
-    this.#credentials = options.credentials ?? 'same-origin';
+    this.#credentials = options.credentials ?? 'include';
     this.#getTimeoutMs = options.getTimeoutMs ?? DEFAULT_GET_TIMEOUT_MS;
     this.#postTimeoutMs = options.postTimeoutMs ?? DEFAULT_POST_TIMEOUT_MS;
   }

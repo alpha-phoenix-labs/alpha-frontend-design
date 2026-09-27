@@ -1,0 +1,40 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+
+const source = readFileSync(new URL('../.github/workflows/real-e2e.yml', import.meta.url), 'utf8');
+const smoke = readFileSync(new URL('./real-e2e-smoke.mjs', import.meta.url), 'utf8');
+
+test('real E2E runs automatically for PR and main push', () => {
+  assert.match(source, /\n  pull_request:\n    branches:\n      - main\n/);
+  assert.match(source, /\n  push:\n    branches:\n      - main\n/);
+});
+
+test('real E2E is forced into HTTP mode against the frozen backend origin', () => {
+  assert.match(source, /VITE_FACTORY_MODE: http/);
+  assert.match(source, /VITE_FACTORY_API_BASE_URL: https:\/\/n8n-workflow-factory\.onrender\.com/);
+});
+
+test('real E2E requires explicit browser credentials and never embeds them', () => {
+  assert.match(source, /secrets\.E2E_OWNER_EMAIL/);
+  assert.match(source, /secrets\.E2E_OWNER_PASSWORD/);
+  assert.doesNotMatch(source, /continue-on-error:\s*true/);
+});
+
+test('real E2E uses no-traffic version upload and contains no production deploy command', () => {
+  assert.match(source, /command: versions upload/);
+  assert.doesNotMatch(source, /command: deploy/);
+});
+
+test('smoke test is read-only and exercises the application recovery path', () => {
+  assert.match(smoke, /craftflow\.factory\.activeJobId\.v1/);
+  assert.match(smoke, /method\(\) === 'GET'/);
+  assert.doesNotMatch(smoke, /method:\s*['"]POST['"]/);
+  assert.doesNotMatch(smoke, /fetch\s*\(/);
+  assert.match(smoke, /\[data-testid="factory-status"\]/);
+});
+
+test('smoke evidence never logs cookie values', () => {
+  assert.match(smoke, /\{ name, domain, path, secure, sameSite \}/);
+  assert.doesNotMatch(smoke, /cookie\.value/);
+});
