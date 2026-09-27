@@ -23,8 +23,8 @@ jobs:
     timeout-minutes: 12
     env:
       VITE_FACTORY_MODE: http
-      VITE_FACTORY_API_BASE_URL: https://n8n-workflow-factory.onrender.com
-      E2E_BACKEND_URL: https://n8n-workflow-factory.onrender.com
+      VITE_FACTORY_API_BASE_URL: https://api.vantarialabs.tech
+      E2E_BACKEND_URL: https://api.vantarialabs.tech
       E2E_EXPECTED_FACTORY_STATUS: completed
       E2E_FACTORY_JOB_ID: cmuh65gdm000033lz59wtkm57
       E2E_OWNER_EMAIL: ${{ secrets.E2E_OWNER_EMAIL }}
@@ -68,8 +68,8 @@ jobs:
     timeout-minutes: 15
     env:
       VITE_FACTORY_MODE: http
-      VITE_FACTORY_API_BASE_URL: https://n8n-workflow-factory.onrender.com
-      E2E_BACKEND_URL: https://n8n-workflow-factory.onrender.com
+      VITE_FACTORY_API_BASE_URL: https://api.vantarialabs.tech
+      E2E_BACKEND_URL: https://api.vantarialabs.tech
       E2E_OWNER_EMAIL: ${{ secrets.E2E_OWNER_EMAIL }}
       E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
 
@@ -101,7 +101,7 @@ jobs:
       - name: Verify HTTP-mode build configuration
         run: |
           test "$VITE_FACTORY_MODE" = "http"
-          test "$VITE_FACTORY_API_BASE_URL" = "https://n8n-workflow-factory.onrender.com"
+          test "$VITE_FACTORY_API_BASE_URL" = "https://api.vantarialabs.tech"
 
       - name: Typecheck
         run: npm run typecheck
