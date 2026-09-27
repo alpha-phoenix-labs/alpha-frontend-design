@@ -17,8 +17,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout exact workflow SHA
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Verify checkout identity
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          echo "CI_SHA=$(git rev-parse HEAD)"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -45,3 +52,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
