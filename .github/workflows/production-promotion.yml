@@ -1,0 +1,82 @@
+name: Production Promotion
+
+on:
+  workflow_run:
+    workflows:
+      - Real E2E
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+      VITE_FACTORY_MODE: http
+      VITE_FACTORY_API_BASE_URL: https://n8n-workflow-factory.onrender.com
+
+    steps:
+      - name: Checkout exact merged SHA
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TARGET_SHA }}
+
+      - name: Verify checkout identity
+        run: |
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          echo "PROMOTION_SHA=$TARGET_SHA"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Verify production build configuration
+        run: |
+          test "$VITE_FACTORY_MODE" = "http"
+          test "$VITE_FACTORY_API_BASE_URL" = "https://n8n-workflow-factory.onrender.com"
+
+      - name: Build exact merged SHA
+        run: npm run build
+
+      - name: Wait for exact-SHA post-merge truth
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ env.TARGET_SHA }}
+          GITHUB_REF: refs/heads/main
+        run: |
+          for attempt in $(seq 1 30); do
+            if node scripts/promotion-gate.mjs; then
+              echo "PROMOTION_GATE=PASS"
+              exit 0
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "::error::POST_MERGE_TRUTH_TIMEOUT_OR_FAIL"
+              exit 1
+            fi
+            sleep 10
+          done
+
+      - name: Deploy exact merged SHA to Cloudflare production
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.141.0"
+          command: deploy
