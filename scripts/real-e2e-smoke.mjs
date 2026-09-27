@@ -138,8 +138,22 @@ try {
   ]);
 
   evidence.phase = 'owner-session';
-  evidence.login.finalUrl = loginPage.url();
-  evidence.login.ok = (await loginPage.getByText('OWNER Session aktiv').count()) > 0;
+  try {
+    evidence.login.finalUrl = loginPage.isClosed() ? null : loginPage.url();
+  } catch {
+    evidence.login.finalUrl = null;
+  }
+
+  const ownerProbe = await page.evaluate(async (url) => {
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    return response.status;
+  }, `${backendUrl}/api/runtime-truth`);
+  evidence.login.ok = ownerProbe === 200;
 
   const cookies = await context.cookies(backendUrl);
   const sessionCookies = cookies.filter((cookie) => cookie.name.includes('next-auth.session-token'));
