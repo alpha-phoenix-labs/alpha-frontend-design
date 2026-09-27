@@ -50,11 +50,13 @@ test('real E2E uses no-traffic version upload and contains no production deploy 
   assert.doesNotMatch(source, /command: deploy/);
 });
 
-test('smoke test is read-only and exercises the application recovery path', () => {
+test('smoke test allows exactly one unauthenticated no-op POST boundary probe', () => {
   assert.match(smoke, /craftflow\.factory\.activeJobId\.v1/);
   assert.match(smoke, /method\(\) === 'GET'/);
-  assert.doesNotMatch(smoke, /method:\s*['"]POST['"]/);
-  assert.doesNotMatch(smoke, /fetch\([^)]*orchestrator/);
+  assert.equal((smoke.match(/method:\s*['"]POST['"]/g) ?? []).length, 1);
+  assert.match(smoke, /body: JSON\.stringify\(\{\}\)/);
+  assert.match(smoke, /unauthenticatedMutationStatus !== 401/);
+  assert.doesNotMatch(smoke, /body: JSON\.stringify\(\{\s*prompt:/);
   assert.match(smoke, /\[data-testid="factory-status"\]/);
 });
 
