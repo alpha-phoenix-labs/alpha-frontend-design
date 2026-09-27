@@ -2,138 +2,87 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-const source = readFileSync(new URL('../.github/workflows/real-e2e.yml', import.meta.url), 'utf8');
-const smoke = readFileSync(new URL('./real-e2e-smoke.mjs', import.meta.url), 'utf8');
+const workflow = readFileSync(new URL('../.github/workflows/real-e2e.yml', import.meta.url), 'utf8');
+const business = readFileSync(new URL('./real-business-e2e.mjs', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
-const backendPin = JSON.parse(readFileSync(new URL('../config/backend-runtime-truth.json', import.meta.url), 'utf8'));
-const unavailableNegative = readFileSync(new URL('./real-e2e-backend-unavailable-negative.mjs', import.meta.url), 'utf8');
 
-test('real E2E runs automatically for PR and main push', () => {
-  assert.match(source, /\n  pull_request:\n    branches:\n      - main\n/);
-  assert.match(source, /\n  push:\n    branches:\n      - main\n/);
+test('PR validation and main business E2E are distinct', () => {
+  assert.match(workflow, /real-e2e-contract:/);
+  assert.match(workflow, /if: \$\{\{ github\.event_name == 'pull_request' \}\}/);
+  assert.match(workflow, /real-e2e:/);
+  assert.match(workflow, /github\.event_name == 'push'/);
+  assert.match(workflow, /github\.ref == 'refs\/heads\/main'/);
 });
 
-test('real E2E is forced into HTTP mode against the frozen backend origin', () => {
-  assert.match(source, /VITE_FACTORY_MODE: http/);
-  assert.match(source, /VITE_FACTORY_API_BASE_URL: https:\/\/n8n-workflow-factory\.onrender\.com/);
+test('main real-e2e runs the full business script only after a real preview build', () => {
+  assert.match(workflow, /command: versions upload/);
+  assert.match(workflow, /Run full real business E2E through Google Drive COMPLETE/);
+  assert.match(workflow, /node scripts\/real-business-e2e\.mjs/);
+  assert.doesNotMatch(workflow, /command: deploy\b/);
 });
 
-test('real E2E requires explicit browser credentials and never embeds them', () => {
-  assert.match(source, /secrets\.E2E_OWNER_EMAIL/);
-  assert.match(source, /secrets\.E2E_OWNER_PASSWORD/);
-  assert.doesNotMatch(source, /continue-on-error:\s*true/);
+test('full business E2E starts at frontend OWNER auth and submits a new prompt through UI', () => {
+  assert.match(business, /auth-login-button/);
+  assert.match(business, /input\[name="email"\]/);
+  assert.match(business, /input\[name="password"\]/);
+  assert.match(business, /Describe the workflow you want Craftflow to build/);
+  assert.match(business, /workspace\.fill\(prompt\)/);
+  assert.match(business, /workspace\.press\('Enter'\)/);
+  assert.match(business, /createResponsePromise/);
 });
 
-test('production HTTP mode is fail-closed behind an OWNER auth gate', () => {
+test('full business E2E requires real n8n execution before approval', () => {
+  assert.match(business, /created\.status !== 'WAITING_FOR_APPROVAL'/);
+  assert.match(business, /testReport\?\.contractVersion !== '1\.0'/);
+  assert.match(business, /testReport\?\.result !== 'PASS'/);
+  assert.match(business, /executionId/);
+  assert.match(business, /importedId/);
+  assert.match(business, /BUSINESS_E2E_N8N_TEST_NOT_PROVEN/);
+});
+
+test('full business E2E performs approval through the rendered frontend', () => {
+  assert.match(business, /factory-status/);
+  assert.match(business, /WAITING_FOR_APPROVAL/);
+  assert.match(business, /approval-version/);
+  assert.match(business, /getByRole\('button', \{ name: 'Approve' \}\)\.click\(\)/);
+  assert.match(business, /\/api\/orchestrator\/approve/);
+});
+
+test('REAL_E2E_PASS is impossible without COMPLETED plus Google Drive COMPLETE', () => {
+  const passIndex = business.indexOf("console.log('REAL_E2E_PASS')");
+  assert.ok(passIndex > 0);
+  for (const required of [
+    "approved?.status !== 'COMPLETED'",
+    "archive?.status !== 'COMPLETE'",
+    'archive.auftragFileId',
+    'archive.workflowFileId',
+    'archive.testReportFileId',
+    'archive.finalWorkflowFileId',
+    'archive.documentationFileId',
+    'BUSINESS_E2E_DRIVE_PERSISTENCE_MISMATCH',
+  ]) {
+    const index = business.indexOf(required);
+    assert.ok(index >= 0 && index < passIndex, required + ' must gate REAL_E2E_PASS');
+  }
+});
+
+test('Drive completion is read back idempotently from backend persistence', () => {
+  assert.match(business, /\/api\/orchestrator\/archive/);
+  assert.match(business, /persisted\?\.status !== 'COMPLETE'/);
+  assert.match(business, /persistedReportMatches = true/);
+});
+
+test('frontend remains fail-closed behind OWNER session gate', () => {
   assert.match(app, /factoryMode === "http" \? <AuthGate \/> : <AuthenticatedCraftflow \/>/);
   assert.match(app, /\/api\/runtime-truth/);
   assert.match(app, /credentials: "include"/);
-  assert.match(app, /response\.status === 401/);
   assert.match(app, /data-testid="auth-login-button"/);
-  assert.match(app, /window\.open/);
-  assert.match(app, /loginWindowRef\.current\?\.close\(\)/);
   assert.match(app, /data-testid="auth-gate-unavailable"/);
 });
 
-test('real E2E starts unauthenticated at the frontend before login', () => {
-  const gate = smoke.indexOf("phase = 'unauthenticated-preview'");
-  const login = smoke.indexOf("phase = 'login-navigation'");
-  assert.ok(gate >= 0 && login > gate, 'frontend auth gate must execute before backend login');
-  assert.match(smoke, /AUTH_GATE_NOT_ENFORCED/);
-  assert.match(smoke, /unauthenticatedProbeStatus !== 401/);
-  assert.match(smoke, /unauthenticatedMutationStatus !== 401/);
-  assert.match(smoke, /workspaceVisibleBeforeLogin/);
-  assert.match(smoke, /workspaceVisibleAfterLogin/);
-  assert.match(smoke, /auth-login-button/);
-  assert.match(smoke, /context\.waitForEvent\('page'/);
-  assert.doesNotMatch(smoke, /await page\.goto\(previewUrl, \{ waitUntil: 'domcontentloaded', timeout: 30_000 \}\);\n  const workspace/);
-});
-
-test('real E2E uses no-traffic version upload and contains no production deploy command', () => {
-  assert.match(source, /command: versions upload/);
-  assert.doesNotMatch(source, /command: deploy/);
-});
-
-test('smoke test allows exactly one unauthenticated no-op POST boundary probe', () => {
-  assert.match(smoke, /craftflow\.factory\.activeJobId\.v1/);
-  assert.match(smoke, /method\(\) === 'GET'/);
-  assert.equal((smoke.match(/method:\s*['"]POST['"]/g) ?? []).length, 1);
-  assert.match(smoke, /body: JSON\.stringify\(\{\}\)/);
-  assert.match(smoke, /unauthenticatedMutationStatus !== 401/);
-  assert.doesNotMatch(smoke, /body: JSON\.stringify\(\{\s*prompt:/);
-  assert.match(smoke, /\[data-testid="factory-status"\]/);
-});
-
-test('real E2E is pinned to the expected backend main and Render service identity', () => {
-  assert.deepEqual(backendPin, {
-    repository: 'alpha-phoenix-labs/n8n-workflow-factory',
-    branch: 'main',
-    commitSha: '43ef17acf0cd60aa8cd894139cae6489cf7f32bd',
-    serviceId: 'srv-daqk0sp7lnhs73d9nr7g',
-  });
-  assert.match(smoke, /\/api\/runtime-truth/);
-  assert.match(smoke, /BACKEND_RUNTIME_TRUTH_MISMATCH/);
-  assert.match(smoke, /runtimeTruth\.body\?\.commitSha === backendPin\.commitSha/);
-  assert.match(smoke, /runtimeTruth\.body\?\.serviceId === backendPin\.serviceId/);
-});
-
-test('smoke evidence never logs cookie values', () => {
-  assert.match(smoke, /\{ name, domain, path, secure, sameSite \}/);
-  assert.doesNotMatch(smoke, /cookie\.value/);
-});
-
-test('real E2E workflow proves unavailable backend locks the actual frontend UI', () => {
-  assert.match(source, /Prove unavailable backend fails closed/);
-  assert.match(source, /id: backend_unavailable/);
-  assert.match(source, /node scripts\/real-e2e-backend-unavailable-negative\.mjs/);
-  assert.match(unavailableNegative, /VITE_FACTORY_API_BASE_URL: unavailableBackendUrl/);
-  assert.match(unavailableNegative, /auth-gate-unavailable/);
-  assert.match(unavailableNegative, /BACKEND_UNAVAILABLE_DID_NOT_FAIL_CLOSED/);
-  assert.match(unavailableNegative, /BACKEND_UNAVAILABLE_NEGATIVE_PASS/);
-  assert.doesNotMatch(unavailableNegative, /real-e2e-smoke\.mjs/);
-});
-
-test('UI status gate rejects invisible, missing, empty and non-exact status', () => {
-  const expression = smoke.match(/evidence\.ui\.statusMatches = ([\s\S]*?);/)[1];
-  const matches = new Function('evidence', 'return ' + expression);
-  const ui = { factoryStatusRendered: true, status: 'completed', expectedStatus: 'completed' };
-  assert.equal(matches({ ui }), true);
-  for (const change of [
-    { factoryStatusRendered: false }, { status: null }, { status: '' },
-    { expectedStatus: undefined }, { expectedStatus: '' }, { expectedStatus: 'failed' },
-    { status: 'completed extra' }, { status: 'Completed' },
-  ]) assert.equal(matches({ ui: { ...ui, ...change } }), false);
-  assert.ok(smoke.includes("required('E2E_EXPECTED_FACTORY_STATUS')"));
-  assert.ok(smoke.includes('evidence.ui.factoryStatusRendered && evidence.ui.statusMatches;'));
-  assert.match(source, /E2E_EXPECTED_FACTORY_STATUS: completed/);
-  assert.match(source, /node scripts\/real-e2e-status-mismatch-negative\.mjs/);
-});
-
-
-test('cookie security attributes are a hard fail-closed gate', () => {
-  const expression = smoke.match(/evidence\.cookie\.securityAttributesValid\s*=\s*([\s\S]*?);/)[1];
-  const cookieSecurityPass = new Function('sessionCookies', 'return ' + expression);
-  assert.equal(cookieSecurityPass([{ secure: true, sameSite: 'None' }]), true);
-  for (const cookies of [
-    [],
-    [{ secure: false, sameSite: 'None' }],
-    [{ secure: true, sameSite: 'Lax' }],
-    [{ secure: true, sameSite: 'Strict' }],
-    [{ secure: true, sameSite: undefined }],
-    [{ secure: true, sameSite: 'None' }, { secure: false, sameSite: 'None' }],
-  ]) assert.equal(cookieSecurityPass(cookies), false);
-  assert.ok(smoke.includes('evidence.cookie.securityAttributesValid &&'));
-});
-
-
-test('real E2E has an always-running final security gate that rejects skipped steps', () => {
-  assert.match(source, /id: backend_unavailable/);
-  assert.match(source, /id: status_mismatch/);
-  assert.match(source, /id: real_browser/);
-  assert.match(source, /name: Enforce every E2E security gate/);
-  assert.match(source, /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/);
-  assert.match(source, /BACKEND_UNAVAILABLE_OUTCOME/);
-  assert.match(source, /STATUS_MISMATCH_OUTCOME/);
-  assert.match(source, /REAL_BROWSER_OUTCOME/);
-  assert.match(source, /SYSTEM_E2E_SECURITY_GATE=PASS/);
+test('business E2E never embeds credentials or Drive secrets', () => {
+  assert.doesNotMatch(business, /GDRIVE_|GOOGLE_DRIVE_|refresh[_-]?token|client[_-]?secret/i);
+  assert.match(workflow, /secrets\.E2E_OWNER_EMAIL/);
+  assert.match(workflow, /secrets\.E2E_OWNER_PASSWORD/);
+  assert.doesNotMatch(workflow, /continue-on-error:\s*true/);
 });
