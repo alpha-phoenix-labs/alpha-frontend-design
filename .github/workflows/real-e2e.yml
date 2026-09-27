@@ -19,6 +19,7 @@ concurrency:
 jobs:
   real-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     env:
       VITE_FACTORY_MODE: http
       VITE_FACTORY_API_BASE_URL: https://n8n-workflow-factory.onrender.com
@@ -96,6 +97,7 @@ jobs:
           npx playwright install chromium
 
       - name: Prove unavailable backend fails closed
+        id: backend_unavailable
         run: node scripts/real-e2e-backend-unavailable-negative.mjs
 
       - name: Prove wrong expected UI status fails closed
@@ -105,7 +107,20 @@ jobs:
         run: node scripts/real-e2e-status-mismatch-negative.mjs
 
       - name: Run read-only browser Factory GET
+        id: real_browser
         if: ${{ !cancelled() && (steps.status_mismatch.outcome == 'success' || steps.status_mismatch.outcome == 'failure') }}
         env:
           E2E_PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
         run: node scripts/real-e2e-smoke.mjs
+
+      - name: Enforce every E2E security gate
+        if: ${{ always() && !cancelled() }}
+        env:
+          BACKEND_UNAVAILABLE_OUTCOME: ${{ steps.backend_unavailable.outcome }}
+          STATUS_MISMATCH_OUTCOME: ${{ steps.status_mismatch.outcome }}
+          REAL_BROWSER_OUTCOME: ${{ steps.real_browser.outcome }}
+        run: |
+          test "$BACKEND_UNAVAILABLE_OUTCOME" = "success"
+          test "$STATUS_MISMATCH_OUTCOME" = "success"
+          test "$REAL_BROWSER_OUTCOME" = "success"
+          echo "SYSTEM_E2E_SECURITY_GATE=PASS"

@@ -24,6 +24,15 @@ const evidence = {
   backendOrigin: new URL(backendUrl).origin,
   sameOrigin: new URL(previewUrl).origin === new URL(backendUrl).origin,
   credentialsMode: 'include',
+  authGate: {
+    unauthenticatedProbeStatus: null,
+    unauthenticatedResponseSeenByBrowser: false,
+    unauthenticatedMutationStatus: null,
+    loginButtonVisible: false,
+    loginPopupOpened: false,
+    workspaceVisibleBeforeLogin: null,
+    workspaceVisibleAfterLogin: false,
+  },
   login: { ok: false, finalUrl: null },
   cookie: { present: false, securityAttributesValid: false, sentToFactoryGet: false, metadata: [] },
   runtimeTruth: {
@@ -68,21 +77,83 @@ page.on('requestfailed', (request) => {
 });
 
 try {
+  evidence.phase = 'unauthenticated-preview';
+  const unauthenticatedProbe = page.waitForResponse(
+    (response) => response.url() === evidence.runtimeTruth.url && response.request().method() === 'GET',
+    { timeout: 20_000 },
+  ).catch(() => null);
+  await page.goto(previewUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  const unauthenticatedResponse = await unauthenticatedProbe;
+  if (unauthenticatedResponse) {
+    evidence.authGate.unauthenticatedResponseSeenByBrowser = true;
+    evidence.authGate.unauthenticatedProbeStatus = unauthenticatedResponse.status();
+  }
+
+  evidence.phase = 'auth-gate';
+  const loginButton = page.getByTestId('auth-login-button');
+  try {
+    await loginButton.waitFor({ state: 'visible', timeout: 10_000 });
+    evidence.authGate.loginButtonVisible = true;
+  } catch {
+    evidence.authGate.loginButtonVisible = false;
+  }
+  evidence.authGate.workspaceVisibleBeforeLogin =
+    (await page.getByPlaceholder('Describe the workflow you want Craftflow to build').count()) > 0;
+
+  const unauthenticatedMutation = await page.evaluate(async (url) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({}),
+    });
+    return response.status;
+  }, `${backendUrl}/api/orchestrator`);
+  evidence.authGate.unauthenticatedMutationStatus = unauthenticatedMutation;
+
+  if (
+    evidence.authGate.unauthenticatedProbeStatus !== 401 ||
+    !evidence.authGate.unauthenticatedResponseSeenByBrowser ||
+    evidence.authGate.unauthenticatedMutationStatus !== 401 ||
+    !evidence.authGate.loginButtonVisible ||
+    evidence.authGate.workspaceVisibleBeforeLogin
+  ) {
+    throw new Error('AUTH_GATE_NOT_ENFORCED');
+  }
+
   evidence.phase = 'login-navigation';
-  await page.goto(`${backendUrl}/api/auth/signin`, { waitUntil: 'networkidle', timeout: 30_000 });
+  const popupPromise = context.waitForEvent('page', { timeout: 10_000 });
+  await loginButton.click();
+  const loginPage = await popupPromise;
+  evidence.authGate.loginPopupOpened = true;
+  await loginPage.waitForLoadState('networkidle', { timeout: 30_000 });
+
   evidence.phase = 'login-form';
-  await page.locator('input[name="email"]').fill(email);
-  await page.locator('input[name="password"]').fill(password);
+  await loginPage.locator('input[name="email"]').fill(email);
+  await loginPage.locator('input[name="password"]').fill(password);
   evidence.phase = 'login-submit';
   await Promise.all([
-    page.waitForLoadState('networkidle'),
-    page.locator('button[type="submit"]').click(),
+    loginPage.waitForLoadState('networkidle'),
+    loginPage.locator('button[type="submit"]').click(),
   ]);
 
   evidence.phase = 'owner-session';
-  await page.goto(backendUrl, { waitUntil: 'networkidle', timeout: 30_000 });
-  evidence.login.finalUrl = page.url();
-  evidence.login.ok = (await page.getByText('OWNER Session aktiv').count()) > 0;
+  try {
+    evidence.login.finalUrl = loginPage.isClosed() ? null : loginPage.url();
+  } catch {
+    evidence.login.finalUrl = null;
+  }
+
+  const ownerProbe = await page.evaluate(async (url) => {
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    return response.status;
+  }, `${backendUrl}/api/runtime-truth`);
+  evidence.login.ok = ownerProbe === 200;
 
   const cookies = await context.cookies(backendUrl);
   const sessionCookies = cookies.filter((cookie) => cookie.name.includes('next-auth.session-token'));
@@ -102,8 +173,17 @@ try {
     throw new Error('AUTH_SESSION_NOT_ESTABLISHED');
   }
 
-  evidence.phase = 'preview-navigation';
-  await page.goto(previewUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+  evidence.phase = 'authenticated-preview';
+  const workspace = page.getByPlaceholder('Describe the workflow you want Craftflow to build');
+  try {
+    await workspace.waitFor({ state: 'visible', timeout: 10_000 });
+    evidence.authGate.workspaceVisibleAfterLogin = true;
+  } catch {
+    evidence.authGate.workspaceVisibleAfterLogin = false;
+  }
+  if (!evidence.authGate.workspaceVisibleAfterLogin) {
+    throw new Error('AUTH_GATE_DID_NOT_RELEASE');
+  }
 
   evidence.phase = 'runtime-truth';
   evidence.runtimeTruth.attempted = true;
@@ -174,6 +254,13 @@ try {
   console.log('REAL_E2E_EVIDENCE=' + JSON.stringify(evidence));
 
   const pass =
+    evidence.authGate.unauthenticatedProbeStatus === 401 &&
+    evidence.authGate.unauthenticatedResponseSeenByBrowser &&
+    evidence.authGate.unauthenticatedMutationStatus === 401 &&
+    evidence.authGate.loginButtonVisible &&
+    evidence.authGate.loginPopupOpened &&
+    evidence.authGate.workspaceVisibleBeforeLogin === false &&
+    evidence.authGate.workspaceVisibleAfterLogin &&
     evidence.login.ok &&
     evidence.cookie.present &&
     evidence.cookie.securityAttributesValid &&
