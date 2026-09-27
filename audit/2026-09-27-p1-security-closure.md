@@ -24,8 +24,8 @@ The browser E2E established an OWNER session, sent the secure session cookie wit
 
 ## Backend truth
 
-Backend main SHA at this audit point is `63898e42fd331c0a17f540538f5ba47e0ae3f84f`.
-Backend automatic main-push `verify` run 36281649693 passed.
+Backend main SHA at this audit point is `43ef17acf0cd60aa8cd894139cae6489cf7f32bd`.
+Backend automatic main-push `verify` run 36283072671 passed.
 Render service `srv-daqk0sp7lnhs73d9nr7g` was independently read back as LIVE on that same commit.
 
 The backend repair adds an OWNER-only, cache-disabled `GET /api/runtime-truth` contract that reads Render's runtime-provided repository, branch, commit SHA, and service ID and fails closed if they are missing or unexpected.
@@ -53,14 +53,14 @@ Because `real-e2e` is runtime-bound, promotion cannot pass merely from frontend 
 
 ## Current repair status
 
-The runtime-truth endpoint and backend documentation changes are on branch `repair/p1-runtime-truth-20260927`.
+The runtime-truth endpoint and backend documentation changes were merged through backend PR #23 and are live on the pinned backend main SHA.
 The frontend backend-SHA binding and documentation changes are on branch `repair/p1-backend-sha-binding-20260927`.
 Neither repair branch is authorized for merge by this document. No production deployment is authorized.
 
 Required merge order for a later human gate:
-1. backend repair -> required `verify` -> merge -> Render LIVE on resulting backend main SHA
-2. update frontend backend pin to that resulting backend merge SHA if it differs from the currently pinned SHA
-3. frontend repair -> required checks + real E2E -> merge
+1. backend PR #23: MERGED; required `verify`: PASS; Render: LIVE on the pinned backend main SHA
+2. frontend backend pin: updated to that exact live SHA
+3. frontend repair -> required checks + real E2E -> merge only after a separate human gate
 4. require all automatic post-merge frontend main runs to PASS on the exact resulting frontend main SHA
 
 ## Separate stale work
