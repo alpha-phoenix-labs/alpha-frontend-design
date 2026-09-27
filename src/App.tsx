@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { MotionConfig } from "framer-motion";
 import {
   AmbientNotificationCard,
@@ -133,6 +133,7 @@ function AuthenticatedCraftflow() {
 function AuthGate() {
   const baseUrl = normalizeFactoryBaseUrl(import.meta.env.VITE_FACTORY_API_BASE_URL);
   const [state, setState] = useState<AuthState>("checking");
+  const loginWindowRef = useRef<Window | null>(null);
 
   const checkSession = useCallback(async () => {
     if (baseUrl === null) {
@@ -167,6 +168,46 @@ function AuthGate() {
     void checkSession();
   }, [checkSession]);
 
+  useEffect(() => {
+    if (state !== "unauthenticated" || baseUrl === null) {
+      return;
+    }
+
+    const interval = window.setInterval(async () => {
+      try {
+        const response = await fetch(`${baseUrl}/api/runtime-truth`, {
+          method: "GET",
+          credentials: "include",
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (response.status === 200) {
+          loginWindowRef.current?.close();
+          loginWindowRef.current = null;
+          setState("authenticated");
+          window.focus();
+        }
+      } catch {
+        // Stay fail-closed while the backend/session probe is unavailable.
+      }
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [baseUrl, state]);
+
+  const openOwnerLogin = useCallback(() => {
+    if (baseUrl === null) {
+      setState("unavailable");
+      return;
+    }
+
+    loginWindowRef.current = window.open(
+      `${baseUrl}/api/auth/signin`,
+      "craftflow-owner-login",
+      "popup,width=560,height=760",
+    );
+  }, [baseUrl]);
+
   if (state === "authenticated") {
     return <AuthenticatedCraftflow />;
   }
@@ -194,15 +235,14 @@ function AuthGate() {
           <p className="mt-3 text-sm leading-6 text-slate-400">
             Die Produktionsoberfläche wird erst nach einer gültigen OWNER-Session freigegeben.
           </p>
-          <a
-            data-testid="auth-login-link"
+          <button
+            data-testid="auth-login-button"
             className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-950"
-            href={`${baseUrl}/api/auth/signin`}
-            target="_blank"
-            rel="noreferrer"
+            type="button"
+            onClick={openOwnerLogin}
           >
             OWNER Login öffnen
-          </a>
+          </button>
           <button
             data-testid="auth-retry"
             className="mt-3 w-full rounded-xl border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200"
