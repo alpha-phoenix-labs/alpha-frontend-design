@@ -5,6 +5,7 @@ import { test } from 'node:test';
 const source = readFileSync(new URL('../.github/workflows/real-e2e.yml', import.meta.url), 'utf8');
 const smoke = readFileSync(new URL('./real-e2e-smoke.mjs', import.meta.url), 'utf8');
 const backendPin = JSON.parse(readFileSync(new URL('../config/backend-runtime-truth.json', import.meta.url), 'utf8'));
+const unavailableNegative = readFileSync(new URL('./real-e2e-backend-unavailable-negative.mjs', import.meta.url), 'utf8');
 
 test('real E2E runs automatically for PR and main push', () => {
   assert.match(source, /\n  pull_request:\n    branches:\n      - main\n/);
@@ -51,4 +52,15 @@ test('real E2E is pinned to the expected backend main and Render service identit
 test('smoke evidence never logs cookie values', () => {
   assert.match(smoke, /\{ name, domain, path, secure, sameSite \}/);
   assert.doesNotMatch(smoke, /cookie\.value/);
+});
+
+test('real E2E workflow proves unavailable backend produces visible failure', () => {
+  assert.match(source, /Prove unavailable backend fails closed/);
+  assert.match(source, /node scripts\/real-e2e-backend-unavailable-negative\.mjs/);
+  assert.match(unavailableNegative, /reserveAndReleasePort/);
+  assert.match(unavailableNegative, /outcome\.code !== 0/);
+  assert.match(unavailableNegative, /REAL_E2E_EVIDENCE=/);
+  assert.match(unavailableNegative, /::error::/);
+  assert.match(unavailableNegative, /!combined\.includes\('REAL_E2E_PASS'\)/);
+  assert.match(unavailableNegative, /BACKEND_UNAVAILABLE_NEGATIVE_PASS/);
 });
