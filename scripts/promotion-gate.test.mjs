@@ -23,6 +23,27 @@ test('exact main SHA with all automatic evidence succeeds', async()=>assert.equa
 for(const [name,field,value] of [['other SHA','head_sha','b'.repeat(40)],['PR run','event','pull_request'],['manual run','event','workflow_dispatch'],['failed run','conclusion','failure'],['cancelled run','conclusion','cancelled'],['pending run','status','in_progress'],['foreign repository','head_repository',{full_name:'other/repo'}]]) {
  test(name+' blocks promotion',async()=>assert.rejects(run(fixture(d=>{if(d.workflow_runs)d.workflow_runs[0][field]=value;}))));
 }
+test('known PR-only real-e2e contract skip is allowed on main push', async()=>{
+ const evidence=await run(fixture((d,p)=>{
+  if(p.includes('/jobs?')&&d.jobs?.[0]?.name==='real-e2e'){
+   d.total_count=2;
+   d.jobs.push({name:'real-e2e-contract',status:'completed',conclusion:'skipped'});
+  }
+ }));
+ assert.equal(evidence.length,3);
+});
+test('unknown skipped ancillary job blocks promotion',async()=>assert.rejects(run(fixture((d,p)=>{
+ if(p.includes('/jobs?')&&d.jobs?.[0]?.name==='real-e2e'){
+  d.total_count=2;
+  d.jobs.push({name:'unexpected-security-job',status:'completed',conclusion:'skipped'});
+ }
+}))));
+test('failed ancillary job blocks promotion',async()=>assert.rejects(run(fixture((d,p)=>{
+ if(p.includes('/jobs?')&&d.jobs?.[0]?.name==='real-e2e'){
+  d.total_count=2;
+  d.jobs.push({name:'extra-security-job',status:'completed',conclusion:'failure'});
+ }
+}))));
 test('missing E2E workflow blocks promotion',async()=>assert.rejects(run(fixture((d,p)=>{if(p.endsWith('real-e2e.yml'))throw Error('404');}))));
 test('missing run blocks promotion',async()=>assert.rejects(run(fixture(d=>{if(d.workflow_runs)d.workflow_runs=[];}))));
 test('latest failed run defeats older success',async()=>assert.rejects(run(fixture(d=>{if(d.workflow_runs)d.workflow_runs.push({...d.workflow_runs[0],id:99,run_number:2,conclusion:'failure'});}))));
