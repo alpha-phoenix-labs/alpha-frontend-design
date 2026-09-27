@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const required = (name) => {
@@ -11,6 +12,9 @@ const backendUrl = required('E2E_BACKEND_URL').replace(/\/+$/, '');
 const email = required('E2E_OWNER_EMAIL');
 const password = required('E2E_OWNER_PASSWORD');
 const jobId = required('E2E_FACTORY_JOB_ID');
+const backendPin = JSON.parse(
+  readFileSync(new URL('../config/backend-runtime-truth.json', import.meta.url), 'utf8'),
+);
 
 const evidence = {
   previewOrigin: new URL(previewUrl).origin,
@@ -19,6 +23,14 @@ const evidence = {
   credentialsMode: 'include',
   login: { ok: false, finalUrl: null },
   cookie: { present: false, sentToFactoryGet: false, metadata: [] },
+  runtimeTruth: {
+    attempted: false,
+    url: `${backendUrl}/api/runtime-truth`,
+    status: null,
+    responseSeenByBrowser: false,
+    expected: backendPin,
+    actual: null,
+  },
   get: {
     attempted: false,
     url: `${backendUrl}/api/orchestrator?jobId=${encodeURIComponent(jobId)}`,
@@ -81,6 +93,35 @@ try {
   }
 
   await page.goto(previewUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+
+  evidence.runtimeTruth.attempted = true;
+  const runtimeTruth = await page.evaluate(async (url) => {
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    });
+    let body = null;
+    try { body = await response.json(); } catch {}
+    return { status: response.status, body };
+  }, evidence.runtimeTruth.url);
+  evidence.runtimeTruth.status = runtimeTruth.status;
+  evidence.runtimeTruth.responseSeenByBrowser = true;
+  evidence.runtimeTruth.actual = runtimeTruth.body;
+
+  const runtimeTruthMatches =
+    runtimeTruth.status === 200 &&
+    runtimeTruth.body?.contractVersion === '1.0' &&
+    runtimeTruth.body?.provider === 'render' &&
+    runtimeTruth.body?.repository === backendPin.repository &&
+    runtimeTruth.body?.branch === backendPin.branch &&
+    runtimeTruth.body?.commitSha === backendPin.commitSha &&
+    runtimeTruth.body?.serviceId === backendPin.serviceId;
+
+  if (!runtimeTruthMatches) {
+    throw new Error('BACKEND_RUNTIME_TRUTH_MISMATCH');
+  }
+
   await page.evaluate(
     ({ key, value }) => sessionStorage.setItem(key, value),
     { key: 'craftflow.factory.activeJobId.v1', value: jobId },
@@ -116,6 +157,13 @@ try {
   const pass =
     evidence.login.ok &&
     evidence.cookie.present &&
+    evidence.runtimeTruth.attempted &&
+    evidence.runtimeTruth.status === 200 &&
+    evidence.runtimeTruth.responseSeenByBrowser &&
+    evidence.runtimeTruth.actual?.repository === backendPin.repository &&
+    evidence.runtimeTruth.actual?.branch === backendPin.branch &&
+    evidence.runtimeTruth.actual?.commitSha === backendPin.commitSha &&
+    evidence.runtimeTruth.actual?.serviceId === backendPin.serviceId &&
     evidence.get.attempted &&
     evidence.get.status === 200 &&
     !evidence.get.redirected &&
