@@ -29,7 +29,9 @@ test('production HTTP mode is fail-closed behind an OWNER auth gate', () => {
   assert.match(app, /\/api\/runtime-truth/);
   assert.match(app, /credentials: "include"/);
   assert.match(app, /response\.status === 401/);
-  assert.match(app, /data-testid="auth-login-link"/);
+  assert.match(app, /data-testid="auth-login-button"/);
+  assert.match(app, /window\.open/);
+  assert.match(app, /loginWindowRef\.current\?\.close\(\)/);
   assert.match(app, /data-testid="auth-gate-unavailable"/);
 });
 
@@ -42,7 +44,9 @@ test('real E2E starts unauthenticated at the frontend before login', () => {
   assert.match(smoke, /unauthenticatedMutationStatus !== 401/);
   assert.match(smoke, /workspaceVisibleBeforeLogin/);
   assert.match(smoke, /workspaceVisibleAfterLogin/);
-  assert.match(smoke, /auth-login-link/);
+  assert.match(smoke, /auth-login-button/);
+  assert.match(smoke, /context\.waitForEvent\('page'/);
+  assert.doesNotMatch(smoke, /await page\.goto\(previewUrl, \{ waitUntil: 'domcontentloaded', timeout: 30_000 \}\);\n  const workspace/);
 });
 
 test('real E2E uses no-traffic version upload and contains no production deploy command', () => {
