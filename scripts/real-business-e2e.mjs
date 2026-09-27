@@ -104,7 +104,7 @@ try {
   evidence.phase = 'approval-gate';
   const status = page.locator('[data-testid="factory-status"]');
   await status.waitFor({ state: 'visible', timeout: 20_000 });
-  if ((await status.textContent())?.trim() !== 'WAITING_FOR_APPROVAL') {
+  if ((await status.textContent())?.trim() !== 'awaiting_human') {
     fail('BUSINESS_E2E_UI_NOT_WAITING_FOR_APPROVAL');
   }
   const versionNode = page.getByTestId('approval-version');
