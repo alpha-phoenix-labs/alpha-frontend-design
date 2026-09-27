@@ -12,6 +12,7 @@ const backendUrl = required('E2E_BACKEND_URL').replace(/\/+$/, '');
 const email = required('E2E_OWNER_EMAIL');
 const password = required('E2E_OWNER_PASSWORD');
 const jobId = required('E2E_FACTORY_JOB_ID');
+const expectedStatus = required('E2E_EXPECTED_FACTORY_STATUS');
 const backendPin = JSON.parse(
   readFileSync(new URL('../config/backend-runtime-truth.json', import.meta.url), 'utf8'),
 );
@@ -41,7 +42,7 @@ const evidence = {
     responseSeenByBrowser: false,
   },
   browser: { requestFailed: null, consoleErrors: [] },
-  ui: { factoryStatusRendered: false, status: null },
+  ui: { factoryStatusRendered: false, status: null, expectedStatus, statusMatches: false },
 };
 
 const browser = await chromium.launch({ headless: true });
@@ -152,6 +153,10 @@ try {
     evidence.ui.factoryStatusRendered = false;
   }
 
+  evidence.ui.statusMatches = evidence.ui.factoryStatusRendered &&
+    typeof evidence.ui.status === 'string' && evidence.ui.status.length > 0 &&
+    evidence.ui.status === evidence.ui.expectedStatus;
+
   console.log('REAL_E2E_EVIDENCE=' + JSON.stringify(evidence));
 
   const pass =
@@ -170,7 +175,7 @@ try {
     evidence.get.responseSeenByBrowser &&
     evidence.cookie.sentToFactoryGet &&
     evidence.browser.requestFailed === null &&
-    evidence.ui.factoryStatusRendered;
+    evidence.ui.factoryStatusRendered && evidence.ui.statusMatches;
 
   if (!pass) throw new Error('REAL_E2E_FAIL');
   console.log('REAL_E2E_PASS');

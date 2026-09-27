@@ -23,6 +23,7 @@ jobs:
       VITE_FACTORY_MODE: http
       VITE_FACTORY_API_BASE_URL: https://n8n-workflow-factory.onrender.com
       E2E_BACKEND_URL: https://n8n-workflow-factory.onrender.com
+      E2E_EXPECTED_FACTORY_STATUS: completed
       E2E_FACTORY_JOB_ID: cmuh65gdm000033lz59wtkm57
       E2E_OWNER_EMAIL: ${{ secrets.E2E_OWNER_EMAIL }}
       E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
@@ -87,6 +88,11 @@ jobs:
 
       - name: Prove unavailable backend fails closed
         run: node scripts/real-e2e-backend-unavailable-negative.mjs
+
+      - name: Prove wrong expected UI status fails closed
+        env:
+          E2E_PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
+        run: node scripts/real-e2e-status-mismatch-negative.mjs
 
       - name: Run read-only browser Factory GET
         env:
