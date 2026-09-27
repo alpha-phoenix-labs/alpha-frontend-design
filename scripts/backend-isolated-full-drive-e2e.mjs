@@ -22,6 +22,7 @@ const evidence = {
   jobId: null,
   createdStatus: null,
   snapshotStatus: null,
+  snapshotErrorMessage: null,
   approvalVersion: null,
   n8n: { result: null, executionId: null, importedId: null },
   approvedStatus: null,
@@ -102,6 +103,7 @@ try {
   if (!snapshot.ok) fail(`BACKEND_SNAPSHOT_FAILED:${snapshot.status}`);
 
   evidence.snapshotStatus = snapshot.body?.status ?? null;
+  evidence.snapshotErrorMessage = snapshot.body?.errorMessage ?? null;
   evidence.approvalVersion = snapshot.body?.version ?? null;
 
   if (snapshot.body?.status !== 'WAITING_FOR_APPROVAL') {
