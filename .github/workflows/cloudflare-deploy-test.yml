@@ -3,10 +3,6 @@ name: Cloudflare Deploy Test
 on:
   workflow_dispatch:
     inputs:
-      deploy:
-        description: "Produktiv-Deploy ausführen (wirkt nur auf main, sonst nur versions upload)"
-        type: boolean
-        default: false
       g5_preview:
         description: "G5 Preview-Build mit realem Factory-HTTP-Modus (niemals Production-Traffic)"
         type: boolean
@@ -20,22 +16,21 @@ on:
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
-  group: cloudflare-deploy
-  cancel-in-progress: false
+  group: cloudflare-deploy-test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deploy-test:
     runs-on: ubuntu-latest
 
     env:
-      VITE_FACTORY_MODE: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.g5_preview == true || inputs.deploy == true))) && 'http' || '' }}
-      VITE_FACTORY_API_BASE_URL: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.g5_preview == true || inputs.deploy == true))) && 'https://n8n-workflow-factory.onrender.com' || '' }}
+      VITE_FACTORY_MODE: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.g5_preview == true)) && 'http' || '' }}
+      VITE_FACTORY_API_BASE_URL: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.g5_preview == true)) && 'https://n8n-workflow-factory.onrender.com' || '' }}
 
     steps:
-      - name: Checkout
+      - name: Checkout exact SHA
         uses: actions/checkout@v6
         with:
           ref: ${{ github.sha }}
@@ -57,14 +52,8 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Guard G5 preview from production routing
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.g5_preview == true && inputs.deploy == true }}
-        run: |
-          echo "::error::G5 preview must never use production deploy."
-          exit 1
-
       - name: Verify real-environment preview build configuration
-        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.g5_preview == true || inputs.deploy == true)) }}
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.g5_preview == true) }}
         run: |
           test "$VITE_FACTORY_MODE" = "http"
           test "$VITE_FACTORY_API_BASE_URL" = "https://n8n-workflow-factory.onrender.com"
@@ -72,29 +61,10 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Pull Requests, main pushes und jeder manuelle Start ohne deploy=true:
-      # lädt eine Version ohne Live-Traffic hoch, kein Produktiv-Deploy.
       - name: Upload version to Cloudflare (no traffic)
-        if: ${{ !(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy == true) }}
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.141.0"
           command: versions upload
-
-      - name: Require exact-main post-merge truth before promotion
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy == true }}
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/promotion-gate.mjs
-
-      # Produktiv-Deploy nur bei manuellem Start auf main mit deploy=true und niemals im G5-Preview-Modus.
-      - name: Deploy to Cloudflare
-        if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy == true && inputs.g5_preview != true }}
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: "4.141.0"
-          command: deploy
