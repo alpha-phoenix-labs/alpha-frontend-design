@@ -41,7 +41,8 @@ const fail = (message) => { throw new Error(message); };
 const jsonOf = async (response) => {
   try { return await response.json(); } catch { return null; }
 };
-const nonEmptyId = (value) => typeof value === 'string' && /^[a-zA-Z0-9_-]{6,}$/.test(value);
+const nonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
+const driveArtifactId = (value) => typeof value === 'string' && /^[a-zA-Z0-9_-]{6,}$/.test(value);
 
 try {
   evidence.phase = 'frontend-auth-gate';
@@ -89,9 +90,10 @@ try {
   evidence.phase = 'verify-real-n8n-test';
   if (
     created.testReport?.contractVersion !== '1.0' ||
+    created.testReport?.jobId !== evidence.jobId ||
     created.testReport?.result !== 'PASS' ||
-    !nonEmptyId(created.testReport?.executionId) ||
-    !nonEmptyId(created.testReport?.importedId)
+    !nonEmptyString(created.testReport?.executionId) ||
+    !nonEmptyString(created.testReport?.importedId)
   ) {
     fail('BUSINESS_E2E_N8N_TEST_NOT_PROVEN');
   }
@@ -131,11 +133,11 @@ try {
   const archive = approved?.archive;
   if (
     archive?.status !== 'COMPLETE' ||
-    !nonEmptyId(archive.auftragFileId) ||
-    !nonEmptyId(archive.workflowFileId) ||
-    !nonEmptyId(archive.testReportFileId) ||
-    !nonEmptyId(archive.finalWorkflowFileId) ||
-    !nonEmptyId(archive.documentationFileId)
+    !driveArtifactId(archive.auftragFileId) ||
+    !driveArtifactId(archive.workflowFileId) ||
+    !driveArtifactId(archive.testReportFileId) ||
+    !driveArtifactId(archive.finalWorkflowFileId) ||
+    !driveArtifactId(archive.documentationFileId)
   ) {
     fail('BUSINESS_E2E_DRIVE_NOT_COMPLETE');
   }
