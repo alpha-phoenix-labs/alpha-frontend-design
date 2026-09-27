@@ -18,6 +18,8 @@ const backendPin = JSON.parse(
 );
 
 const evidence = {
+  frontendSha: process.env.E2E_FRONTEND_SHA ?? null,
+  phase: 'initialization',
   previewOrigin: new URL(previewUrl).origin,
   backendOrigin: new URL(backendUrl).origin,
   sameOrigin: new URL(previewUrl).origin === new URL(backendUrl).origin,
@@ -66,14 +68,18 @@ page.on('requestfailed', (request) => {
 });
 
 try {
+  evidence.phase = 'login-navigation';
   await page.goto(`${backendUrl}/api/auth/signin`, { waitUntil: 'networkidle', timeout: 30_000 });
+  evidence.phase = 'login-form';
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
+  evidence.phase = 'login-submit';
   await Promise.all([
     page.waitForLoadState('networkidle'),
     page.locator('button[type="submit"]').click(),
   ]);
 
+  evidence.phase = 'owner-session';
   await page.goto(backendUrl, { waitUntil: 'networkidle', timeout: 30_000 });
   evidence.login.finalUrl = page.url();
   evidence.login.ok = (await page.getByText('OWNER Session aktiv').count()) > 0;
@@ -93,8 +99,10 @@ try {
     throw new Error('AUTH_SESSION_NOT_ESTABLISHED');
   }
 
+  evidence.phase = 'preview-navigation';
   await page.goto(previewUrl, { waitUntil: 'networkidle', timeout: 30_000 });
 
+  evidence.phase = 'runtime-truth';
   evidence.runtimeTruth.attempted = true;
   const runtimeTruth = await page.evaluate(async (url) => {
     const response = await fetch(url, {
@@ -133,6 +141,7 @@ try {
     { timeout: 20_000 },
   ).catch(() => null);
 
+  evidence.phase = 'factory-get';
   evidence.get.attempted = true;
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
   const response = await responsePromise;
@@ -144,6 +153,7 @@ try {
     evidence.cookie.sentToFactoryGet = Boolean(await response.request().headerValue('cookie'));
   }
 
+  evidence.phase = 'ui-status';
   const statusNode = page.locator('[data-testid="factory-status"]');
   try {
     await statusNode.waitFor({ state: 'visible', timeout: 10_000 });
@@ -153,6 +163,7 @@ try {
     evidence.ui.factoryStatusRendered = false;
   }
 
+  evidence.phase = 'status-comparison';
   evidence.ui.statusMatches = evidence.ui.factoryStatusRendered &&
     typeof evidence.ui.status === 'string' && evidence.ui.status.length > 0 &&
     evidence.ui.status === evidence.ui.expectedStatus;

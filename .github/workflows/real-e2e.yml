@@ -32,7 +32,16 @@ jobs:
       - name: Checkout exact SHA
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Verify checkout identity
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+          echo "E2E_FRONTEND_SHA=$ACTUAL_SHA" >> "$GITHUB_ENV"
+          echo "CHECKOUT_SHA=$ACTUAL_SHA"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -90,11 +99,13 @@ jobs:
         run: node scripts/real-e2e-backend-unavailable-negative.mjs
 
       - name: Prove wrong expected UI status fails closed
+        id: status_mismatch
         env:
           E2E_PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
         run: node scripts/real-e2e-status-mismatch-negative.mjs
 
       - name: Run read-only browser Factory GET
+        if: ${{ !cancelled() && (steps.status_mismatch.outcome == 'success' || steps.status_mismatch.outcome == 'failure') }}
         env:
           E2E_PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
         run: node scripts/real-e2e-smoke.mjs
