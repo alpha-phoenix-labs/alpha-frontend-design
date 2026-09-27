@@ -17,7 +17,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  real-e2e:
+  real-e2e-contract:
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
@@ -30,19 +31,18 @@ jobs:
       E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
 
     steps:
-      - name: Checkout exact SHA
+      - name: Checkout exact PR SHA
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Verify checkout identity
         env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
           echo "E2E_FRONTEND_SHA=$ACTUAL_SHA" >> "$GITHUB_ENV"
-          echo "CHECKOUT_SHA=$ACTUAL_SHA"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -50,10 +50,50 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build exact SHA
+        run: npm run build
+
+      - name: Verify E2E governance
+        run: node --test scripts/real-e2e-governance.test.mjs scripts/post-merge-governance.test.mjs
+
+  real-e2e:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_FACTORY_MODE: http
+      VITE_FACTORY_API_BASE_URL: https://n8n-workflow-factory.onrender.com
+      E2E_BACKEND_URL: https://n8n-workflow-factory.onrender.com
+      E2E_OWNER_EMAIL: ${{ secrets.E2E_OWNER_EMAIL }}
+      E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
+
+    steps:
+      - name: Checkout exact main SHA
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Verify checkout identity
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          echo "E2E_FRONTEND_SHA=${{ github.sha }}" >> "$GITHUB_ENV"
+
       - name: Require approved browser credentials
         run: |
           test -n "$E2E_OWNER_EMAIL" || { echo "::error::E2E_OWNER_EMAIL secret missing"; exit 1; }
           test -n "$E2E_OWNER_PASSWORD" || { echo "::error::E2E_OWNER_PASSWORD secret missing"; exit 1; }
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
 
       - name: Install application dependencies
         run: npm ci
@@ -96,31 +136,7 @@ jobs:
           npm install --no-save --ignore-scripts playwright@1.55.0
           npx playwright install chromium
 
-      - name: Prove unavailable backend fails closed
-        id: backend_unavailable
-        run: node scripts/real-e2e-backend-unavailable-negative.mjs
-
-      - name: Prove wrong expected UI status fails closed
-        id: status_mismatch
+      - name: Run full real business E2E through Google Drive COMPLETE
         env:
           E2E_PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
-        run: node scripts/real-e2e-status-mismatch-negative.mjs
-
-      - name: Run read-only browser Factory GET
-        id: real_browser
-        if: ${{ !cancelled() && (steps.status_mismatch.outcome == 'success' || steps.status_mismatch.outcome == 'failure') }}
-        env:
-          E2E_PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
-        run: node scripts/real-e2e-smoke.mjs
-
-      - name: Enforce every E2E security gate
-        if: ${{ always() && !cancelled() }}
-        env:
-          BACKEND_UNAVAILABLE_OUTCOME: ${{ steps.backend_unavailable.outcome }}
-          STATUS_MISMATCH_OUTCOME: ${{ steps.status_mismatch.outcome }}
-          REAL_BROWSER_OUTCOME: ${{ steps.real_browser.outcome }}
-        run: |
-          test "$BACKEND_UNAVAILABLE_OUTCOME" = "success"
-          test "$STATUS_MISMATCH_OUTCOME" = "success"
-          test "$REAL_BROWSER_OUTCOME" = "success"
-          echo "SYSTEM_E2E_SECURITY_GATE=PASS"
+        run: node scripts/real-business-e2e.mjs
