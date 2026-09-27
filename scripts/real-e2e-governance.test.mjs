@@ -83,7 +83,7 @@ test('UI status gate rejects invisible, missing, empty and non-exact status', ()
 
 
 test('cookie security attributes are a hard fail-closed gate', () => {
-  const expression = smoke.match(/evidence\.cookie\.securityAttributesValid = ([\s\S]*?);/)[1];
+  const expression = smoke.match(/evidence\.cookie\.securityAttributesValid\s*=\s*([\s\S]*?);/)[1];
   const cookieSecurityPass = new Function('sessionCookies', 'return ' + expression);
   assert.equal(cookieSecurityPass([{ secure: true, sameSite: 'None' }]), true);
   for (const cookies of [
