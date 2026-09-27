@@ -28,8 +28,8 @@ const evidence = {
     unauthenticatedProbeStatus: null,
     unauthenticatedResponseSeenByBrowser: false,
     unauthenticatedMutationStatus: null,
-    loginLinkVisible: false,
-    loginHref: null,
+    loginButtonVisible: false,
+    loginPopupOpened: false,
     workspaceVisibleBeforeLogin: null,
     workspaceVisibleAfterLogin: false,
   },
@@ -90,13 +90,12 @@ try {
   }
 
   evidence.phase = 'auth-gate';
-  const loginLink = page.getByTestId('auth-login-link');
+  const loginButton = page.getByTestId('auth-login-button');
   try {
-    await loginLink.waitFor({ state: 'visible', timeout: 10_000 });
-    evidence.authGate.loginLinkVisible = true;
-    evidence.authGate.loginHref = await loginLink.getAttribute('href');
+    await loginButton.waitFor({ state: 'visible', timeout: 10_000 });
+    evidence.authGate.loginButtonVisible = true;
   } catch {
-    evidence.authGate.loginLinkVisible = false;
+    evidence.authGate.loginButtonVisible = false;
   }
   evidence.authGate.workspaceVisibleBeforeLogin =
     (await page.getByPlaceholder('Describe the workflow you want Craftflow to build').count()) > 0;
@@ -116,28 +115,31 @@ try {
     evidence.authGate.unauthenticatedProbeStatus !== 401 ||
     !evidence.authGate.unauthenticatedResponseSeenByBrowser ||
     evidence.authGate.unauthenticatedMutationStatus !== 401 ||
-    !evidence.authGate.loginLinkVisible ||
-    evidence.authGate.loginHref !== `${backendUrl}/api/auth/signin` ||
+    !evidence.authGate.loginButtonVisible ||
     evidence.authGate.workspaceVisibleBeforeLogin
   ) {
     throw new Error('AUTH_GATE_NOT_ENFORCED');
   }
 
   evidence.phase = 'login-navigation';
-  await page.goto(evidence.authGate.loginHref, { waitUntil: 'networkidle', timeout: 30_000 });
+  const popupPromise = context.waitForEvent('page', { timeout: 10_000 });
+  await loginButton.click();
+  const loginPage = await popupPromise;
+  evidence.authGate.loginPopupOpened = true;
+  await loginPage.waitForLoadState('networkidle', { timeout: 30_000 });
+
   evidence.phase = 'login-form';
-  await page.locator('input[name="email"]').fill(email);
-  await page.locator('input[name="password"]').fill(password);
+  await loginPage.locator('input[name="email"]').fill(email);
+  await loginPage.locator('input[name="password"]').fill(password);
   evidence.phase = 'login-submit';
   await Promise.all([
-    page.waitForLoadState('networkidle'),
-    page.locator('button[type="submit"]').click(),
+    loginPage.waitForLoadState('networkidle'),
+    loginPage.locator('button[type="submit"]').click(),
   ]);
 
   evidence.phase = 'owner-session';
-  await page.goto(backendUrl, { waitUntil: 'networkidle', timeout: 30_000 });
-  evidence.login.finalUrl = page.url();
-  evidence.login.ok = (await page.getByText('OWNER Session aktiv').count()) > 0;
+  evidence.login.finalUrl = loginPage.url();
+  evidence.login.ok = (await loginPage.getByText('OWNER Session aktiv').count()) > 0;
 
   const cookies = await context.cookies(backendUrl);
   const sessionCookies = cookies.filter((cookie) => cookie.name.includes('next-auth.session-token'));
@@ -158,7 +160,6 @@ try {
   }
 
   evidence.phase = 'authenticated-preview';
-  await page.goto(previewUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   const workspace = page.getByPlaceholder('Describe the workflow you want Craftflow to build');
   try {
     await workspace.waitFor({ state: 'visible', timeout: 10_000 });
@@ -242,8 +243,8 @@ try {
     evidence.authGate.unauthenticatedProbeStatus === 401 &&
     evidence.authGate.unauthenticatedResponseSeenByBrowser &&
     evidence.authGate.unauthenticatedMutationStatus === 401 &&
-    evidence.authGate.loginLinkVisible &&
-    evidence.authGate.loginHref === `${backendUrl}/api/auth/signin` &&
+    evidence.authGate.loginButtonVisible &&
+    evidence.authGate.loginPopupOpened &&
     evidence.authGate.workspaceVisibleBeforeLogin === false &&
     evidence.authGate.workspaceVisibleAfterLogin &&
     evidence.login.ok &&
