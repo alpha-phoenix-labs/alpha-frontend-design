@@ -114,10 +114,7 @@ jobs:
             await popup.waitForLoadState('domcontentloaded', { timeout: 30000 });
             await popup.locator('input[name="email"]').fill(process.env.E2E_OWNER_EMAIL);
             await popup.locator('input[name="password"]').fill(process.env.E2E_OWNER_PASSWORD);
-            await Promise.all([
-              popup.waitForLoadState('networkidle'),
-              popup.locator('button[type="submit"]').click(),
-            ]);
+            await popup.locator('button[type="submit"]').click();
 
             const workspace = page.getByPlaceholder('Describe the workflow you want Craftflow to build');
             await workspace.waitFor({ state: 'visible', timeout: 20000 });
