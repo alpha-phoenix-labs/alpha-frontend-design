@@ -34,10 +34,17 @@ test('full business E2E starts at frontend OWNER auth and submits a new prompt t
 test('full business E2E requires real n8n execution before approval', () => {
   assert.match(business, /created\.status !== 'WAITING_FOR_APPROVAL'/);
   assert.match(business, /testReport\?\.contractVersion !== '1\.0'/);
+  assert.match(business, /testReport\?\.jobId !== evidence\.jobId/);
   assert.match(business, /testReport\?\.result !== 'PASS'/);
-  assert.match(business, /executionId/);
-  assert.match(business, /importedId/);
+  assert.match(business, /nonEmptyString\(created\.testReport\?\.executionId\)/);
+  assert.match(business, /nonEmptyString\(created\.testReport\?\.importedId\)/);
   assert.match(business, /BUSINESS_E2E_N8N_TEST_NOT_PROVEN/);
+});
+
+test('n8n IDs follow the public contract while Drive artifact IDs remain strict', () => {
+  assert.match(business, /const nonEmptyString = \(value\) => typeof value === 'string' && value\.trim\(\)\.length > 0/);
+  assert.match(business, /const driveArtifactId = \(value\) => typeof value === 'string' && \/\^\[a-zA-Z0-9_-\]\{6,\}\$\//);
+  assert.match(business, /driveArtifactId\(archive\.finalWorkflowFileId\)/);
 });
 
 test('full business E2E performs approval through the rendered frontend', () => {
