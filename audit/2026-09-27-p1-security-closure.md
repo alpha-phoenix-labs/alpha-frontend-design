@@ -1,45 +1,68 @@
-# P1 Security Closure — review only, 2026-09-27
+# P1 Security Closure — truth status, 2026-09-27
 
-## Human gate: required checks
-Do not apply ruleset mutations automatically. Preserve all other rules, bypass restrictions and existing checks.
-Frontend protect-main (23705450): ADD REQUIRED STATUS CHECK: deploy-test, integration_id 15368 (GitHub Actions); retain build and strict policy.
-Backend Protect Main (23936816): ADD REQUIRED STATUS CHECK: verify, integration_id 15368; propose strict_required_status_checks_policy=true.
-After human approval, read rules back and demonstrate a failed required check blocks merge. This has NOT been performed.
+## Enforced pre-merge gates
 
-Evidence:
-- Frontend PR push run 36279147017: job deploy-test, success.
-- Frontend PR run 36276948270: job deploy-test, failure at Typecheck.
-- Backend PR run 36272449034: job verify, success.
-- Backend PR run 36272390714: job verify, failure at full Next.js TypeScript check.
-- verify covers npm ci, Prisma generation, full typecheck, controlled/mock tests, Next.js build and high-severity production dependency audit.
-- All these jobs are unconditional; no continue-on-error masks the required steps. They prove their checks, not E2E.
+Frontend ruleset `protect-main` (23705450) is active on the default branch, strict/up-to-date, no bypass actors, squash-only, and requires:
+- `build`
+- `deploy-test`
 
-## Promotion implementation and limit
-scripts/promotion-gate.mjs queries GitHub using the workflow GITHUB_TOKEN (contents:read, actions:read).
-It accepts only the current main SHA and the latest successful PUSH runs of every mandatory workflow; verifies source repository, workflow identity, main branch, SHA, job status and conclusion; rechecks main before returning.
-No manual success flag, PR event, workflow_dispatch event, older successful run or skipped job qualifies.
-Missing real-e2e.yml, missing token, API failure or pending/failed evidence blocks production.
-The guard is immediately before the production step. It does not dispatch workflows or deploy.
-This remains a branch implementation; running it on production was prohibited.
+Backend ruleset `Protect Main` (23936816) is active on the default branch, strict/up-to-date, no bypass actors, and requires:
+- `verify`
 
-## Smallest real E2E design — BLOCKED
-Required future workflow: .github/workflows/real-e2e.yml, unconditional job context real-e2e on push to main.
-1. Resolve preview URL and Cloudflare version from the successful automatic delivery run for this exact frontend SHA. Record both; never use an arbitrary/latest production URL.
-2. Open that real preview in a clean real browser with an approved read-only test-owner session and an existing synthetic job ID.
-3. Trigger the application's existing FactoryService.getJobStatus(jobId) through an approved UI/test mechanism using the SAME bundled singleton and HttpFactoryService. Do not bypass the adapter with page fetch, Playwright request, route.fulfill, mocked responses or direct API-only tests.
-4. Assert actual HTTP mode and expected Factory origin; capture the browser GET /api/orchestrator?jobId=...; require genuine HTTP 200, JSON DTO with matching jobId, integer version, allowed status and valid nullable fields; assert the application consumes that response.
-5. Record exact frontend SHA, preview version, backend deployment SHA and redacted network evidence. No POST, approval, job generation, n8n execution or external paid call.
-6. Missing credentials, unavailable preview/backend, 401/403, CORS, timeout, invalid DTO or failed assertion must fail the job visibly; no skipped-success branch.
-7. Test runner never uploads session storage, cookies or tokens as artifacts.
+These rulesets were read back after the human-approved configuration change. A rules file is not treated as enforcement evidence.
 
-BLOCKED — REQUIRED TEST CREDENTIAL/E2E MECHANISM MISSING.
-No approved browser session provisioning / known synthetic job / application read-only trigger is established.
-Current HttpFactoryService defaults to same-origin credentials while the preview and Render are different origins. Do not improvise credentials:include, CORS or auth changes. Prove the approved transport/auth mechanism separately before implementing this smoke.
-A health response alone is never E2E. The reserved real-e2e job is not yet implemented.
+## Proven post-merge frontend truth
 
-## PR 17 isolation
-Open, head 11d8459249f1e40513f000d36d1d5462c2a09618.
-Against main 85ce155202f977a68e087ccd76017fb8853650f5: diverged, 13 ahead, 3 behind; merge base 65fc1c807b583fd66091b3ce1810f1859cb2f9ab.
-GitHub reports mergeable=true, mergeable_state=unstable. No reported textual merge conflict, but semantic compatibility unproven.
-Head CI run 36141817962: failure.
-Classification: STALE — REBASE/REVALIDATION REQUIRED. Do not mix into this repair or merge it.
+Frontend main SHA `84fec1982784532c203268c2ac702075e27c78f8` was verified by automatic `push` runs:
+- CI/build run 36282142088: PASS
+- Cloudflare Deploy Test/deploy-test run 36282142104: PASS
+- Real E2E/real-e2e run 36282142075: PASS
+
+The main-push build used `VITE_FACTORY_MODE=http` and `VITE_FACTORY_API_BASE_URL=https://n8n-workflow-factory.onrender.com`.
+Cloudflare used `versions upload`; production deployment was skipped.
+The browser E2E established an OWNER session, sent the secure session cookie with the Factory GET, received HTTP 200, and rendered job status `completed`.
+
+## Backend truth
+
+Backend main SHA at this audit point is `43ef17acf0cd60aa8cd894139cae6489cf7f32bd`.
+Backend automatic main-push `verify` run 36283072671 passed.
+Render service `srv-daqk0sp7lnhs73d9nr7g` was independently read back as LIVE on that same commit.
+
+The backend repair adds an OWNER-only, cache-disabled `GET /api/runtime-truth` contract that reads Render's runtime-provided repository, branch, commit SHA, and service ID and fails closed if they are missing or unexpected.
+
+## Runtime-bound Real E2E
+
+The frontend repair stores the expected backend release identity in `config/backend-runtime-truth.json`.
+Before the existing application-driven Factory GET may count as PASS, the browser must read `/api/runtime-truth` with the authenticated cross-origin session and require an exact match for:
+- repository
+- branch
+- commit SHA
+- Render service ID
+
+A mismatch, missing endpoint, 401/403, 503, CORS failure, malformed response, stale backend deployment, or wrong service prevents `REAL_E2E_PASS`.
+The Factory read remains application-driven through the bundled `FactoryStore -> HttpFactoryService` recovery path. No POST, approval, job generation, n8n execution, paid call, or production traffic change is part of the smoke test.
+
+## Promotion gate
+
+`scripts/promotion-gate.mjs` accepts only the exact current frontend main SHA and the latest successful automatic `push` run/job for:
+- `ci.yml / build`
+- `cloudflare-deploy-test.yml / deploy-test`
+- `real-e2e.yml / real-e2e`
+
+Because `real-e2e` is runtime-bound, promotion cannot pass merely from frontend CI plus a responsive backend; the tested live Render deployment must match the versioned backend release identity.
+
+## Current repair status
+
+The runtime-truth endpoint and backend documentation changes were merged through backend PR #23 and are live on the pinned backend main SHA.
+The frontend backend-SHA binding and documentation changes are on branch `repair/p1-backend-sha-binding-20260927`.
+Neither repair branch is authorized for merge by this document. No production deployment is authorized.
+
+Required merge order for a later human gate:
+1. backend PR #23: MERGED; required `verify`: PASS; Render: LIVE on the pinned backend main SHA
+2. frontend backend pin: updated to that exact live SHA
+3. frontend repair -> required checks + real E2E -> merge only after a separate human gate
+4. require all automatic post-merge frontend main runs to PASS on the exact resulting frontend main SHA
+
+## Separate stale work
+
+Backend PR #17 remains outside this P1 repair and must not be mixed into it. Its compatibility must be revalidated independently before any future merge.

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const required = (name) => {
@@ -11,14 +12,28 @@ const backendUrl = required('E2E_BACKEND_URL').replace(/\/+$/, '');
 const email = required('E2E_OWNER_EMAIL');
 const password = required('E2E_OWNER_PASSWORD');
 const jobId = required('E2E_FACTORY_JOB_ID');
+const expectedStatus = required('E2E_EXPECTED_FACTORY_STATUS');
+const backendPin = JSON.parse(
+  readFileSync(new URL('../config/backend-runtime-truth.json', import.meta.url), 'utf8'),
+);
 
 const evidence = {
+  frontendSha: process.env.E2E_FRONTEND_SHA ?? null,
+  phase: 'initialization',
   previewOrigin: new URL(previewUrl).origin,
   backendOrigin: new URL(backendUrl).origin,
   sameOrigin: new URL(previewUrl).origin === new URL(backendUrl).origin,
   credentialsMode: 'include',
   login: { ok: false, finalUrl: null },
-  cookie: { present: false, sentToFactoryGet: false, metadata: [] },
+  cookie: { present: false, securityAttributesValid: false, sentToFactoryGet: false, metadata: [] },
+  runtimeTruth: {
+    attempted: false,
+    url: `${backendUrl}/api/runtime-truth`,
+    status: null,
+    responseSeenByBrowser: false,
+    expected: backendPin,
+    actual: null,
+  },
   get: {
     attempted: false,
     url: `${backendUrl}/api/orchestrator?jobId=${encodeURIComponent(jobId)}`,
@@ -29,7 +44,7 @@ const evidence = {
     responseSeenByBrowser: false,
   },
   browser: { requestFailed: null, consoleErrors: [] },
-  ui: { factoryStatusRendered: false, status: null },
+  ui: { factoryStatusRendered: false, status: null, expectedStatus, statusMatches: false },
 };
 
 const browser = await chromium.launch({ headless: true });
@@ -53,14 +68,18 @@ page.on('requestfailed', (request) => {
 });
 
 try {
+  evidence.phase = 'login-navigation';
   await page.goto(`${backendUrl}/api/auth/signin`, { waitUntil: 'networkidle', timeout: 30_000 });
+  evidence.phase = 'login-form';
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
+  evidence.phase = 'login-submit';
   await Promise.all([
     page.waitForLoadState('networkidle'),
     page.locator('button[type="submit"]').click(),
   ]);
 
+  evidence.phase = 'owner-session';
   await page.goto(backendUrl, { waitUntil: 'networkidle', timeout: 30_000 });
   evidence.login.finalUrl = page.url();
   evidence.login.ok = (await page.getByText('OWNER Session aktiv').count()) > 0;
@@ -75,12 +94,46 @@ try {
     secure,
     sameSite,
   }));
+  evidence.cookie.securityAttributesValid =
+    sessionCookies.length > 0 &&
+    sessionCookies.every((cookie) => cookie.secure === true && cookie.sameSite === 'None');
 
   if (!evidence.login.ok || !evidence.cookie.present) {
     throw new Error('AUTH_SESSION_NOT_ESTABLISHED');
   }
 
+  evidence.phase = 'preview-navigation';
   await page.goto(previewUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+
+  evidence.phase = 'runtime-truth';
+  evidence.runtimeTruth.attempted = true;
+  const runtimeTruth = await page.evaluate(async (url) => {
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    });
+    let body = null;
+    try { body = await response.json(); } catch {}
+    return { status: response.status, body };
+  }, evidence.runtimeTruth.url);
+  evidence.runtimeTruth.status = runtimeTruth.status;
+  evidence.runtimeTruth.responseSeenByBrowser = true;
+  evidence.runtimeTruth.actual = runtimeTruth.body;
+
+  const runtimeTruthMatches =
+    runtimeTruth.status === 200 &&
+    runtimeTruth.body?.contractVersion === '1.0' &&
+    runtimeTruth.body?.provider === 'render' &&
+    runtimeTruth.body?.repository === backendPin.repository &&
+    runtimeTruth.body?.branch === backendPin.branch &&
+    runtimeTruth.body?.commitSha === backendPin.commitSha &&
+    runtimeTruth.body?.serviceId === backendPin.serviceId;
+
+  if (!runtimeTruthMatches) {
+    throw new Error('BACKEND_RUNTIME_TRUTH_MISMATCH');
+  }
+
   await page.evaluate(
     ({ key, value }) => sessionStorage.setItem(key, value),
     { key: 'craftflow.factory.activeJobId.v1', value: jobId },
@@ -91,6 +144,7 @@ try {
     { timeout: 20_000 },
   ).catch(() => null);
 
+  evidence.phase = 'factory-get';
   evidence.get.attempted = true;
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
   const response = await responsePromise;
@@ -102,6 +156,7 @@ try {
     evidence.cookie.sentToFactoryGet = Boolean(await response.request().headerValue('cookie'));
   }
 
+  evidence.phase = 'ui-status';
   const statusNode = page.locator('[data-testid="factory-status"]');
   try {
     await statusNode.waitFor({ state: 'visible', timeout: 10_000 });
@@ -111,18 +166,31 @@ try {
     evidence.ui.factoryStatusRendered = false;
   }
 
+  evidence.phase = 'status-comparison';
+  evidence.ui.statusMatches = evidence.ui.factoryStatusRendered &&
+    typeof evidence.ui.status === 'string' && evidence.ui.status.length > 0 &&
+    evidence.ui.status === evidence.ui.expectedStatus;
+
   console.log('REAL_E2E_EVIDENCE=' + JSON.stringify(evidence));
 
   const pass =
     evidence.login.ok &&
     evidence.cookie.present &&
+    evidence.cookie.securityAttributesValid &&
+    evidence.runtimeTruth.attempted &&
+    evidence.runtimeTruth.status === 200 &&
+    evidence.runtimeTruth.responseSeenByBrowser &&
+    evidence.runtimeTruth.actual?.repository === backendPin.repository &&
+    evidence.runtimeTruth.actual?.branch === backendPin.branch &&
+    evidence.runtimeTruth.actual?.commitSha === backendPin.commitSha &&
+    evidence.runtimeTruth.actual?.serviceId === backendPin.serviceId &&
     evidence.get.attempted &&
     evidence.get.status === 200 &&
     !evidence.get.redirected &&
     evidence.get.responseSeenByBrowser &&
     evidence.cookie.sentToFactoryGet &&
     evidence.browser.requestFailed === null &&
-    evidence.ui.factoryStatusRendered;
+    evidence.ui.factoryStatusRendered && evidence.ui.statusMatches;
 
   if (!pass) throw new Error('REAL_E2E_FAIL');
   console.log('REAL_E2E_PASS');
