@@ -201,8 +201,9 @@ function AuthGate() {
       return;
     }
 
+    const callbackUrl = encodeURIComponent(window.location.origin);
     loginWindowRef.current = window.open(
-      `${baseUrl}/api/auth/signin`,
+      `${baseUrl}/api/auth/signin?callbackUrl=${callbackUrl}`,
       "craftflow-owner-login",
       "popup,width=560,height=760",
     );

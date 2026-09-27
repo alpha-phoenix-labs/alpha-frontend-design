@@ -24,7 +24,7 @@ jobs:
     env:
       TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
       VITE_FACTORY_MODE: http
-      VITE_FACTORY_API_BASE_URL: https://n8n-workflow-factory.onrender.com
+      VITE_FACTORY_API_BASE_URL: https://api.vantarialabs.tech
 
     steps:
       - name: Checkout exact merged SHA
@@ -49,7 +49,7 @@ jobs:
       - name: Verify production build configuration
         run: |
           test "$VITE_FACTORY_MODE" = "http"
-          test "$VITE_FACTORY_API_BASE_URL" = "https://n8n-workflow-factory.onrender.com"
+          test "$VITE_FACTORY_API_BASE_URL" = "https://api.vantarialabs.tech"
 
       - name: Build exact merged SHA
         run: npm run build

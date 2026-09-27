@@ -27,7 +27,7 @@ jobs:
 
     env:
       VITE_FACTORY_MODE: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.g5_preview == true)) && 'http' || '' }}
-      VITE_FACTORY_API_BASE_URL: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.g5_preview == true)) && 'https://n8n-workflow-factory.onrender.com' || '' }}
+      VITE_FACTORY_API_BASE_URL: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.g5_preview == true)) && 'https://api.vantarialabs.tech' || '' }}
 
     steps:
       - name: Checkout exact SHA
@@ -56,7 +56,7 @@ jobs:
         if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.g5_preview == true) }}
         run: |
           test "$VITE_FACTORY_MODE" = "http"
-          test "$VITE_FACTORY_API_BASE_URL" = "https://n8n-workflow-factory.onrender.com"
+          test "$VITE_FACTORY_API_BASE_URL" = "https://api.vantarialabs.tech"
 
       - name: Build
         run: npm run build
