@@ -4,6 +4,7 @@ import { test } from 'node:test';
 
 const source = readFileSync(new URL('../.github/workflows/real-e2e.yml', import.meta.url), 'utf8');
 const smoke = readFileSync(new URL('./real-e2e-smoke.mjs', import.meta.url), 'utf8');
+const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const backendPin = JSON.parse(readFileSync(new URL('../config/backend-runtime-truth.json', import.meta.url), 'utf8'));
 const unavailableNegative = readFileSync(new URL('./real-e2e-backend-unavailable-negative.mjs', import.meta.url), 'utf8');
 
@@ -21,6 +22,26 @@ test('real E2E requires explicit browser credentials and never embeds them', () 
   assert.match(source, /secrets\.E2E_OWNER_EMAIL/);
   assert.match(source, /secrets\.E2E_OWNER_PASSWORD/);
   assert.doesNotMatch(source, /continue-on-error:\s*true/);
+});
+
+test('production HTTP mode is fail-closed behind an OWNER auth gate', () => {
+  assert.match(app, /factoryMode === "http" \? <AuthGate \/> : <AuthenticatedCraftflow \/>/);
+  assert.match(app, /\/api\/runtime-truth/);
+  assert.match(app, /credentials: "include"/);
+  assert.match(app, /response\.status === 401/);
+  assert.match(app, /data-testid="auth-login-link"/);
+  assert.match(app, /data-testid="auth-gate-unavailable"/);
+});
+
+test('real E2E starts unauthenticated at the frontend before login', () => {
+  const gate = smoke.indexOf("phase = 'unauthenticated-preview'");
+  const login = smoke.indexOf("phase = 'login-navigation'");
+  assert.ok(gate >= 0 && login > gate, 'frontend auth gate must execute before backend login');
+  assert.match(smoke, /AUTH_GATE_NOT_ENFORCED/);
+  assert.match(smoke, /unauthenticatedProbeStatus !== 401/);
+  assert.match(smoke, /workspaceVisibleBeforeLogin/);
+  assert.match(smoke, /workspaceVisibleAfterLogin/);
+  assert.match(smoke, /auth-login-link/);
 });
 
 test('real E2E uses no-traffic version upload and contains no production deploy command', () => {
