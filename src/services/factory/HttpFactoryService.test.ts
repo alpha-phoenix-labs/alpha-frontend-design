@@ -68,7 +68,7 @@ describe('HttpFactoryService', () => {
     );
     const result = await service(fetch).submitWorkflowRequest({ description: 'Baue X', testMode: 'mock' });
     expect(calls).toHaveLength(2);
-    expect(calls[0]).toMatchObject({ url: prefix, method: 'POST', body: { prompt: 'Baue X' }, credentials: 'same-origin' });
+    expect(calls[0]).toMatchObject({ url: prefix, method: 'POST', body: { prompt: 'Baue X' }, credentials: 'include' });
     expect(calls[1]).toMatchObject({ url: `${prefix}?jobId=job-1`, method: 'GET' });
     expect(result).toEqual({
       ok: true,
@@ -370,7 +370,7 @@ describe('HttpFactoryService', () => {
 
   it('passes an injected credentials mode', async () => {
     const { fetch, calls } = fakeFetch(() => json(backendJob()));
-    await new HttpFactoryService({ baseUrl: BASE, fetch, credentials: 'include' }).getJobStatus('job-1');
-    expect(calls[0]?.credentials).toBe('include');
+    await new HttpFactoryService({ baseUrl: BASE, fetch, credentials: 'same-origin' }).getJobStatus('job-1');
+    expect(calls[0]?.credentials).toBe('same-origin');
   });
 });
