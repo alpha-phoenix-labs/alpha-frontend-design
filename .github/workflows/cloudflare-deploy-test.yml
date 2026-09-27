@@ -40,6 +40,11 @@ jobs:
         with:
           ref: ${{ github.sha }}
 
+      - name: Verify checkout identity
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          echo "DEPLOY_TEST_SHA=$(git rev-parse HEAD)"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
