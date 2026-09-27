@@ -40,7 +40,7 @@ test('real E2E is pinned to the expected backend main and Render service identit
   assert.deepEqual(backendPin, {
     repository: 'alpha-phoenix-labs/n8n-workflow-factory',
     branch: 'main',
-    commitSha: '63898e42fd331c0a17f540538f5ba47e0ae3f84f',
+    commitSha: '43ef17acf0cd60aa8cd894139cae6489cf7f32bd',
     serviceId: 'srv-daqk0sp7lnhs73d9nr7g',
   });
   assert.match(smoke, /\/api\/runtime-truth/);
