@@ -16,7 +16,7 @@ const evidence = {
   previewOrigin: new URL(previewUrl).origin,
   backendOrigin: new URL(backendUrl).origin,
   sameOrigin: new URL(previewUrl).origin === new URL(backendUrl).origin,
-  credentialsMode: 'same-origin',
+  credentialsMode: 'include',
   login: { ok: false, finalUrl: null },
   cookie: { present: false, sentToFactoryGet: false, metadata: [] },
   get: {
