@@ -1,64 +1,22 @@
-name: Real E2E
+name: TEMP ISOLATED Production E2E
 
 on:
-  push:
-    branches:
-      - test/production-e2e-3d4c0f-20260929
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: production-e2e-3d4c0f
+  group: temp-isolated-production-e2e-3d4c0f
   cancel-in-progress: false
 
 jobs:
-  real-e2e:
+  isolated:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      VITE_FACTORY_MODE: http
-      VITE_FACTORY_API_BASE_URL: https://api.vantarialabs.tech
-      E2E_BACKEND_URL: https://api.vantarialabs.tech
-      E2E_OWNER_EMAIL: ${{ secrets.E2E_OWNER_EMAIL }}
-      E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
-      E2E_PREVIEW_URL: https://control.vantarialabs.tech
-      TARGET_FRONTEND_SHA: 3d4c0f837f2b9bc9f49eabb1cfadbda503d1b3c1
-
     steps:
-      - name: Checkout exact production frontend SHA
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ env.TARGET_FRONTEND_SHA }}
-
-      - name: Verify exact production checkout
+      - name: Isolation marker
         run: |
-          test "$(git rev-parse HEAD)" = "$TARGET_FRONTEND_SHA"
-          echo "E2E_FRONTEND_SHA=$TARGET_FRONTEND_SHA" >> "$GITHUB_ENV"
-
-      - name: Require approved browser credentials
-        run: |
-          test -n "$E2E_OWNER_EMAIL" || { echo "::error::E2E_OWNER_EMAIL secret missing"; exit 1; }
-          test -n "$E2E_OWNER_PASSWORD" || { echo "::error::E2E_OWNER_PASSWORD secret missing"; exit 1; }
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install application dependencies
-        run: npm ci
-
-      - name: Verify production target
-        run: |
-          test "$E2E_PREVIEW_URL" = "https://control.vantarialabs.tech"
-          test "$VITE_FACTORY_API_BASE_URL" = "https://api.vantarialabs.tech"
-
-      - name: Install pinned browser runner
-        run: |
-          npm install --no-save --ignore-scripts playwright@1.55.0
-          npx playwright install chromium
-
-      - name: Run one production business E2E through Google Drive COMPLETE
-        run: node scripts/real-business-e2e.mjs
+          echo "TEMPORARY BRANCH ISOLATED"
+          echo "No automatic push trigger"
+          echo "No production promotion path"
+          exit 0
