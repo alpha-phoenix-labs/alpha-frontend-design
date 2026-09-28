@@ -632,7 +632,7 @@ export function CommandCenter({
                 onValueChange={onIntentChange}
                 onSubmit={onIntentSubmit}
                 {...(inputRef ? { inputRef } : {})}
-                placeholder="Describe the workflow you want Craftflow to build"
+                placeholder="Workflows, Runs, Agenten, Logs …"
               />
             </div>
             <div className="hidden items-center gap-3 md:flex">
@@ -648,7 +648,7 @@ export function CommandCenter({
           </header>
 
           <main className="p-3 sm:p-4">
-            <div className="mb-3 flex flex-wrap items-end justify-between gap-3 rounded-[18px] border border-[#14243e] bg-[#07101e]/80 px-4 py-4">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-4 px-1 py-1">
               <div>
                 <p className="text-[8px] font-semibold tracking-[0.16em] text-slate-600 uppercase">Willkommen zurück</p>
                 <h1 className="mt-1 text-[24px] font-bold tracking-[-0.035em] text-white">
