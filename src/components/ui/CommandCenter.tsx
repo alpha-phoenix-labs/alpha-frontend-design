@@ -123,9 +123,21 @@ function Panel({ title, children, action }: { title: string; children: ReactNode
 }
 
 function Sidebar() {
-  const items = ["Übersicht", "Workflows", "Agenten", "Tests", "Deployments", "Drive Evidence", "Integrationen", "Kosten", "Analysen", "Einstellungen"];
+  const items = [
+    ["⌂", "Übersicht"],
+    ["⌘", "Workflows"],
+    ["◎", "Agenten"],
+    ["◇", "Tests"],
+    ["⇧", "Deployments"],
+    ["▱", "Drive Evidence"],
+    ["⌬", "Integrationen"],
+    ["$", "Kosten"],
+    ["∿", "Analysen"],
+    ["⚙", "Einstellungen"],
+  ] as const;
+
   return (
-    <aside className="hidden w-[205px] shrink-0 flex-col border-r border-[#15243f] bg-[#06101d]/95 lg:flex">
+    <aside className="hidden w-[205px] shrink-0 flex-col border-r border-[#15243f] bg-[#06101d]/96 lg:flex">
       <div className="flex h-[72px] items-center gap-3 border-b border-[#15243f] px-5">
         <div className="relative grid size-9 place-items-center">
           <div className="absolute size-8 rotate-45 rounded-[8px] bg-[linear-gradient(135deg,#22D3EE,#4F46E5_55%,#A855F7)] shadow-[0_0_22px_rgba(79,70,229,.36)]" />
@@ -138,7 +150,7 @@ function Sidebar() {
       </div>
 
       <nav className="space-y-1 px-3 py-4">
-        {items.map((item, index) => (
+        {items.map(([glyph, item], index) => (
           <button
             key={item}
             type="button"
@@ -146,7 +158,7 @@ function Sidebar() {
             disabled={index !== 0}
             className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[12px] transition ${index === 0 ? "bg-[linear-gradient(90deg,#4338CA,#3730A3)] text-white shadow-[0_0_22px_rgba(79,70,229,.28)]" : "text-slate-400 disabled:cursor-default"}`}
           >
-            <span className={`grid size-6 place-items-center rounded-lg border font-mono text-[10px] ${index === 0 ? "border-indigo-300/30 bg-white/10" : "border-slate-800 bg-slate-900/70"}`}>{String(index + 1).padStart(2, "0")}</span>
+            <span className={`grid size-6 place-items-center text-[14px] ${index === 0 ? "text-white" : "text-slate-500"}`}>{glyph}</span>
             {item}
           </button>
         ))}
@@ -156,7 +168,7 @@ function Sidebar() {
         <div className="rounded-2xl border border-[#1a3151] bg-[#08182a] p-4">
           <p className="text-[11px] font-semibold text-slate-200">System Status</p>
           <div className="mt-3 space-y-2 text-[10px] text-slate-400">
-            {["Core Services", "n8n Runtime", "Agent Pool", "Test Runner", "Drive Connector"].map((label) => (
+            {["OWNER Session", "Factory API", "Frontend Runtime"].map((label) => (
               <div key={label} className="flex items-center gap-2">
                 <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,.65)]" />
                 <span>{label}</span>
@@ -172,6 +184,24 @@ function Sidebar() {
 function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobId: string | null }) {
   const current = activeIndex(job);
 
+  function StageNode({ index }: { index: number }) {
+    const stage = pipeline[index];
+    if (!stage) return null;
+    const tone = stageTone(index, current, job);
+    const cls = toneClasses[tone];
+
+    return (
+      <div className="relative flex min-w-[112px] flex-1 flex-col items-center text-center">
+        <div className={`grid size-11 place-items-center rounded-2xl border ${cls.node}`}>
+          <NodeGlyph index={index} />
+        </div>
+        <span className={`mt-2 text-[10px] font-semibold ${cls.label}`}>{stage.label}</span>
+        <span className="mt-0.5 text-[8px] text-slate-600">{stage.short}</span>
+        <span className={`mt-2 size-1.5 rounded-full ${cls.dot}`} />
+      </div>
+    );
+  }
+
   return (
     <section className="rounded-[18px] border border-[#172744] bg-[#07101f]/94 p-4 shadow-[0_16px_50px_rgba(0,0,0,.22)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -180,32 +210,32 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
             <h2 className="text-[15px] font-semibold text-white">Workflow: {activeJobId ?? "Kein aktiver Lauf"}</h2>
             {job !== null && <StatusPill tone={job.status === "completed" ? "success" : job.status === "failed" ? "danger" : "success"}>{job.status}</StatusPill>}
           </div>
-          <p className="mt-1 text-[10px] text-slate-500">Von Anforderung bis Evidence — statusgebunden, nachvollziehbar, fail-closed.</p>
+          <p className="mt-1 text-[10px] text-slate-500">Von Anforderung bis Production — automatisiert, überprüft, nachvollziehbar.</p>
         </div>
         <div className="flex items-center gap-2">
           {job !== null && <StatusPill tone="violet">{`v${job.version}`}</StatusPill>}
-          <button type="button" disabled className="rounded-lg border border-[#203657] bg-[#0b1728] px-3 py-2 text-[10px] text-slate-500">Details</button>
+          <button type="button" disabled className="rounded-lg border border-[#203657] bg-[#0b1728] px-3 py-2 text-[10px] text-slate-500">Bearbeiten</button>
+          <button type="button" disabled className="grid size-8 place-items-center rounded-lg border border-[#203657] bg-[#0b1728] text-[9px] text-slate-500">•••</button>
         </div>
       </div>
 
-      <div className="relative mt-5 overflow-hidden rounded-2xl border border-[#142744] bg-[#050d19] px-3 py-5">
+      <div className="relative mt-5 overflow-x-auto rounded-2xl border border-[#142744] bg-[#050d19] px-4 py-5">
         <div className="absolute inset-0 opacity-[0.16] [background-image:radial-gradient(circle,#38BDF8_1px,transparent_1px)] [background-size:19px_19px]" />
-        <div className="absolute top-[52px] right-[5%] left-[5%] h-px bg-[linear-gradient(90deg,transparent,#22D3EE_12%,#6366F1_48%,#22D3EE_82%,transparent)] opacity-55" />
-        <div className="relative grid grid-cols-3 gap-y-6 sm:grid-cols-5 lg:grid-cols-9">
-          {pipeline.map((stage, index) => {
-            const tone = stageTone(index, current, job);
-            const cls = toneClasses[tone];
-            return (
-              <div key={stage.key} className="relative flex min-w-0 flex-col items-center text-center">
-                <div className={`grid size-11 place-items-center rounded-2xl border ${cls.node}`}>
-                  <NodeGlyph index={index} />
-                </div>
-                <span className={`mt-2 text-[10px] font-semibold ${cls.label}`}>{stage.label}</span>
-                <span className="mt-0.5 hidden text-[8px] text-slate-600 xl:block">{stage.short}</span>
-                <span className={`mt-2 size-1.5 rounded-full ${cls.dot}`} />
-              </div>
-            );
-          })}
+        <div className="relative min-w-[760px]">
+          <div className="absolute top-[22px] right-[8%] left-[8%] h-px bg-[linear-gradient(90deg,transparent,#22D3EE_12%,#6366F1_48%,#22D3EE_88%,transparent)] opacity-65" />
+          <div className="grid grid-cols-4 gap-4">
+            {[0, 1, 2, 3].map((index) => <StageNode key={index} index={index} />)}
+          </div>
+
+          <div className="relative my-2 h-9">
+            <div className="absolute top-0 right-[9%] h-7 w-[82%] rounded-tr-[22px] border-t border-r border-indigo-500/55" />
+            <div className="absolute bottom-0 left-[7%] h-px w-[84%] bg-[linear-gradient(90deg,#22D3EE,#6366F1,#22D3EE)] opacity-65" />
+            <span className="absolute bottom-[-2px] left-[7%] size-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(34,211,238,.8)]" />
+          </div>
+
+          <div className="grid grid-cols-5 gap-4">
+            {[4, 5, 6, 7, 8].map((index) => <StageNode key={index} index={index} />)}
+          </div>
         </div>
       </div>
 
@@ -424,7 +454,7 @@ export function CommandCenter({
   onApproval,
 }: CommandCenterProps) {
   return (
-    <div className="min-h-dvh bg-[#030812] text-slate-200">
+    <div className="min-h-dvh overflow-x-hidden bg-[#030812] text-slate-200">
       <div className="flex min-h-dvh">
         <Sidebar />
 
@@ -437,7 +467,7 @@ export function CommandCenter({
                 onValueChange={onIntentChange}
                 onSubmit={onIntentSubmit}
                 {...(inputRef ? { inputRef } : {})}
-                placeholder="Describe the workflow you want Craftflow to build"
+                placeholder="Workflows, Runs, Agenten, Logs …"
               />
             </div>
             <div className="hidden items-center gap-3 md:flex">
@@ -446,24 +476,39 @@ export function CommandCenter({
                   <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.6)]" />
                   System Online
                 </div>
-                <p className="mt-0.5 text-[7px] text-slate-600">Runtime snapshot available</p>
+                <p className="mt-0.5 text-[7px] text-slate-600">OWNER + Factory session valid</p>
               </div>
+              <span className="text-[15px] text-slate-500">♧</span>
+              <span className="text-[15px] text-slate-500">☼</span>
               <div className="grid size-9 place-items-center rounded-full border border-indigo-500/25 bg-indigo-500/10 text-[10px] font-semibold text-indigo-200">SO</div>
             </div>
           </header>
 
           <main className="p-3 sm:p-4">
-            <div className="mb-3 flex flex-wrap items-end justify-between gap-3 rounded-[18px] border border-[#14243e] bg-[#07101e]/80 px-4 py-4">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-4 px-1 py-1">
               <div>
                 <p className="text-[8px] font-semibold tracking-[0.16em] text-slate-600 uppercase">Willkommen zurück</p>
-                <h1 className="mt-1 text-[24px] font-bold tracking-[-0.035em] text-white">
+                <h1 className="mt-1 text-[25px] font-bold tracking-[-0.04em] text-white">
                   CRAFTFLOW <span className="bg-[linear-gradient(90deg,#818CF8,#A855F7)] bg-clip-text text-transparent">Command Center</span>
                 </h1>
                 <p className="mt-1 text-[10px] text-slate-500">Workflows entwickeln. Mit KI ausführen. Automatisch testen. Sicher deployen.</p>
               </div>
-              <div className="text-right">
-                <p className="font-mono text-[9px] text-slate-600">{new Date(metrics.sampledAt).toLocaleDateString("de-DE")}</p>
-                <p className="mt-1 text-[18px] font-semibold text-slate-200">{new Date(metrics.sampledAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</p>
+
+              <div className="flex items-stretch gap-3">
+                <div className="hidden px-3 py-1 text-right sm:block">
+                  <p className="font-mono text-[9px] text-slate-600">{new Date(metrics.sampledAt).toLocaleDateString("de-DE")}</p>
+                  <p className="mt-1 text-[18px] font-semibold text-slate-200">{new Date(metrics.sampledAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+                <div className="min-w-[210px] rounded-xl border border-indigo-500/20 bg-[#08172a] px-3 py-2.5">
+                  <p className="text-[7px] uppercase tracking-[0.1em] text-slate-600">Aktiver Workflow</p>
+                  <div className="mt-1 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[9px] font-semibold text-slate-200">{activeJobId ?? "Kein aktiver Job"}</p>
+                      <p className="mt-0.5 text-[7px] text-emerald-400">{job?.status ?? "Bereit"}</p>
+                    </div>
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[linear-gradient(135deg,#4338CA,#4F46E5)] text-white shadow-[0_0_18px_rgba(79,70,229,.25)]">→</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -498,3 +543,4 @@ export function CommandCenter({
     </div>
   );
 }
+
