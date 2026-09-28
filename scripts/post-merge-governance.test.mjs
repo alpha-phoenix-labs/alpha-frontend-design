@@ -13,6 +13,22 @@ function validatePreview(text) {
   assert.doesNotMatch(text, /continue-on-error:\s*true/, 'failures must propagate');
   assert.match(text, /command: versions upload/, 'no-traffic upload required');
   assert.doesNotMatch(text, /command: deploy\b/, 'deploy-test must never route production traffic');
+
+  const guardIndex = text.indexOf('- name: Block permanent design sandbox from Cloudflare');
+  const uploadIndex = text.indexOf('- name: Upload version to Cloudflare (no traffic)');
+  assert.ok(guardIndex >= 0, 'design sandbox hard-stop missing');
+  assert.ok(uploadIndex >= 0, 'Cloudflare upload step missing');
+  assert.ok(guardIndex < uploadIndex, 'design sandbox hard-stop must run before Cloudflare upload');
+  assert.match(
+    text,
+    /github\.head_ref == 'design\/v2-rebuild' \|\| github\.ref == 'refs\/heads\/design\/v2-rebuild'/,
+    'design sandbox hard-stop must cover PR and direct branch execution',
+  );
+  assert.match(
+    text,
+    /github\.head_ref != 'design\/v2-rebuild' && github\.ref != 'refs\/heads\/design\/v2-rebuild'/,
+    'Cloudflare upload itself must independently exclude design sandbox',
+  );
 }
 
 function validatePromotion(text) {
@@ -34,6 +50,14 @@ test('no-traffic deploy-test remains mandatory', () => validatePreview(preview))
 test('automatic exact-SHA production promotion is enforced', () => validatePromotion(promotion));
 test('removing main push from deploy-test fails closed', () => assert.throws(() => validatePreview(preview.replace(/\n  push:\n    branches:\n      - main\n/, '\n'))));
 test('adding production deploy to deploy-test is rejected', () => assert.throws(() => validatePreview(preview + '\ncommand: deploy\n')));
+test('removing design sandbox hard-stop is rejected', () => assert.throws(() => validatePreview(preview.replace(
+  /      - name: Block permanent design sandbox from Cloudflare[\s\S]*?\n\n      - name: Checkout exact SHA/,
+  '      - name: Checkout exact SHA',
+))));
+test('weakening Cloudflare upload exclusion for design sandbox is rejected', () => assert.throws(() => validatePreview(preview.replace(
+  "        if: ${{ github.head_ref != 'design/v2-rebuild' && github.ref != 'refs/heads/design/v2-rebuild' }}\n        uses: cloudflare/wrangler-action@v4",
+  '        uses: cloudflare/wrangler-action@v4',
+))));
 test('manual-only production promotion is rejected', () => assert.throws(() => validatePromotion(promotion.replace(/workflow_run:[\s\S]*?permissions:/, 'workflow_dispatch:\n\npermissions:'))));
 test('promotion without exact triggering SHA is rejected', () => assert.throws(() => validatePromotion(promotion.replace('TARGET_SHA: ${{ github.event.workflow_run.head_sha }}', 'TARGET_SHA: ${{ github.sha }}'))));
 test('promotion without post-merge gate is rejected', () => assert.throws(() => validatePromotion(promotion.replace('node scripts/promotion-gate.mjs', 'echo skipped'))));
