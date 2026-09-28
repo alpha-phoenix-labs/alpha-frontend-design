@@ -42,6 +42,8 @@ const fail = <T>(error: ApiError): FactoryResult<T> => ({ ok: false, error });
 
 const validationError = (message: string): ApiError => ({ kind: 'unknown', code: 'VALIDATION', message });
 
+const CLIENT_REQUEST_ID = /^[a-zA-Z0-9_-]{1,128}$/;
+
 function mutationUnconfirmed(error: ApiError, jobId?: string): MutationUnconfirmedError {
   const message =
     jobId === undefined
@@ -111,12 +113,44 @@ export class HttpFactoryService implements FactoryService {
     if (request.description.trim() === '') {
       return fail(validationError('Die Beschreibung ist leer.'));
     }
-    const posted = await this.#post('/api/orchestrator', { prompt: request.description });
+    if (request.clientRequestId !== undefined && !CLIENT_REQUEST_ID.test(request.clientRequestId)) {
+      return fail(validationError('Client-Request-ID ist ungültig.'));
+    }
+    const body =
+      request.clientRequestId === undefined
+        ? { prompt: request.description }
+        : { prompt: request.description, clientRequestId: request.clientRequestId };
+    const posted = await this.#post('/api/orchestrator', body);
     if (!posted.ok) {
       return posted;
     }
     this.#requests.set(posted.value, request);
     return this.#jobAfterMutation(posted.value);
+  };
+
+  readonly recoverWorkflowRequest = async (
+    clientRequestId: string,
+  ): Promise<FactoryResult<FactoryJob | null>> => {
+    const key = clientRequestId.trim();
+    if (!CLIENT_REQUEST_ID.test(key)) {
+      return fail(validationError('Client-Request-ID ist ungültig.'));
+    }
+    const outcome = await this.#send(
+      'GET',
+      `/api/orchestrator?clientRequestId=${encodeURIComponent(key)}`,
+      this.#getTimeoutMs,
+    );
+    if (!outcome.ok) {
+      return outcome.error.kind === 'http' && outcome.error.httpStatus === 404
+        ? ok(null)
+        : fail(outcome.error);
+    }
+    const payload = parseJobPayload(outcome.body, true);
+    if (!payload.ok) {
+      return payload;
+    }
+    const snapshot = mapSnapshot(payload.value, this.#requests.get(payload.value.jobId));
+    return snapshot.ok ? ok(snapshot.value.job) : snapshot;
   };
 
   readonly getJobStatus = (jobId: string): Promise<FactoryResult<FactoryJob>> =>
