@@ -301,7 +301,7 @@ export class HttpFactoryService implements FactoryService {
             code: httpErrorCode(response.status),
             message: errorMessageOf(text, response.status),
           },
-          mutationUnconfirmed: false,
+          mutationUnconfirmed: method === 'POST' && response.status >= 500,
         };
       }
       try {
