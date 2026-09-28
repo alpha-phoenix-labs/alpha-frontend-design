@@ -88,22 +88,22 @@ function stageTone(index: number, current: number, job: FactoryJob | null): Stag
 
 const toneClasses: Record<StageTone, { node: string; dot: string; label: string }> = {
   done: {
-    node: "border-cyan-400/60 bg-cyan-400/10 text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,.18)]",
+    node: "border-cyan-300/55 bg-cyan-300/[0.075] text-cyan-100 shadow-neon-cyan backdrop-blur-xl",
     dot: "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.65)]",
     label: "text-slate-100",
   },
   active: {
-    node: "border-violet-400/80 bg-violet-500/15 text-violet-100 shadow-[0_0_32px_rgba(124,58,237,.35)]",
+    node: "border-violet-300/70 bg-violet-400/[0.10] text-violet-100 shadow-neon-purple backdrop-blur-xl",
     dot: "bg-violet-400 shadow-[0_0_12px_rgba(167,139,250,.75)]",
     label: "text-white",
   },
   blocked: {
-    node: "border-amber-400/80 bg-amber-500/10 text-amber-100 shadow-[0_0_28px_rgba(245,158,11,.20)]",
+    node: "border-amber-300/70 bg-amber-400/[0.09] text-amber-100 shadow-[0_0_18px_rgba(245,158,11,.32)] backdrop-blur-xl",
     dot: "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,.65)]",
     label: "text-amber-100",
   },
   idle: {
-    node: "border-slate-700 bg-slate-900/72 text-slate-500",
+    node: "border-white/10 bg-[#0b0f19]/55 text-slate-500 backdrop-blur-xl",
     dot: "bg-slate-600",
     label: "text-slate-400",
   },
@@ -150,7 +150,7 @@ function StatusPill({
           ? "border-rose-500/25 bg-rose-500/10 text-rose-300"
           : tone === "violet"
             ? "border-violet-500/25 bg-violet-500/10 text-violet-300"
-            : "border-slate-700 bg-slate-800/70 text-slate-400";
+            : "border-white/10 bg-[#0b0f19]/55 text-slate-400 backdrop-blur-xl";
 
   return (
     <span className={`rounded-full border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.08em] ${cls}`}>
@@ -161,8 +161,8 @@ function StatusPill({
 
 function Panel({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <section className="rounded-[18px] border border-[#172744] bg-[#07101f]/94 shadow-[0_14px_40px_rgba(0,0,0,.18)]">
-      <div className="flex min-h-11 items-center justify-between border-b border-[#172744] px-4">
+    <section className="glass-panel rounded-[18px]">
+      <div className="flex min-h-11 items-center justify-between border-b border-white/[0.07] px-4">
         <h3 className="text-[12px] font-semibold text-slate-100">{title}</h3>
         {action}
       </div>
@@ -191,8 +191,8 @@ function Sidebar({
   ];
 
   return (
-    <aside className="hidden w-[205px] shrink-0 flex-col border-r border-[#15243f] bg-[#06101d]/96 lg:flex">
-      <div className="flex h-[72px] items-center gap-3 border-b border-[#15243f] px-5">
+    <aside className="hidden w-[205px] shrink-0 flex-col border-r border-white/[0.08] bg-[#070b13]/58 shadow-[18px_0_55px_rgba(0,0,0,.20)] backdrop-blur-2xl lg:flex">
+      <div className="flex h-[72px] items-center gap-3 border-b border-white/[0.07] px-5">
         <div className="relative grid size-9 place-items-center">
           <div className="absolute size-8 rotate-45 rounded-[8px] bg-[linear-gradient(135deg,#22D3EE,#4F46E5_55%,#A855F7)] shadow-[0_0_22px_rgba(79,70,229,.36)]" />
           <div className="relative size-3 rotate-45 rounded-[3px] bg-[#07101f]" />
@@ -212,10 +212,10 @@ function Sidebar({
             type="button"
             aria-current={index === 0 ? "page" : undefined}
             disabled={index !== 0}
-            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[12px] transition ${index === 0 ? "bg-[linear-gradient(90deg,#4338CA,#3730A3)] text-white shadow-[0_0_22px_rgba(79,70,229,.28)]" : "text-slate-400 disabled:cursor-default"}`}
+            className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-[12px] backdrop-blur-xl transition ${index === 0 ? "border-indigo-300/25 bg-[linear-gradient(90deg,rgba(79,70,229,.72),rgba(67,56,202,.48))] text-white shadow-neon-indigo" : "border-transparent bg-transparent text-slate-400 disabled:cursor-default"}`}
           >
             <span
-              className={`grid size-6 place-items-center rounded-lg border font-mono text-[12px] ${index === 0 ? "border-indigo-300/30 bg-white/10" : "border-slate-800 bg-slate-900/70"}`}
+              className={`grid size-6 place-items-center rounded-lg border font-mono text-[12px] ${index === 0 ? "border-white/15 bg-white/10 shadow-neon-purple" : "border-white/[0.06] bg-white/[0.025]"}`}
             >
               {glyph}
             </span>
@@ -225,7 +225,7 @@ function Sidebar({
       </nav>
 
       <div className="mt-auto p-4">
-        <div className="rounded-2xl border border-[#1a3151] bg-[#08182a] p-4">
+        <div className="glass-soft rounded-2xl p-4">
           <p className="text-[11px] font-semibold text-slate-200">System Status</p>
           <div className="mt-3 space-y-2 text-[10px]">
             {systemRows.map((row) => (
@@ -266,7 +266,7 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
   const current = activeIndex(job);
 
   return (
-    <section className="rounded-[18px] border border-[#172744] bg-[#07101f]/94 p-4 shadow-[0_16px_50px_rgba(0,0,0,.22)]">
+    <section className="glass-panel-strong rounded-[18px] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -281,13 +281,13 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
         </div>
         <div className="flex items-center gap-2">
           {job !== null && <StatusPill tone="violet">{`v${job.version}`}</StatusPill>}
-          <button type="button" disabled className="rounded-lg border border-[#203657] bg-[#0b1728] px-3 py-2 text-[10px] text-slate-500">
+          <button type="button" disabled className="glass-pill rounded-lg px-3 py-2 text-[10px] text-slate-500">
             Details
           </button>
         </div>
       </div>
 
-      <div className="relative mt-5 overflow-hidden rounded-2xl border border-[#142744] bg-[#050d19] px-4 py-5">
+      <div className="glass-soft glass-grid relative mt-5 overflow-hidden rounded-2xl px-4 py-5">
         <div className="absolute inset-0 opacity-[0.15] [background-image:radial-gradient(circle,#38BDF8_1px,transparent_1px)] [background-size:19px_19px]" />
         <svg
           aria-hidden="true"
@@ -302,9 +302,9 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
               <stop offset="100%" stopColor="#22D3EE" stopOpacity="0.72" />
             </linearGradient>
           </defs>
-          <path d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="#172744" strokeWidth="1.15" />
+          <path d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="1.15" />
           {job !== null && (
-            <path d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="url(#flow-line)" strokeWidth="0.8" strokeDasharray="1.7 1.2" opacity="0.85" />
+            <path className="neon-line-cyan" d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="url(#flow-line)" strokeWidth="0.8" strokeDasharray="1.7 1.2" opacity="0.9" />
           )}
         </svg>
 
@@ -322,18 +322,18 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
       </div>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
-        <div className="rounded-xl border border-[#152945] bg-[#091625] p-3">
+        <div className="glass-soft rounded-xl p-3">
           <p className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Aktueller Schritt</p>
           <p data-testid="factory-status" className="mt-1 text-[12px] font-semibold text-slate-100">{job?.status ?? "idle"}</p>
           <p className="mt-0.5 text-[9px] text-slate-500">
             {job ? `Aktualisiert: ${new Date(job.updatedAt).toLocaleTimeString("de-DE")}` : "Bereit für neue Anforderung"}
           </p>
         </div>
-        <div className="rounded-xl border border-[#152945] bg-[#091625] px-4 py-3">
+        <div className="glass-soft rounded-xl px-4 py-3">
           <p className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Version</p>
           <p className="mt-1 font-mono text-[12px] text-slate-200">{job?.version ?? "—"}</p>
         </div>
-        <div className="rounded-xl border border-[#152945] bg-[#091625] px-4 py-3">
+        <div className="glass-soft rounded-xl px-4 py-3">
           <p className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Job ID</p>
           <p className="mt-1 max-w-[160px] truncate font-mono text-[10px] text-slate-300">{activeJobId ?? "—"}</p>
         </div>
@@ -366,7 +366,7 @@ function RuntimePanel({
     <Panel title="Runtime / Agents" action={<span className="text-[9px] text-indigo-400">Source of truth</span>}>
       <div className="space-y-2.5">
         {rows.map(([label, value, tone]) => (
-          <div key={label} className="flex items-center gap-3 rounded-xl border border-[#11253f] bg-[#08182a] px-3 py-2.5">
+          <div key={label} className="glass-soft flex items-center gap-3 rounded-xl px-3 py-2.5">
             <span className={`grid size-7 place-items-center rounded-lg border ${tone === "warning" ? "border-amber-500/25 bg-amber-500/10 text-amber-300" : tone === "danger" ? "border-rose-500/25 bg-rose-500/10 text-rose-300" : tone === "success" ? "border-cyan-500/20 bg-cyan-500/10 text-cyan-300" : "border-violet-500/20 bg-violet-500/10 text-violet-300"}`}>
               <span className="size-1.5 rounded-full bg-current" />
             </span>
@@ -403,7 +403,7 @@ function TestPanel({
             className="grid size-20 shrink-0 place-items-center rounded-full"
             style={{ background: planned > 0 ? `conic-gradient(#34d399 ${ratio}%, #ef4444 ${ratio}% ${Math.min(100, ratio + (failed / planned) * 100)}%, #172744 0)` : "#172744" }}
           >
-            <div className="grid size-[58px] place-items-center rounded-full bg-[#081524] text-center">
+            <div className="grid size-[58px] place-items-center rounded-full border border-white/[0.06] bg-[#0b0f19]/72 text-center backdrop-blur-xl">
               <div>
                 <p className="text-[14px] font-bold text-white">{planned > 0 ? `${passed}/${planned}` : "—"}</p>
                 <p className="text-[7px] text-slate-600">Tests</p>
@@ -436,7 +436,7 @@ function CostPanel({ metrics }: { metrics: WorkflowProductionMetrics | null }) {
           ["Laufzeit", formatDuration(metrics?.productionTimeMs)],
           ["Calls", metrics === null ? "—" : numberFormat.format(metrics.modelCalls + metrics.agentCalls)],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-xl border border-[#122641] bg-[#08182a] p-3">
+          <div key={label} className="glass-soft rounded-xl p-3">
             <p className="text-[7px] uppercase tracking-[0.1em] text-slate-600">{label}</p>
             <p className="mt-2 truncate font-mono text-[11px] font-semibold text-slate-300">{value}</p>
           </div>
@@ -445,9 +445,9 @@ function CostPanel({ metrics }: { metrics: WorkflowProductionMetrics | null }) {
       {metrics !== null && (
         <div className="mt-3 space-y-1.5">
           <div className="flex justify-between text-[7px] text-slate-600"><span>Input Tokens</span><span>{numberFormat.format(metrics.tokensIn)}</span></div>
-          <div className="h-1 rounded-full bg-[#122641]"><div className="h-1 max-w-full rounded-full bg-cyan-400/70" style={{ width: `${tokenTotal && tokenTotal > 0 ? Math.max(4, (metrics.tokensIn / tokenTotal) * 100) : 0}%` }} /></div>
+          <div className="h-1 rounded-full bg-white/[0.06]"><div className="h-1 max-w-full rounded-full bg-cyan-400/70" style={{ width: `${tokenTotal && tokenTotal > 0 ? Math.max(4, (metrics.tokensIn / tokenTotal) * 100) : 0}%` }} /></div>
           <div className="flex justify-between text-[7px] text-slate-600"><span>Output Tokens</span><span>{numberFormat.format(metrics.tokensOut)}</span></div>
-          <div className="h-1 rounded-full bg-[#122641]"><div className="h-1 max-w-full rounded-full bg-violet-400/70" style={{ width: `${tokenTotal && tokenTotal > 0 ? Math.max(4, (metrics.tokensOut / tokenTotal) * 100) : 0}%` }} /></div>
+          <div className="h-1 rounded-full bg-white/[0.06]"><div className="h-1 max-w-full rounded-full bg-violet-400/70" style={{ width: `${tokenTotal && tokenTotal > 0 ? Math.max(4, (metrics.tokensOut / tokenTotal) * 100) : 0}%` }} /></div>
         </div>
       )}
     </Panel>
@@ -470,7 +470,7 @@ function GatePanel({
   const awaiting = gate?.type === "approval" && gate.status === "awaiting_human";
   return (
     <Panel title="Human Gate" action={<StatusPill tone={awaiting ? "warning" : "neutral"}>{awaiting ? "ausstehend" : "inaktiv"}</StatusPill>}>
-      <div className={`rounded-xl border p-3 ${awaiting ? "border-amber-500/30 bg-amber-500/[0.07]" : "border-[#122641] bg-[#08182a]"}`}>
+      <div className={`rounded-xl border p-3 backdrop-blur-xl ${awaiting ? "border-amber-400/35 bg-amber-400/[0.07] shadow-[0_0_18px_rgba(245,158,11,.18)]" : "border-white/[0.08] bg-[#0b0f19]/55"}`}>
         <p className="text-[10px] font-semibold text-slate-200">{awaiting ? "Benötigt deine Entscheidung." : "Keine Freigabe ausstehend."}</p>
         <p className="mt-1 text-[8px] leading-4 text-slate-500">
           {awaiting ? (
@@ -495,7 +495,7 @@ function GatePanel({
             onClick={() => onApproval(true)}
             aria-label="Approve"
             disabled={!awaiting || approvalBusy || approvalVersion === null}
-            className="rounded-lg border border-indigo-400/30 bg-[linear-gradient(90deg,#4338CA,#4F46E5)] px-3 py-2 text-[9px] font-semibold text-white shadow-[0_0_18px_rgba(79,70,229,.22)] disabled:opacity-30"
+            className="rounded-lg border border-violet-300/30 bg-[linear-gradient(90deg,rgba(79,70,229,.90),rgba(124,58,237,.88))] px-3 py-2 text-[9px] font-semibold text-white shadow-neon-purple backdrop-blur-xl disabled:opacity-30"
           >
             {approvalBusy ? "Sende…" : "Freigeben"}
           </button>
@@ -524,14 +524,14 @@ function EvidencePanel({
     <Panel title="Evidence / Deploy Truth" action={<span className="text-[9px] text-indigo-400">auditierbar</span>}>
       <div className="grid gap-2 sm:grid-cols-2">
         {entries.map(([label, value]) => (
-          <div key={label} className="rounded-xl border border-[#122641] bg-[#08182a] px-3 py-2.5">
+          <div key={label} className="glass-soft rounded-xl px-3 py-2.5">
             <p className="text-[8px] uppercase tracking-[0.1em] text-slate-600">{label}</p>
             <p className="mt-1 truncate font-mono text-[9px] text-slate-300">{value}</p>
           </div>
         ))}
       </div>
       {report?.evidence !== undefined && (
-        <div className="mt-2 rounded-xl border border-[#122641] bg-[#08182a] px-3 py-2.5">
+        <div className="glass-soft mt-2 rounded-xl px-3 py-2.5">
           <p className="text-[8px] uppercase tracking-[0.1em] text-slate-600">Evidence</p>
           <p className="mt-1 break-all font-mono text-[9px] text-cyan-300">{report.evidence}</p>
         </div>
@@ -544,7 +544,7 @@ function RunsPanel({ job, activeJobId }: { job: FactoryJob | null; activeJobId: 
   return (
     <Panel title="Aktuelle Runs" action={<span className="text-[9px] text-slate-600">Source of truth</span>}>
       {job ? (
-        <div className="flex items-center gap-3 rounded-xl border border-[#122641] bg-[#08182a] p-3">
+        <div className="glass-soft flex items-center gap-3 rounded-xl p-3">
           <span className="rounded-md bg-indigo-500/10 px-2 py-1 font-mono text-[9px] text-indigo-300">#{job.version}</span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[9px] font-medium text-slate-300">{activeJobId}</p>
@@ -588,7 +588,7 @@ function LogPanel({
           <p className="text-slate-600">Keine Laufereignisse im aktuellen Snapshot.</p>
         ) : (
           lines.map(([time, message], index) => (
-            <div key={`${time}-${index}`} className="grid grid-cols-[52px_1fr] gap-2 border-b border-[#10213a] pb-2 text-slate-500 last:border-0 last:pb-0">
+            <div key={`${time}-${index}`} className="grid grid-cols-[52px_1fr] gap-2 border-b border-white/[0.055] pb-2 text-slate-500 last:border-0 last:pb-0">
               <span>{time}</span>
               <span className="text-slate-300">{message}</span>
             </div>
@@ -619,12 +619,12 @@ export function CommandCenter({
   const runtimeActive = metrics.edgeComputeActive;
 
   return (
-    <div className="min-h-dvh bg-[#030812] text-slate-200">
+    <div className="min-h-dvh bg-[radial-gradient(circle_at_48%_-6%,rgba(37,99,235,.11),transparent_28rem),radial-gradient(circle_at_86%_10%,rgba(124,58,237,.10),transparent_24rem),#02050c] text-slate-200">
       <div className="flex min-h-dvh">
         <Sidebar metrics={metrics} job={job} report={testReport} productionMetrics={productionMetrics} />
 
         <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-40 flex h-[72px] items-center gap-4 border-b border-[#15243f] bg-[#050d18]/95 px-4 backdrop-blur-xl sm:px-5">
+          <header className="sticky top-0 z-40 flex h-[72px] items-center gap-4 border-b border-white/[0.08] bg-[#070b13]/58 px-4 shadow-[0_10px_35px_rgba(0,0,0,.16)] backdrop-blur-2xl sm:px-5">
             <div className="min-w-0 flex-1">
               <IntentNode
                 posture={intentPosture}
@@ -636,14 +636,14 @@ export function CommandCenter({
               />
             </div>
             <div className="hidden items-center gap-3 md:flex">
-              <div className={`rounded-xl border px-3 py-2 ${runtimeActive ? "border-emerald-500/20 bg-emerald-500/[0.06]" : "border-slate-700 bg-slate-900/70"}`}>
+              <div className={`rounded-xl border px-3 py-2 ${runtimeActive ? "border-emerald-300/25 bg-emerald-400/[0.06] shadow-[0_0_14px_rgba(52,211,153,.16)] backdrop-blur-xl" : "border-white/10 bg-[#0b0f19]/55 backdrop-blur-xl"}`}>
                 <div className={`flex items-center gap-2 text-[9px] font-semibold ${runtimeActive ? "text-emerald-300" : "text-slate-500"}`}>
                   <span className={`size-2 rounded-full ${runtimeActive ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.6)]" : "bg-slate-600"}`} />
                   {runtimeActive ? "Runtime Active" : "Runtime Idle"}
                 </div>
                 <p className="mt-0.5 text-[7px] text-slate-600">Factory control surface</p>
               </div>
-              <div className="grid size-9 place-items-center rounded-full border border-indigo-500/25 bg-indigo-500/10 text-[10px] font-semibold text-indigo-200">SO</div>
+              <div className="grid size-9 place-items-center rounded-full border border-violet-300/25 bg-violet-400/[0.08] text-[10px] font-semibold text-violet-100 shadow-neon-purple backdrop-blur-xl">SO</div>
             </div>
           </header>
 
@@ -663,13 +663,13 @@ export function CommandCenter({
                   <p className="mt-1 text-[18px] font-semibold text-slate-200">{new Date(metrics.sampledAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</p>
                 </div>
                 {job !== null && (
-                  <div className="hidden min-w-[225px] items-center justify-between rounded-xl border border-[#203657] bg-[#0a1728] px-3 py-2 md:flex">
+                  <div className="glass-soft hidden min-w-[225px] items-center justify-between rounded-xl px-3 py-2 md:flex">
                     <div className="min-w-0">
                       <p className="text-[7px] uppercase tracking-[0.1em] text-indigo-400">Aktiver Workflow</p>
                       <p className="mt-1 max-w-[165px] truncate text-[10px] font-semibold text-slate-200">{activeJobId}</p>
                       <p className="mt-1 text-[8px] text-emerald-300">{job.status}</p>
                     </div>
-                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[linear-gradient(135deg,#4338CA,#4F46E5)] text-white shadow-[0_0_18px_rgba(79,70,229,.25)]">→</span>
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-violet-300/25 bg-[linear-gradient(135deg,rgba(79,70,229,.92),rgba(124,58,237,.88))] text-white shadow-neon-purple backdrop-blur-xl">→</span>
                   </div>
                 )}
               </div>
