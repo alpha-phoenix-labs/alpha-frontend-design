@@ -183,21 +183,37 @@ function Sidebar() {
 
 function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobId: string | null }) {
   const current = activeIndex(job);
+  const nodePalettes = [
+    "border-cyan-400/70 bg-cyan-400/10 text-cyan-200 shadow-[0_0_24px_rgba(34,211,238,.16)]",
+    "border-blue-400/65 bg-blue-500/10 text-blue-200 shadow-[0_0_22px_rgba(59,130,246,.15)]",
+    "border-indigo-400/70 bg-indigo-500/12 text-indigo-200 shadow-[0_0_24px_rgba(99,102,241,.18)]",
+    "border-fuchsia-400/65 bg-fuchsia-500/10 text-fuchsia-200 shadow-[0_0_22px_rgba(217,70,239,.16)]",
+    "border-indigo-400/60 bg-indigo-500/10 text-indigo-200 shadow-[0_0_20px_rgba(99,102,241,.14)]",
+    "border-violet-400/65 bg-violet-500/10 text-violet-200 shadow-[0_0_22px_rgba(139,92,246,.16)]",
+    "border-amber-400/70 bg-amber-500/10 text-amber-200 shadow-[0_0_24px_rgba(245,158,11,.16)]",
+    "border-blue-400/60 bg-blue-500/10 text-blue-200 shadow-[0_0_20px_rgba(59,130,246,.14)]",
+    "border-cyan-400/60 bg-cyan-500/10 text-cyan-200 shadow-[0_0_20px_rgba(34,211,238,.14)]",
+  ] as const;
 
   function StageNode({ index }: { index: number }) {
     const stage = pipeline[index];
     if (!stage) return null;
     const tone = stageTone(index, current, job);
     const cls = toneClasses[tone];
+    const palette = nodePalettes[index] ?? nodePalettes[0];
 
     return (
       <div className="relative flex min-w-[112px] flex-1 flex-col items-center text-center">
-        <div className={`grid size-11 place-items-center rounded-2xl border ${cls.node}`}>
+        <div className={`grid size-12 place-items-center rounded-2xl border ${palette} ${tone === "idle" ? "opacity-62 saturate-75" : "opacity-100"}`}>
           <NodeGlyph index={index} />
         </div>
-        <span className={`mt-2 text-[10px] font-semibold ${cls.label}`}>{stage.label}</span>
+        <span className={`mt-2 text-[10px] font-semibold ${tone === "idle" ? "text-slate-400" : cls.label}`}>{stage.label}</span>
         <span className="mt-0.5 text-[8px] text-slate-600">{stage.short}</span>
-        <span className={`mt-2 size-1.5 rounded-full ${cls.dot}`} />
+        {tone === "done" ? (
+          <span className="mt-2 grid size-4 place-items-center rounded-full bg-emerald-400 text-[9px] font-black text-[#042016] shadow-[0_0_10px_rgba(52,211,153,.55)]">✓</span>
+        ) : (
+          <span className={`mt-2 size-1.5 rounded-full ${cls.dot}`} />
+        )}
       </div>
     );
   }
@@ -222,14 +238,16 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
       <div className="relative mt-5 overflow-x-auto rounded-2xl border border-[#142744] bg-[#050d19] px-4 py-5">
         <div className="absolute inset-0 opacity-[0.16] [background-image:radial-gradient(circle,#38BDF8_1px,transparent_1px)] [background-size:19px_19px]" />
         <div className="relative min-w-[760px]">
-          <div className="absolute top-[22px] right-[8%] left-[8%] h-px bg-[linear-gradient(90deg,transparent,#22D3EE_12%,#6366F1_48%,#22D3EE_88%,transparent)] opacity-65" />
+          <div className="absolute top-[23px] right-[8%] left-[8%] h-px bg-[linear-gradient(90deg,transparent,#22D3EE_10%,#60A5FA_32%,#818CF8_55%,#D946EF_78%,transparent)] opacity-75" />
+          <div className="absolute top-[21px] right-[12%] left-[12%] h-[4px] bg-[linear-gradient(90deg,#22D3EE,#6366F1,#D946EF)] opacity-25 blur-[6px]" />
           <div className="grid grid-cols-4 gap-4">
             {[0, 1, 2, 3].map((index) => <StageNode key={index} index={index} />)}
           </div>
 
           <div className="relative my-2 h-9">
-            <div className="absolute top-0 right-[9%] h-7 w-[82%] rounded-tr-[22px] border-t border-r border-indigo-500/55" />
-            <div className="absolute bottom-0 left-[7%] h-px w-[84%] bg-[linear-gradient(90deg,#22D3EE,#6366F1,#22D3EE)] opacity-65" />
+            <div className="absolute top-0 right-[9%] h-7 w-[82%] rounded-tr-[22px] border-t border-r border-indigo-500/70 shadow-[0_0_10px_rgba(99,102,241,.18)]" />
+            <div className="absolute bottom-0 left-[7%] h-px w-[84%] bg-[linear-gradient(90deg,#22D3EE,#8B5CF6,#F59E0B,#3B82F6,#22D3EE)] opacity-75" />
+            <div className="absolute bottom-[-1px] left-[9%] h-[4px] w-[80%] bg-[linear-gradient(90deg,#22D3EE,#8B5CF6,#F59E0B,#22D3EE)] opacity-20 blur-[6px]" />
             <span className="absolute bottom-[-2px] left-[7%] size-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(34,211,238,.8)]" />
           </div>
 
@@ -376,19 +394,22 @@ function GatePanel({
 function EvidencePanel({ report, job }: { report: TestReportV1 | null; job: FactoryJob | null }) {
   const entries = [
     ["Job Status", job?.status ?? "—"],
-    ["Test Evidence", report?.evidence ?? "—"],
-    ["Imported ID", report?.importedId ?? "—"],
+    ["Evidence", report?.evidence ?? "—"],
     ["Execution ID", report?.executionId ?? "—"],
   ];
+
   return (
-    <Panel title="Evidence / Deploy Truth" action={<span className="text-[9px] text-indigo-400">auditierbar</span>}>
-      <div className="grid gap-2 sm:grid-cols-2">
+    <Panel title="Evidence / Deploy Truth" action={<span className="text-[9px] text-indigo-400">Drive Evidence</span>}>
+      <div className="flex flex-col gap-2 sm:flex-row">
         {entries.map(([label, value]) => (
-          <div key={label} className="rounded-xl border border-[#122641] bg-[#08182a] px-3 py-2.5">
+          <div key={label} className="min-w-0 flex-1 rounded-xl border border-[#122641] bg-[#08182a] px-3 py-2.5">
             <p className="text-[8px] uppercase tracking-[0.1em] text-slate-600">{label}</p>
             <p className="mt-1 truncate font-mono text-[9px] text-slate-300">{value}</p>
           </div>
         ))}
+        <button type="button" disabled className="rounded-xl border border-indigo-500/25 bg-indigo-500/[0.08] px-4 py-2.5 text-[9px] font-semibold text-indigo-300 disabled:opacity-70">
+          Drive Evidence öffnen →
+        </button>
       </div>
     </Panel>
   );
