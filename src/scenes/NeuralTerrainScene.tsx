@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { AdditiveBlending, PlaneGeometry, PointsMaterial } from "three";
+import { NormalBlending, PlaneGeometry, PointsMaterial } from "three";
 
 const PLANE_SIZE = 40;
 const PLANE_SEGMENTS = 60;
-const POINT_SIZE = 0.034;
+const POINT_SIZE = 0.032;
 const POINT_COLOR = 0x7c83ff;
-const POINT_OPACITY = 0.34;
+const POINT_OPACITY = 0.22;
 const CAMERA_BASE_X = 0;
 const CAMERA_BASE_Y = 5;
 const PARALLAX_EASE = 0.02;
@@ -36,7 +36,7 @@ export default function NeuralTerrainScene({ animated }: NeuralTerrainSceneProps
         color: POINT_COLOR,
         transparent: true,
         opacity: POINT_OPACITY,
-        blending: AdditiveBlending,
+        blending: NormalBlending,
         depthWrite: false,
       }),
     [],
