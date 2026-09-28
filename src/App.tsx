@@ -54,7 +54,7 @@ function Workspace() {
   );
 
   return (
-    <main className="relative mt-6 flex min-h-[calc(100dvh-13rem)] w-full flex-1 items-center justify-center md:mt-8">
+    <main className="relative mt-6 flex min-h-[calc(100dvh_-_13rem)] w-full flex-1 items-center justify-center md:mt-8">
       <div className="pointer-events-none absolute top-8 left-1/2 w-full max-w-3xl -translate-x-1/2 text-center">
         <p className="font-mono text-[10px] font-medium tracking-[0.18em] text-indigo-500 uppercase">
           Workflow production surface
@@ -132,7 +132,7 @@ function AuthenticatedCraftflow() {
       </Suspense>
 
       <div className="pointer-events-none relative z-10 flex min-h-dvh w-full flex-col p-3 sm:p-5 md:p-7">
-        <div className="flex min-h-[calc(100dvh-1.5rem)] w-full flex-1 flex-col rounded-[1.75rem] border border-white/80 bg-white/72 p-5 shadow-[0_30px_90px_rgba(30,41,59,.10)] backdrop-blur-xl sm:min-h-[calc(100dvh-2.5rem)] md:min-h-[calc(100dvh-3.5rem)] md:rounded-[2.25rem] md:p-8">
+        <div className="flex min-h-[calc(100dvh_-_1.5rem)] w-full flex-1 flex-col rounded-[1.75rem] border border-white/80 bg-white/[0.72] p-5 shadow-[0_30px_90px_rgba(30,41,59,.10)] backdrop-blur-xl sm:min-h-[calc(100dvh_-_2.5rem)] md:min-h-[calc(100dvh_-_3.5rem)] md:rounded-[2.25rem] md:p-8">
           <HeaderSlot />
           <Workspace />
         </div>
