@@ -88,26 +88,38 @@ function stageTone(index: number, current: number, job: FactoryJob | null): Stag
 
 const toneClasses: Record<StageTone, { node: string; dot: string; label: string }> = {
   done: {
-    node: "border-cyan-300/55 bg-cyan-300/[0.075] text-cyan-100 shadow-neon-cyan backdrop-blur-xl",
-    dot: "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.65)]",
-    label: "text-slate-100",
+    node: "border-cyan-300/70 bg-cyan-300/[0.10] text-cyan-50 shadow-neon-cyan backdrop-blur-xl",
+    dot: "bg-emerald-400 shadow-[0_0_11px_rgba(52,211,153,.80)]",
+    label: "text-slate-50",
   },
   active: {
-    node: "border-violet-300/70 bg-violet-400/[0.10] text-violet-100 shadow-neon-purple backdrop-blur-xl",
-    dot: "bg-violet-400 shadow-[0_0_12px_rgba(167,139,250,.75)]",
+    node: "border-violet-300/80 bg-violet-400/[0.13] text-violet-50 shadow-neon-purple backdrop-blur-xl",
+    dot: "bg-violet-300 shadow-[0_0_13px_rgba(196,181,253,.85)]",
     label: "text-white",
   },
   blocked: {
-    node: "border-amber-300/70 bg-amber-400/[0.09] text-amber-100 shadow-[0_0_18px_rgba(245,158,11,.32)] backdrop-blur-xl",
-    dot: "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,.65)]",
-    label: "text-amber-100",
+    node: "border-amber-300/80 bg-amber-400/[0.12] text-amber-50 shadow-[0_0_12px_rgba(245,158,11,.50),0_0_28px_rgba(245,158,11,.20)] backdrop-blur-xl",
+    dot: "bg-amber-300 shadow-[0_0_13px_rgba(251,191,36,.82)]",
+    label: "text-amber-50",
   },
   idle: {
-    node: "border-white/10 bg-[#0b0f19]/55 text-slate-500 backdrop-blur-xl",
+    node: "border-white/[0.12] bg-[#0b1220]/58 text-slate-500 backdrop-blur-xl",
     dot: "bg-slate-600",
     label: "text-slate-400",
   },
 };
+
+const stageAccentClasses = [
+  "border-cyan-300/85 bg-cyan-300/[0.11] text-cyan-50 shadow-[0_0_12px_rgba(34,211,238,.48),0_0_30px_rgba(6,182,212,.22)]",
+  "border-blue-300/80 bg-blue-400/[0.11] text-blue-50 shadow-[0_0_12px_rgba(96,165,250,.48),0_0_30px_rgba(59,130,246,.22)]",
+  "border-indigo-300/85 bg-indigo-400/[0.13] text-indigo-50 shadow-[0_0_12px_rgba(129,140,248,.52),0_0_32px_rgba(79,70,229,.24)]",
+  "border-fuchsia-300/80 bg-fuchsia-400/[0.12] text-fuchsia-50 shadow-[0_0_12px_rgba(232,121,249,.48),0_0_30px_rgba(192,38,211,.22)]",
+  "border-blue-300/80 bg-blue-400/[0.11] text-blue-50 shadow-[0_0_12px_rgba(96,165,250,.46),0_0_28px_rgba(37,99,235,.20)]",
+  "border-violet-300/85 bg-violet-400/[0.12] text-violet-50 shadow-[0_0_12px_rgba(196,181,253,.48),0_0_30px_rgba(124,58,237,.22)]",
+  "border-amber-300/90 bg-amber-400/[0.12] text-amber-50 shadow-[0_0_12px_rgba(251,191,36,.56),0_0_30px_rgba(245,158,11,.23)]",
+  "border-indigo-300/85 bg-indigo-400/[0.12] text-indigo-50 shadow-[0_0_12px_rgba(129,140,248,.50),0_0_30px_rgba(79,70,229,.22)]",
+  "border-cyan-300/85 bg-cyan-300/[0.11] text-cyan-50 shadow-[0_0_12px_rgba(34,211,238,.48),0_0_30px_rgba(6,182,212,.22)]",
+] as const;
 
 const numberFormat = new Intl.NumberFormat("de-DE");
 const moneyFormat = new Intl.NumberFormat("de-DE", {
@@ -163,7 +175,7 @@ function Panel({ title, children, action }: { title: string; children: ReactNode
   return (
     <section className="glass-panel rounded-[18px]">
       <div className="flex min-h-11 items-center justify-between border-b border-white/[0.07] px-4">
-        <h3 className="text-[12px] font-semibold text-slate-100">{title}</h3>
+        <h3 className="text-[13px] font-semibold tracking-[-0.01em] text-slate-50">{title}</h3>
         {action}
       </div>
       <div className="p-4">{children}</div>
@@ -191,7 +203,7 @@ function Sidebar({
   ];
 
   return (
-    <aside className="hidden w-[205px] shrink-0 flex-col border-r border-white/[0.08] bg-[#070b13]/58 shadow-[18px_0_55px_rgba(0,0,0,.20)] backdrop-blur-2xl lg:flex">
+    <aside className="hidden w-[214px] shrink-0 flex-col border-r border-white/[0.09] bg-[#070d18]/68 shadow-[18px_0_58px_rgba(0,0,0,.26)] backdrop-blur-2xl xl:flex">
       <div className="flex h-[72px] items-center gap-3 border-b border-white/[0.07] px-5">
         <div className="relative grid size-9 place-items-center">
           <div className="absolute size-8 rotate-45 rounded-[8px] bg-[linear-gradient(135deg,#22D3EE,#4F46E5_55%,#A855F7)] shadow-[0_0_22px_rgba(79,70,229,.36)]" />
@@ -249,14 +261,16 @@ function StageNode({ index, current, job }: { index: number; current: number; jo
   if (stage === undefined) return null;
   const tone = stageTone(index, current, job);
   const cls = toneClasses[tone];
+  const accent = stageAccentClasses[index] ?? cls.node;
+  const nodeClass = tone === "idle" || tone === "blocked" ? cls.node : accent;
 
   return (
     <div className="relative flex min-w-0 flex-col items-center text-center">
-      <div className={`grid size-12 place-items-center rounded-2xl border ${cls.node}`}>
+      <div className={`grid size-12 place-items-center rounded-[15px] border backdrop-blur-xl transition-transform ${nodeClass} ${tone === "active" ? "scale-[1.05] ring-1 ring-white/20" : ""}`}>
         <NodeGlyph index={index} />
       </div>
-      <span className={`mt-2 text-[10px] font-semibold ${cls.label}`}>{stage.label}</span>
-      <span className="mt-0.5 text-[8px] text-slate-600">{stage.short}</span>
+      <span className={`mt-2 text-[11px] font-semibold ${cls.label}`}>{stage.label}</span>
+      <span className="mt-0.5 text-[8px] text-slate-500">{stage.short}</span>
       <span className={`mt-2 size-1.5 rounded-full ${cls.dot}`} />
     </div>
   );
@@ -266,11 +280,11 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
   const current = activeIndex(job);
 
   return (
-    <section className="glass-panel-strong rounded-[18px] p-4">
+    <section className="glass-panel-strong rounded-[20px] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-[15px] font-semibold text-white">Workflow: {activeJobId ?? "Kein aktiver Lauf"}</h2>
+            <h2 className="text-[16px] font-semibold tracking-[-0.015em] text-white">Workflow: {activeJobId ?? "Kein aktiver Lauf"}</h2>
             {job !== null && (
               <StatusPill tone={job.status === "completed" ? "success" : job.status === "failed" ? "danger" : "success"}>
                 {job.status}
@@ -287,8 +301,8 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
         </div>
       </div>
 
-      <div className="glass-soft glass-grid relative mt-5 overflow-hidden rounded-2xl px-4 py-5">
-        <div className="absolute inset-0 opacity-[0.15] [background-image:radial-gradient(circle,#38BDF8_1px,transparent_1px)] [background-size:19px_19px]" />
+      <div className="glass-soft glass-grid relative mt-5 overflow-hidden rounded-[18px] px-4 py-5">
+        <div className="absolute inset-0 opacity-[0.21] [background-image:radial-gradient(circle,#38BDF8_1px,transparent_1px)] [background-size:20px_20px]" />
         <svg
           aria-hidden="true"
           className="absolute inset-0 h-full w-full"
@@ -302,19 +316,19 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
               <stop offset="100%" stopColor="#22D3EE" stopOpacity="0.72" />
             </linearGradient>
           </defs>
-          <path d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="1.15" />
+          <path d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="rgba(148,163,184,0.22)" strokeWidth="0.78" />
           {job !== null && (
-            <path className="neon-line-cyan" d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="url(#flow-line)" strokeWidth="0.8" strokeDasharray="1.7 1.2" opacity="0.9" />
+            <><path className="neon-line-cyan" d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="url(#flow-line)" strokeWidth="0.5" opacity="0.98" /><g className="neon-line-cyan" fill="#67E8F9"><circle cx="29" cy="27" r="0.42" /><circle cx="50" cy="27" r="0.42" /><circle cx="72" cy="27" r="0.42" /><circle cx="92" cy="49" r="0.42" /><circle cx="76" cy="61" r="0.42" /><circle cx="55" cy="61" r="0.42" /><circle cx="33" cy="61" r="0.42" /><circle cx="10" cy="68" r="0.42" /></g></>
           )}
         </svg>
 
-        <div className="relative mx-auto grid max-w-[76%] grid-cols-4 gap-4">
+        <div className="relative mx-auto grid max-w-[78%] grid-cols-4 gap-4">
           {[0, 1, 2, 3].map((index) => (
             <StageNode key={index} index={index} current={current} job={job} />
           ))}
         </div>
 
-        <div className="relative mt-7 grid grid-cols-5 gap-3">
+        <div className="relative mt-8 grid grid-cols-5 gap-3">
           {[4, 5, 6, 7, 8].map((index) => (
             <StageNode key={index} index={index} current={current} job={job} />
           ))}
@@ -619,12 +633,19 @@ export function CommandCenter({
   const runtimeActive = metrics.edgeComputeActive;
 
   return (
-    <div className="min-h-dvh bg-[radial-gradient(circle_at_48%_-6%,rgba(37,99,235,.11),transparent_28rem),radial-gradient(circle_at_86%_10%,rgba(124,58,237,.10),transparent_24rem),#02050c] text-slate-200">
+    <div className="min-h-dvh overflow-x-hidden bg-[radial-gradient(circle_at_48%_-6%,rgba(37,99,235,.17),transparent_30rem),radial-gradient(circle_at_88%_10%,rgba(124,58,237,.15),transparent_27rem),radial-gradient(circle_at_8%_82%,rgba(6,182,212,.07),transparent_24rem),#02050c] text-slate-200">
       <div className="flex min-h-dvh">
         <Sidebar metrics={metrics} job={job} report={testReport} productionMetrics={productionMetrics} />
 
         <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-40 flex h-[72px] items-center gap-4 border-b border-white/[0.08] bg-[#070b13]/58 px-4 shadow-[0_10px_35px_rgba(0,0,0,.16)] backdrop-blur-2xl sm:px-5">
+          <header className="sticky top-0 z-40 flex h-[72px] items-center gap-3 border-b border-white/[0.10] bg-[#07101c]/70 px-3 shadow-[0_10px_38px_rgba(0,0,0,.24)] backdrop-blur-2xl sm:px-4 xl:px-5">
+            <div className="flex shrink-0 items-center gap-2 xl:hidden">
+              <span className="relative grid size-8 place-items-center">
+                <span className="absolute size-7 rotate-45 rounded-[7px] bg-[linear-gradient(135deg,#22D3EE,#4F46E5_55%,#A855F7)] shadow-neon-indigo" />
+                <span className="relative size-2.5 rotate-45 rounded-[2px] bg-[#07101c]" />
+              </span>
+              <span className="hidden text-[11px] font-extrabold tracking-[0.08em] text-white sm:inline">CRAFT<span className="text-indigo-300">FLOW</span></span>
+            </div>
             <div className="min-w-0 flex-1">
               <IntentNode
                 posture={intentPosture}
@@ -647,14 +668,14 @@ export function CommandCenter({
             </div>
           </header>
 
-          <main className="p-3 sm:p-4">
+          <main className="p-3 sm:p-4 xl:p-4 2xl:p-5">
             <div className="mb-3 flex flex-wrap items-start justify-between gap-4 px-1 py-1">
               <div>
                 <p className="text-[8px] font-semibold tracking-[0.16em] text-slate-600 uppercase">Willkommen zurück</p>
-                <h1 className="mt-1 text-[24px] font-bold tracking-[-0.035em] text-white">
+                <h1 className="mt-1 text-[26px] font-bold tracking-[-0.04em] text-white sm:text-[28px] 2xl:text-[30px]">
                   CRAFTFLOW <span className="bg-[linear-gradient(90deg,#818CF8,#A855F7)] bg-clip-text text-transparent">Command Center</span>
                 </h1>
-                <p className="mt-1 text-[10px] text-slate-500">Workflows entwickeln. Mit KI ausführen. Automatisch testen. Sicher deployen.</p>
+                <p className="mt-1 text-[10px] text-slate-400 2xl:text-[11px]">Workflows entwickeln. Mit KI ausführen. Automatisch testen. Sicher deployen.</p>
               </div>
 
               <div className="flex items-stretch gap-3">
@@ -675,11 +696,11 @@ export function CommandCenter({
               </div>
             </div>
 
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_300px]">
               <div className="space-y-3">
                 <WorkflowCore job={job} activeJobId={activeJobId} />
 
-                <div className="grid gap-3 lg:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-3">
                   <TestPanel report={testReport} productionMetrics={productionMetrics} />
                   <CostPanel metrics={productionMetrics} />
                   <GatePanel
