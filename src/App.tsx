@@ -1,17 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MotionConfig } from "framer-motion";
 import {
-  AmbientNotificationCard,
+  CommandCenter,
   CostEstimateModule,
-  FactoryWorkflowModule,
-  IntentNode,
   LoginScreen,
   ModuleStage,
   SpatialModelModule,
-  SystemHeader,
 } from "@/components/ui/index.ts";
 import {
-  useAmbientSimulation,
   useIntentInputFocus,
   useIntentRouter,
   useMetricsSampling,
@@ -21,19 +17,14 @@ import { normalizeFactoryBaseUrl } from "@/services/factory/index.ts";
 import { useSystemMetricsSnapshot } from "@/store/index.ts";
 import type { AuthState } from "@/types/auth.ts";
 
-const NeuralTerrainCanvas = lazy(() => import("@/components/canvas/NeuralTerrainCanvas.tsx"));
 const WORKSPACE_PLACEHOLDER = "Describe the workflow you want Craftflow to build";
 
-function HeaderSlot() {
+function AuthenticatedCraftflow() {
+  useMetricsSampling();
   const metrics = useSystemMetricsSnapshot();
-  return <SystemHeader metrics={metrics} />;
-}
-
-function Workspace() {
   const router = useIntentRouter();
   const factory = useSpectreFactoryIntegration();
   const inputRef = useIntentInputFocus();
-  const factoryVisible = factory.activeJobId !== null || factory.lastError !== null;
 
   const handleSubmit = useCallback(
     (value: string) => {
@@ -54,67 +45,25 @@ function Workspace() {
   );
 
   return (
-    <main className="relative mt-6 flex min-h-[calc(100dvh_-_13rem)] w-full flex-1 items-center justify-center md:mt-8">
-      <div className="pointer-events-none absolute top-8 left-1/2 w-full max-w-3xl -translate-x-1/2 text-center">
-        <p className="font-mono text-[10px] font-medium tracking-[0.18em] text-indigo-500 uppercase">
-          Workflow production surface
-        </p>
-        <p className="mt-2 text-sm text-slate-400">Turn one clear intent into a tested, reviewable automation.</p>
-      </div>
-
-      <div className="pointer-events-none absolute bottom-6 left-1/2 hidden w-full max-w-3xl -translate-x-1/2 px-6 md:block">
-        <div className="grid grid-cols-4 gap-2 rounded-2xl border border-white/80 bg-white/[0.72] p-2 shadow-[0_16px_50px_rgba(30,41,59,.07)] backdrop-blur-xl">
-          {[
-            ["01", "Intent", "Define"],
-            ["02", "Generate", "Build"],
-            ["03", "Validate", "Test"],
-            ["04", "Approve", "Ship"],
-          ].map(([step, title, label]) => (
-            <div key={step} className="rounded-xl border border-slate-100 bg-white/80 px-4 py-3">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-[9px] font-medium tracking-[0.14em] text-indigo-500">{step}</span>
-                <span className="size-1.5 rounded-full bg-indigo-300" />
-              </div>
-              <p className="mt-2 text-xs font-semibold text-slate-800">{title}</p>
-              <p className="mt-0.5 text-[10px] text-slate-400">{label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <IntentNode
-        posture={factoryVisible ? "receded" : router.posture}
-        value={router.value}
-        onValueChange={router.onValueChange}
-        onSubmit={handleSubmit}
+    <MotionConfig reducedMotion="user">
+      <CommandCenter
+        metrics={metrics}
+        activeJobId={factory.activeJobId}
+        job={factory.activeJob}
+        gate={factory.humanGate}
+        testReport={factory.testReport}
+        intentPosture="idle"
+        intentValue={router.value}
+        onIntentChange={router.onValueChange}
+        onIntentSubmit={handleSubmit}
         inputRef={inputRef}
-        placeholder={WORKSPACE_PLACEHOLDER}
+        approvalVersion={factory.approvalVersion}
+        approvalBusy={factory.approvalBusy}
+        approvalConflict={factory.approvalConflict}
+        onApproval={factory.submitApproval}
       />
 
-      {factoryVisible ? (
-        <div className="pointer-events-none flex h-full w-full max-w-6xl items-center justify-center gap-8 pt-48">
-          <div className="relative z-10 flex w-full justify-center">
-            <FactoryWorkflowModule
-              activeJobId={factory.activeJobId}
-              job={factory.activeJob}
-              gate={factory.humanGate}
-              testReport={factory.testReport}
-              lastError={factory.lastError}
-              clarificationDraft={factory.clarificationDraft}
-              onClarificationDraftChange={factory.setClarificationDraft}
-              onSubmitClarification={factory.submitClarification}
-              approvalVersion={factory.approvalVersion}
-              approvalConflict={factory.approvalConflict}
-              onApproval={factory.submitApproval}
-              clarificationBusy={factory.clarificationBusy}
-              approvalBusy={factory.approvalBusy}
-              mutationUnconfirmed={factory.mutationUnconfirmed}
-              recoveryBusy={factory.recoveryBusy}
-              onRecoverMutation={factory.recoverMutation}
-            />
-          </div>
-        </div>
-      ) : (
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-4">
         <ModuleStage
           state={router.moduleState}
           onExitComplete={router.onModuleExitComplete}
@@ -130,34 +79,9 @@ function Workspace() {
             )
           }
         />
-      )}
-    </main>
-  );
-}
-
-function AmbientSlot() {
-  const ambient = useAmbientSimulation();
-  return <AmbientNotificationCard notification={ambient.notification} onAction={ambient.onAction} />;
-}
-
-function AuthenticatedCraftflow() {
-  useMetricsSampling();
-
-  return (
-    <MotionConfig reducedMotion="user">
-      <div className="pointer-events-none fixed inset-0 bg-[#F6F8FC]" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(99,102,241,.12),transparent_30%),radial-gradient(circle_at_82%_15%,rgba(56,189,248,.13),transparent_26%),radial-gradient(circle_at_70%_84%,rgba(168,85,247,.10),transparent_34%)]" />
-      <Suspense fallback={null}>
-        <NeuralTerrainCanvas />
-      </Suspense>
-
-      <div className="pointer-events-none relative z-10 flex min-h-dvh w-full flex-col p-3 sm:p-5 md:p-7">
-        <div className="flex min-h-[calc(100dvh_-_1.5rem)] w-full flex-1 flex-col rounded-[1.75rem] border border-white/80 bg-white/[0.72] p-5 shadow-[0_30px_90px_rgba(30,41,59,.10)] backdrop-blur-xl sm:min-h-[calc(100dvh_-_2.5rem)] md:min-h-[calc(100dvh_-_3.5rem)] md:rounded-[2.25rem] md:p-8">
-          <HeaderSlot />
-          <Workspace />
-        </div>
       </div>
-      <AmbientSlot />
+
+      <div className="sr-only">{WORKSPACE_PLACEHOLDER}</div>
     </MotionConfig>
   );
 }
@@ -245,13 +169,7 @@ function AuthGate() {
     return <AuthenticatedCraftflow />;
   }
 
-  return (
-    <LoginScreen
-      state={state}
-      onOwnerLogin={openOwnerLogin}
-      onRetry={() => void checkSession()}
-    />
-  );
+  return <LoginScreen state={state} onOwnerLogin={openOwnerLogin} onRetry={() => void checkSession()} />;
 }
 
 export default function App() {
