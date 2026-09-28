@@ -114,13 +114,20 @@ export const useProductionTestFigures = (jobId: string | null): ProductionTestFi
 
 export type FactoryActions = Pick<
   FactoryState,
-  'submitWorkflowRequest' | 'refreshJob' | 'submitApproval' | 'submitClarification' | 'setActiveJob' | 'clearLastError'
+  | 'submitWorkflowRequest'
+  | 'recoverWorkflowRequest'
+  | 'refreshJob'
+  | 'submitApproval'
+  | 'submitClarification'
+  | 'setActiveJob'
+  | 'clearLastError'
 >;
 
 export const useFactoryActions = (): FactoryActions =>
   useFactoryStore(
     useShallow((state) => ({
       submitWorkflowRequest: state.submitWorkflowRequest,
+      recoverWorkflowRequest: state.recoverWorkflowRequest,
       refreshJob: state.refreshJob,
       submitApproval: state.submitApproval,
       submitClarification: state.submitClarification,

@@ -146,6 +146,16 @@ export class MockFactoryService implements FactoryService {
       return { ok: true, value: this.#toJob(record) };
     });
 
+  readonly recoverWorkflowRequest = (clientRequestId: string): Promise<FactoryResult<FactoryJob | null>> =>
+    this.#respond(() => {
+      const key = clientRequestId.trim();
+      if (key === '') {
+        return { ok: false, error: { kind: 'unknown', code: 'VALIDATION', message: 'Client-Request-ID ist leer.' } };
+      }
+      const record = Array.from(this.#jobs.values()).find((candidate) => candidate.request.clientRequestId === key);
+      return { ok: true, value: record === undefined ? null : this.#toJob(record) };
+    });
+
   readonly getJobStatus = (jobId: string): Promise<FactoryResult<FactoryJob>> =>
     this.#withJob(jobId, (record) => this.#toJob(record));
 

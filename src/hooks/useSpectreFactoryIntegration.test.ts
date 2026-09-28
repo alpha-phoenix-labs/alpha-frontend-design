@@ -2,18 +2,22 @@ import { describe, expect, it, vi } from 'vitest';
 import type { FactoryJob, FactoryResult, HumanGateState, TestResult } from '@/types/factory/index.ts';
 import {
   FACTORY_JOB_STORAGE_KEY,
+  FACTORY_PENDING_REQUEST_STORAGE_KEY,
   FactoryMutationLatch,
+  createFactoryClientRequestId,
   approvalInputFromSnapshot,
   approvalSnapshotFor,
   clarificationInput,
   publicTestReport,
   readStoredFactoryJobId,
+  readStoredFactoryPendingRequestId,
   recoverStoredFactoryJob,
   refreshAfterUnconfirmedMutation,
   submitApprovalOnce,
   submitClarificationOnce,
   submitPromptOnce,
   writeStoredFactoryJobId,
+  writeStoredFactoryPendingRequestId,
 } from '@/hooks/useSpectreFactoryIntegration.ts';
 
 const job = (version: number): FactoryJob => ({
@@ -68,10 +72,33 @@ describe('Spectre factory integration helpers', () => {
       }),
     );
 
-    expect((await submitPromptOnce(latch, success, '  build a workflow  '))?.ok).toBe(true);
-    expect(success).toHaveBeenCalledWith({ description: 'build a workflow', testMode: 'mock' });
-    expect((await submitPromptOnce(latch, failed, 'build another'))?.ok).toBe(false);
+    expect((await submitPromptOnce(latch, success, '  build a workflow  ', 'req-1'))?.ok).toBe(true);
+    expect(success).toHaveBeenCalledWith({ description: 'build a workflow', testMode: 'mock', clientRequestId: 'req-1' });
+    expect((await submitPromptOnce(latch, failed, 'build another', 'req-2'))?.ok).toBe(false);
     expect(failed).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks duplicate prompt submission before persisting a second correlation id', async () => {
+    const latch = new FactoryMutationLatch();
+    let release: ((value: FactoryResult<FactoryJob>) => void) | undefined;
+    const submit = vi.fn(
+      () =>
+        new Promise<FactoryResult<FactoryJob>>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const firstStarted = vi.fn();
+    const secondStarted = vi.fn();
+
+    const first = submitPromptOnce(latch, submit, 'build one', 'req-1', firstStarted);
+    const second = await submitPromptOnce(latch, submit, 'build two', 'req-2', secondStarted);
+
+    expect(second).toBeNull();
+    expect(firstStarted).toHaveBeenCalledTimes(1);
+    expect(secondStarted).not.toHaveBeenCalled();
+    expect(submit).toHaveBeenCalledTimes(1);
+    release?.({ ok: true, value: job(1) });
+    expect((await first)?.ok).toBe(true);
   });
 
   it('blocks duplicate clarification submission while the first mutation is in flight', async () => {
@@ -141,6 +168,26 @@ describe('Spectre factory integration helpers', () => {
 
     await refreshAfterUnconfirmedMutation(refresh, 'job-1');
     expect(order).toEqual(['job-1', 'job-1']);
+  });
+
+  it('creates and persists a stable pending client request id', () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        values.set(key, value);
+      },
+      removeItem: (key: string) => {
+        values.delete(key);
+      },
+    };
+
+    expect(createFactoryClientRequestId(() => '1234-5678')).toBe('cf_1234-5678');
+    writeStoredFactoryPendingRequestId(storage, 'cf_1234-5678');
+    expect(values.get(FACTORY_PENDING_REQUEST_STORAGE_KEY)).toBe('cf_1234-5678');
+    expect(readStoredFactoryPendingRequestId(storage)).toBe('cf_1234-5678');
+    writeStoredFactoryPendingRequestId(storage, null);
+    expect(readStoredFactoryPendingRequestId(storage)).toBeNull();
   });
 
   it('persists and restores only a known non-empty job id', () => {

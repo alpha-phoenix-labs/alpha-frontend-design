@@ -169,6 +169,65 @@ describe('factoryStore', () => {
     expect('job-1' in store.getState().productionMetrics).toBe(false);
   });
 
+  it('keeps a jobId exposed by MUTATION_UNCONFIRMED as the active recovery target', async () => {
+    const uncertainError = {
+      kind: 'network' as const,
+      code: 'MUTATION_UNCONFIRMED',
+      message: 'unknown',
+      jobId: 'job-1',
+    };
+    const store = createFactoryStore(
+      serviceWith({
+        submitWorkflowRequest: () =>
+          Promise.resolve<FactoryResult<FactoryJob>>({ ok: false, error: uncertainError }),
+      }),
+    );
+
+    const result = await store.getState().submitWorkflowRequest({ description: 'Baue X', testMode: 'mock' });
+
+    expect(result.ok).toBe(false);
+    expect(store.getState().activeJobId).toBe('job-1');
+    expect(store.getState().lastError).toEqual(uncertainError);
+  });
+
+  it('read-only correlation recovery stores and activates the resolved job', async () => {
+    const recoverWorkflowRequest = vi.fn(() =>
+      Promise.resolve<FactoryResult<FactoryJob | null>>({ ok: true, value: job(4, 'awaiting_human') }),
+    );
+    const store = createFactoryStore(serviceWith({ recoverWorkflowRequest }));
+
+    const result = await store.getState().recoverWorkflowRequest('cf_req-1');
+
+    expect(result.ok).toBe(true);
+    expect(recoverWorkflowRequest).toHaveBeenCalledWith('cf_req-1');
+    expect(store.getState().activeJobId).toBe('job-1');
+    expect(store.getState().jobs['job-1']).toMatchObject({ version: 4, status: 'awaiting_human' });
+  });
+
+  it('unsuccessful correlation lookup does not overwrite the original mutation error', async () => {
+    const initial = {
+      kind: 'network' as const,
+      code: 'MUTATION_UNCONFIRMED',
+      message: 'unknown',
+    };
+    const store = createFactoryStore(
+      serviceWith({
+        submitWorkflowRequest: () => Promise.resolve({ ok: false, error: initial }),
+        recoverWorkflowRequest: () =>
+          Promise.resolve({
+            ok: false,
+            error: { kind: 'network' as const, code: 'NETWORK', message: 'still offline' },
+          }),
+      }),
+    );
+
+    await store.getState().submitWorkflowRequest({ description: 'Baue X', testMode: 'mock' });
+    await store.getState().recoverWorkflowRequest('cf_req-2');
+
+    expect(store.getState().lastError).toEqual(initial);
+    expect(store.getState().activeJobId).toBeNull();
+  });
+
   it('submitApproval stores the returned job', async () => {
     const store = createFactoryStore(serviceWith({ submitApproval: () => Promise.resolve({ ok: true, value: job(6, 'approved') }) }));
     const result = await store.getState().submitApproval({ jobId: 'job-1', version: 5, approve: true });

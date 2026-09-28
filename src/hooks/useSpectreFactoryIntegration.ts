@@ -21,6 +21,11 @@ import {
 import { useFactoryJobPolling } from '@/hooks/useFactoryJobPolling.ts';
 
 export const FACTORY_JOB_STORAGE_KEY = 'craftflow.factory.activeJobId.v1';
+export const FACTORY_PENDING_REQUEST_STORAGE_KEY = 'craftflow.factory.pendingClientRequestId.v1';
+
+export function createFactoryClientRequestId(randomUuid: () => string = () => globalThis.crypto.randomUUID()): string {
+  return `cf_${randomUuid()}`;
+}
 
 export type FactoryMutationKind = 'prompt' | 'clarification' | 'approval' | 'recovery';
 
@@ -95,6 +100,38 @@ export function writeStoredFactoryJobId(
   }
 }
 
+export function readStoredFactoryPendingRequestId(storage: Pick<Storage, 'getItem'>): string | null {
+  try {
+    const value = storage.getItem(FACTORY_PENDING_REQUEST_STORAGE_KEY)?.trim() ?? '';
+    return value === '' ? null : value;
+  } catch {
+    return null;
+  }
+}
+
+export function writeStoredFactoryPendingRequestId(
+  storage: Pick<Storage, 'setItem' | 'removeItem'>,
+  clientRequestId: string | null,
+): void {
+  try {
+    if (clientRequestId === null) {
+      storage.removeItem(FACTORY_PENDING_REQUEST_STORAGE_KEY);
+    } else {
+      storage.setItem(FACTORY_PENDING_REQUEST_STORAGE_KEY, clientRequestId);
+    }
+  } catch {
+    // Storage availability must never break the Factory flow.
+  }
+}
+
+function jobIdFromMutationError(error: ApiError): string | null {
+  if (!('jobId' in error)) {
+    return null;
+  }
+  const jobId = (error as ApiError & { readonly jobId?: unknown }).jobId;
+  return typeof jobId === 'string' && jobId.trim() !== '' ? jobId : null;
+}
+
 /**
  * Two sequential refreshes guarantee the second read starts after any joined in-flight GET has settled.
  * This is read-only recovery; the uncertain mutation itself is never replayed.
@@ -126,16 +163,19 @@ export async function submitPromptOnce(
   latch: FactoryMutationLatch,
   submit: SubmitPrompt,
   text: string,
+  clientRequestId: string,
+  onStarted?: () => void,
   onBusy?: BusyReporter,
 ): Promise<FactoryResult<FactoryJob> | null> {
   const description = text.trim();
   if (description === '' || !latch.begin('prompt')) {
     return null;
   }
+  onStarted?.();
   onBusy?.(true);
   try {
     // WorkflowRequest.testMode is a frozen legacy service field; HttpFactoryService sends only the prompt.
-    return await submit({ description, testMode: 'mock' });
+    return await submit({ description, testMode: 'mock', clientRequestId });
   } finally {
     latch.end('prompt');
     onBusy?.(false);
@@ -210,6 +250,7 @@ export function useSpectreFactoryIntegration(): SpectreFactoryIntegration {
   const lastError = useFactoryLastError();
   const {
     submitWorkflowRequest,
+    recoverWorkflowRequest,
     submitClarification: submitClarificationAction,
     submitApproval: submitApprovalAction,
     refreshJob,
@@ -218,6 +259,7 @@ export function useSpectreFactoryIntegration(): SpectreFactoryIntegration {
   } = useFactoryActions();
 
   const latchRef = useRef(new FactoryMutationLatch());
+  const pendingClientRequestIdRef = useRef<string | null>(null);
   const draftJobIdRef = useRef<string | null>(activeJobId);
   const [clarificationDraft, setClarificationDraft] = useState('');
   const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalGateSnapshot | null>(null);
@@ -257,15 +299,63 @@ export function useSpectreFactoryIntegration(): SpectreFactoryIntegration {
         void recoverStoredFactoryJob(storedJobId, setActiveJob, refreshJob);
         return;
       }
+
+      const pendingClientRequestId = readStoredFactoryPendingRequestId(window.sessionStorage);
+      if (pendingClientRequestId !== null) {
+        pendingClientRequestIdRef.current = pendingClientRequestId;
+        void recoverWorkflowRequest(pendingClientRequestId).then((result) => {
+          if (result.ok && result.value !== null) {
+            writeStoredFactoryJobId(window.sessionStorage, result.value.id);
+            pendingClientRequestIdRef.current = null;
+            writeStoredFactoryPendingRequestId(window.sessionStorage, null);
+            clearLastError();
+          }
+        });
+      }
+      return;
     }
+
     writeStoredFactoryJobId(window.sessionStorage, activeJobId);
-  }, [activeJobId, refreshJob, setActiveJob]);
+    pendingClientRequestIdRef.current = null;
+    writeStoredFactoryPendingRequestId(window.sessionStorage, null);
+  }, [activeJobId, clearLastError, recoverWorkflowRequest, refreshJob, setActiveJob]);
 
   const submitPrompt = useCallback(
     async (text: string): Promise<boolean> => {
       clearLastError();
-      const result = await submitPromptOnce(latchRef.current, submitWorkflowRequest, text, setPromptBusy);
-      return result?.ok === true;
+      const clientRequestId = createFactoryClientRequestId();
+      const result = await submitPromptOnce(
+        latchRef.current,
+        submitWorkflowRequest,
+        text,
+        clientRequestId,
+        () => {
+          pendingClientRequestIdRef.current = clientRequestId;
+          if (typeof window !== 'undefined') {
+            writeStoredFactoryPendingRequestId(window.sessionStorage, clientRequestId);
+          }
+        },
+        setPromptBusy,
+      );
+
+      if (result === null) {
+        return false;
+      }
+
+      const knownJobId = result.ok ? result.value.id : jobIdFromMutationError(result.error);
+      const keepPending =
+        !result.ok && result.error.code === 'MUTATION_UNCONFIRMED' && knownJobId === null;
+
+      if (!keepPending) {
+        pendingClientRequestIdRef.current = null;
+        if (typeof window !== 'undefined') {
+          if (knownJobId !== null) {
+            writeStoredFactoryJobId(window.sessionStorage, knownJobId);
+          }
+          writeStoredFactoryPendingRequestId(window.sessionStorage, null);
+        }
+      }
+      return result.ok;
     },
     [clearLastError, submitWorkflowRequest],
   );
@@ -322,18 +412,38 @@ export function useSpectreFactoryIntegration(): SpectreFactoryIntegration {
   );
 
   const recoverMutation = useCallback(async (): Promise<void> => {
-    if (activeJobId === null || !latchRef.current.begin('recovery')) {
+    if (!latchRef.current.begin('recovery')) {
       return;
     }
     setRecoveryBusy(true);
-    clearLastError();
     try {
-      await refreshAfterUnconfirmedMutation(refreshJob, activeJobId);
+      if (activeJobId !== null) {
+        clearLastError();
+        await refreshAfterUnconfirmedMutation(refreshJob, activeJobId);
+        return;
+      }
+
+      const storedPending =
+        typeof window === 'undefined' ? null : readStoredFactoryPendingRequestId(window.sessionStorage);
+      const clientRequestId = pendingClientRequestIdRef.current ?? storedPending;
+      if (clientRequestId === null) {
+        return;
+      }
+
+      const result = await recoverWorkflowRequest(clientRequestId);
+      if (result.ok && result.value !== null) {
+        pendingClientRequestIdRef.current = null;
+        if (typeof window !== 'undefined') {
+          writeStoredFactoryJobId(window.sessionStorage, result.value.id);
+          writeStoredFactoryPendingRequestId(window.sessionStorage, null);
+        }
+        clearLastError();
+      }
     } finally {
       latchRef.current.end('recovery');
       setRecoveryBusy(false);
     }
-  }, [activeJobId, clearLastError, refreshJob]);
+  }, [activeJobId, clearLastError, recoverWorkflowRequest, refreshJob]);
 
   return {
     activeJobId,

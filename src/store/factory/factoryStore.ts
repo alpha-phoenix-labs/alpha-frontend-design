@@ -35,6 +35,8 @@ export interface FactoryState {
   readonly lastError: ApiError | null;
   /** Submits a request, stores the new job and makes it the active job. */
   readonly submitWorkflowRequest: (request: WorkflowRequest) => Promise<FactoryResult<FactoryJob>>;
+  /** Resolves an uncertain create by correlation id without replaying the mutation. */
+  readonly recoverWorkflowRequest: (clientRequestId: string) => Promise<FactoryResult<FactoryJob | null>>;
   /** Reloads the job and every result that is available for it. */
   readonly refreshJob: (jobId: string) => Promise<void>;
   /** Decides the approval gate of a job and stores the updated job; on a version conflict the job is refreshed. */
@@ -43,6 +45,14 @@ export interface FactoryState {
   readonly submitClarification: (input: SubmitClarificationInput) => Promise<FactoryResult<FactoryJob>>;
   readonly setActiveJob: (jobId: string | null) => void;
   readonly clearLastError: () => void;
+}
+
+function jobIdFromError(error: ApiError): string | null {
+  if (!('jobId' in error)) {
+    return null;
+  }
+  const jobId = (error as ApiError & { readonly jobId?: unknown }).jobId;
+  return typeof jobId === 'string' && jobId.trim() !== '' ? jobId : null;
 }
 
 /** Creates a factory store bound to the given service. */
@@ -97,7 +107,21 @@ export function createFactoryStore(service: FactoryService) {
           storeJob(result.value);
           set({ activeJobId: result.value.id });
         } else {
-          set({ lastError: result.error });
+          const recoverableJobId = jobIdFromError(result.error);
+          set(
+            recoverableJobId === null
+              ? { lastError: result.error }
+              : { lastError: result.error, activeJobId: recoverableJobId },
+          );
+        }
+        return result;
+      },
+      recoverWorkflowRequest: async (clientRequestId) => {
+        const result = await service.recoverWorkflowRequest(clientRequestId);
+        // Recovery is read-only. Keep the original MUTATION_UNCONFIRMED visible if lookup is unavailable.
+        if (result.ok && result.value !== null) {
+          storeJob(result.value);
+          set({ activeJobId: result.value.id });
         }
         return result;
       },
