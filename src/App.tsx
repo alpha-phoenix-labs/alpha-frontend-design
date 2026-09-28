@@ -62,6 +62,26 @@ function Workspace() {
         <p className="mt-2 text-sm text-slate-400">Turn one clear intent into a tested, reviewable automation.</p>
       </div>
 
+      <div className="pointer-events-none absolute bottom-6 left-1/2 hidden w-full max-w-3xl -translate-x-1/2 px-6 md:block">
+        <div className="grid grid-cols-4 gap-2 rounded-2xl border border-white/80 bg-white/[0.72] p-2 shadow-[0_16px_50px_rgba(30,41,59,.07)] backdrop-blur-xl">
+          {[
+            ["01", "Intent", "Define"],
+            ["02", "Generate", "Build"],
+            ["03", "Validate", "Test"],
+            ["04", "Approve", "Ship"],
+          ].map(([step, title, label]) => (
+            <div key={step} className="rounded-xl border border-slate-100 bg-white/80 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[9px] font-medium tracking-[0.14em] text-indigo-500">{step}</span>
+                <span className="size-1.5 rounded-full bg-indigo-300" />
+              </div>
+              <p className="mt-2 text-xs font-semibold text-slate-800">{title}</p>
+              <p className="mt-0.5 text-[10px] text-slate-400">{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <IntentNode
         posture={factoryVisible ? "receded" : router.posture}
         value={router.value}
