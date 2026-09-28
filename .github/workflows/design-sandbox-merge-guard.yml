@@ -1,0 +1,28 @@
+name: Design Sandbox Merge Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  design-sandbox-guard:
+    name: design-sandbox-guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Block permanent design sandbox
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          echo "SOURCE_BRANCH=$HEAD_REF"
+
+          if [ "$HEAD_REF" = "design/v2-rebuild" ]; then
+            echo "::error::BLOCKED: design/v2-rebuild is a permanent sandbox and must never merge into main."
+            exit 1
+          fi
+
+          echo "PASS: source branch is allowed."
