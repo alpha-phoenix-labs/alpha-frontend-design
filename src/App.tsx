@@ -15,6 +15,7 @@ import {
 } from "@/hooks/index.ts";
 import { normalizeFactoryBaseUrl } from "@/services/factory/index.ts";
 import { useSystemMetricsSnapshot } from "@/store/index.ts";
+import { useActiveProductionMetrics } from "@/store/factory/index.ts";
 import type { AuthState } from "@/types/auth.ts";
 
 const WORKSPACE_PLACEHOLDER = "Describe the workflow you want Craftflow to build";
@@ -24,6 +25,7 @@ function AuthenticatedCraftflow() {
   const metrics = useSystemMetricsSnapshot();
   const router = useIntentRouter();
   const factory = useSpectreFactoryIntegration();
+  const productionMetrics = useActiveProductionMetrics();
   const inputRef = useIntentInputFocus();
 
   const handleSubmit = useCallback(
@@ -52,6 +54,7 @@ function AuthenticatedCraftflow() {
         job={factory.activeJob}
         gate={factory.humanGate}
         testReport={factory.testReport}
+        productionMetrics={productionMetrics}
         intentPosture="idle"
         intentValue={router.value}
         onIntentChange={router.onValueChange}
