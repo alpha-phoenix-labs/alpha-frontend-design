@@ -7,6 +7,8 @@ import type { TestMode } from '@/types/factory/productionMetrics.ts';
 export interface WorkflowRequest {
   readonly description: string;
   readonly testMode: TestMode;
+  /** Stable client-generated correlation key used to recover an uncertain create without replaying it. */
+  readonly clientRequestId?: string;
 }
 
 /** A factory job and its current status. */
