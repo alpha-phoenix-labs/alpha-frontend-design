@@ -183,7 +183,7 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
           <p className="mt-1 text-[10px] text-slate-500">Von Anforderung bis Evidence — statusgebunden, nachvollziehbar, fail-closed.</p>
         </div>
         <div className="flex items-center gap-2">
-          {job !== null && <StatusPill tone="violet">v{job.version}</StatusPill>}
+          {job !== null && <StatusPill tone="violet">{`v${job.version}`}</StatusPill>}
           <button type="button" disabled className="rounded-lg border border-[#203657] bg-[#0b1728] px-3 py-2 text-[10px] text-slate-500">Details</button>
         </div>
       </div>
@@ -436,7 +436,7 @@ export function CommandCenter({
                 value={intentValue}
                 onValueChange={onIntentChange}
                 onSubmit={onIntentSubmit}
-                inputRef={inputRef}
+                {...(inputRef ? { inputRef } : {})}
                 placeholder="Describe the workflow you want Craftflow to build"
               />
             </div>
