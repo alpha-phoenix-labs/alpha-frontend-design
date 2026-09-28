@@ -29,6 +29,8 @@ export interface SubmitClarificationInput {
  */
 export interface FactoryService {
   readonly submitWorkflowRequest: (request: WorkflowRequest) => Promise<FactoryResult<FactoryJob>>;
+  /** Resolves an uncertain create by its stable client correlation id without replaying the mutation. */
+  readonly recoverWorkflowRequest: (clientRequestId: string) => Promise<FactoryResult<FactoryJob | null>>;
   readonly getJobStatus: (jobId: string) => Promise<FactoryResult<FactoryJob>>;
   readonly getGeneratedWorkflow: (jobId: string) => Promise<FactoryResult<WorkflowGenerationResult | null>>;
   readonly getTestStatus: (jobId: string) => Promise<FactoryResult<FactoryTestReport | null>>;
