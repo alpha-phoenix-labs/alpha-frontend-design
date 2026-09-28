@@ -34,12 +34,12 @@ export function IntentNode({
 
   return (
     <motion.div
-      className="pointer-events-auto absolute z-50 w-full max-w-xl"
+      className="pointer-events-auto absolute z-50 w-[calc(100%-2rem)] max-w-2xl"
       variants={intentNodeMotion}
       initial={false}
       animate={posture}
     >
-      <div className="glass-pill flex items-center gap-3 rounded-full p-2 pr-3 pl-5 sm:gap-5 sm:pl-6">
+      <div className="glass-pill flex items-center gap-3 rounded-[1.6rem] p-2.5 pr-3 pl-5 sm:gap-5 sm:pl-6">
         <div className="intent-orb" aria-hidden="true" />
         <input
           ref={inputRef}
@@ -52,17 +52,22 @@ export function IntentNode({
           autoComplete="off"
           autoFocus={autoFocus}
           enterKeyHint="go"
-          className="min-w-0 flex-1 border-none bg-transparent py-3 text-base font-light text-white outline-none placeholder:font-light placeholder:text-white/20 sm:text-lg"
+          className="min-w-0 flex-1 border-none bg-transparent py-3.5 text-base font-normal text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400 sm:text-lg"
         />
         <button
           type="button"
           onClick={onVoiceInput}
           disabled={onVoiceInput === undefined}
           aria-label="Spracheingabe"
-          className="group flex size-10 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none disabled:cursor-default disabled:hover:bg-transparent"
+          className="group flex size-10 shrink-0 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50/80 transition hover:border-indigo-100 hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 disabled:cursor-default disabled:opacity-60"
         >
-          <MicrophoneIcon className="size-4 text-spatial-dim transition-colors group-hover:text-white group-disabled:group-hover:text-spatial-dim" />
+          <MicrophoneIcon className="size-4 text-slate-400 transition-colors group-hover:text-indigo-600 group-disabled:group-hover:text-slate-400" />
         </button>
+      </div>
+      <div className="pointer-events-none mt-3 flex justify-center">
+        <span className="rounded-full border border-white/80 bg-white/72 px-3 py-1.5 font-mono text-[9px] tracking-[0.12em] text-slate-400 uppercase shadow-sm backdrop-blur">
+          Press Enter to build
+        </span>
       </div>
     </motion.div>
   );
