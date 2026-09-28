@@ -1,4 +1,4 @@
-import type { Ref } from "react";
+import type { ReactNode, Ref } from "react";
 import type { IntentNodePosture, SystemMetrics } from "@/types/index.ts";
 import type { FactoryJob, HumanGateState, TestReportV1 } from "@/types/factory/index.ts";
 import { IntentNode } from "@/components/ui/IntentNode.tsx";
@@ -110,7 +110,7 @@ function StatusPill({ children, tone = "neutral" }: { children: string; tone?: "
   return <span className={`rounded-full border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.08em] ${cls}`}>{children}</span>;
 }
 
-function Panel({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+function Panel({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
     <section className="rounded-[18px] border border-[#172744] bg-[#07101f]/92 shadow-[0_14px_40px_rgba(0,0,0,.18)]">
       <div className="flex min-h-11 items-center justify-between border-b border-[#172744] px-4">
