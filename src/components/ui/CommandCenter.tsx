@@ -346,16 +346,19 @@ function RuntimePanel({
   job,
   gate,
   report,
+  productionMetrics,
 }: {
   job: FactoryJob | null;
   gate: HumanGateState | null;
   report: TestReportV1 | null;
+  productionMetrics: WorkflowProductionMetrics | null;
 }) {
   const rows: Array<[string, string, "success" | "violet" | "warning" | "danger" | "neutral"]> = [
     ["Factory API", "OWNER session verified", "success"],
     ["Active Job", job?.status ?? "Idle", job ? "violet" : "neutral"],
     ["Test Report", report?.result ?? "No report", report?.result === "PASS" ? "success" : report?.result === "NOT_PASS" ? "danger" : "neutral"],
     ["Human Gate", gate?.status ?? "Inactive", gate?.status === "awaiting_human" ? "warning" : "neutral"],
+    ["Production Metrics", productionMetrics ? "Runtime evidence available" : "No runtime evidence", productionMetrics ? "success" : "neutral"],
     ["Agent telemetry", "Not exposed by current contract", "neutral"],
   ];
 
@@ -689,7 +692,7 @@ export function CommandCenter({
               </div>
 
               <div className="space-y-3">
-                <RuntimePanel metrics={metrics} job={job} report={testReport} productionMetrics={productionMetrics} />
+                <RuntimePanel job={job} gate={gate} report={testReport} productionMetrics={productionMetrics} />
                 <RunsPanel job={job} activeJobId={activeJobId} />
                 <LogPanel job={job} report={testReport} productionMetrics={productionMetrics} />
               </div>
