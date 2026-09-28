@@ -1,13 +1,26 @@
 @import "tailwindcss" source("../");
 
 @theme {
-  --color-spatial-bg: #030812;
-  --color-spatial-surface: #07101f;
-  --color-spatial-surface-hover: #0a1728;
-  --color-spatial-border: #172744;
-  --color-spatial-accent: #818cf8;
+  --color-canvas-base: #02050c;
+  --color-canvas-deep: #030712;
+  --color-glass-surface: rgb(11 15 25 / 0.70);
+  --color-glass-surface-strong: rgb(8 13 24 / 0.82);
+  --color-glass-border: rgb(255 255 255 / 0.10);
+  --color-glass-border-soft: rgb(255 255 255 / 0.07);
+
+  --color-spatial-bg: #02050c;
+  --color-spatial-surface: rgb(11 15 25 / 0.70);
+  --color-spatial-surface-hover: rgb(16 22 37 / 0.76);
+  --color-spatial-border: rgb(255 255 255 / 0.10);
+  --color-spatial-accent: #7c3aed;
   --color-spatial-dim: #64748b;
-  --color-spatial-text: #e2e8f0;
+  --color-spatial-text: #e7edf7;
+
+  --shadow-neon-cyan: 0 0 15px rgba(0, 255, 255, 0.40);
+  --shadow-neon-purple: 0 0 15px rgba(128, 0, 128, 0.40);
+  --shadow-neon-indigo: 0 0 18px rgba(99, 102, 241, 0.38);
+  --shadow-glass: 0 18px 55px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  --shadow-glass-soft: 0 10px 34px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.035);
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -21,16 +34,17 @@
   }
 
   html {
-    background: #030812;
+    background: var(--color-canvas-base);
   }
 
   body {
     margin: 0;
     min-width: 320px;
     background:
-      radial-gradient(circle at 48% -10%, rgb(59 130 246 / 0.08), transparent 32rem),
-      radial-gradient(circle at 88% 8%, rgb(124 58 237 / 0.06), transparent 28rem),
-      #030812;
+      radial-gradient(circle at 50% -12%, rgb(41 121 255 / 0.13), transparent 31rem),
+      radial-gradient(circle at 86% 10%, rgb(124 58 237 / 0.11), transparent 27rem),
+      radial-gradient(circle at 8% 82%, rgb(6 182 212 / 0.055), transparent 24rem),
+      linear-gradient(180deg, #02050c 0%, #030712 56%, #02050c 100%);
     color: var(--color-spatial-text);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
@@ -43,30 +57,66 @@
   }
 
   ::selection {
-    background: rgb(99 102 241 / 0.35);
+    background: rgb(99 102 241 / 0.38);
     color: white;
   }
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: #1d3557 #07101f;
+    scrollbar-color: rgb(79 70 229 / 0.40) rgb(255 255 255 / 0.025);
   }
 }
 
 @utility glass-panel {
-  background: linear-gradient(145deg, rgb(7 16 31 / 0.96), rgb(5 13 25 / 0.98));
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
-  border: 1px solid #172744;
+  background:
+    linear-gradient(145deg, rgb(13 19 33 / 0.74), rgb(7 11 21 / 0.62));
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  backdrop-filter: blur(24px) saturate(135%);
+  border: 1px solid rgb(255 255 255 / 0.10);
+  box-shadow: var(--shadow-glass);
+}
+
+@utility glass-panel-strong {
+  background:
+    linear-gradient(145deg, rgb(12 18 31 / 0.84), rgb(6 10 20 / 0.74));
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  backdrop-filter: blur(28px) saturate(140%);
+  border: 1px solid rgb(255 255 255 / 0.11);
   box-shadow:
-    0 18px 55px rgb(0 0 0 / 0.28),
-    inset 0 1px 0 rgb(255 255 255 / 0.025);
+    0 22px 64px rgb(0 0 0 / 0.32),
+    inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+
+@utility glass-soft {
+  background:
+    linear-gradient(145deg, rgb(12 18 31 / 0.58), rgb(7 11 21 / 0.50));
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+  backdrop-filter: blur(18px) saturate(125%);
+  border: 1px solid rgb(255 255 255 / 0.075);
+  box-shadow: var(--shadow-glass-soft);
 }
 
 @utility glass-pill {
-  background: rgb(7 20 38 / 0.96);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  border: 1px solid #1b3152;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.025);
+  background: rgb(11 15 25 / 0.62);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
+  border: 1px solid rgb(255 255 255 / 0.09);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+@utility neon-line-cyan {
+  filter: drop-shadow(0 0 4px rgb(34 211 238 / 0.70));
+}
+
+@utility neon-line-purple {
+  filter: drop-shadow(0 0 5px rgb(168 85 247 / 0.70));
+}
+
+@utility glass-grid {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.018) 1px, transparent 1px);
+  background-size: 28px 28px;
 }
