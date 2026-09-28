@@ -343,39 +343,35 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
 }
 
 function RuntimePanel({
-  metrics,
   job,
+  gate,
   report,
-  productionMetrics,
 }: {
-  metrics: SystemMetrics;
   job: FactoryJob | null;
+  gate: HumanGateState | null;
   report: TestReportV1 | null;
-  productionMetrics: WorkflowProductionMetrics | null;
 }) {
-  const rows = [
-    { label: "Edge Compute", value: metrics.edgeComputeActive ? "Active" : "Idle", known: true, ok: metrics.edgeComputeActive, tone: "cyan" },
-    { label: "Inference Runtime", value: "Local SLM", known: true, ok: true, tone: "indigo" },
-    { label: "Agent Calls", value: productionMetrics ? numberFormat.format(productionMetrics.agentCalls) : "—", known: productionMetrics !== null, ok: (productionMetrics?.agentCalls ?? 0) > 0, tone: "violet" },
-    { label: "Model Calls", value: productionMetrics ? numberFormat.format(productionMetrics.modelCalls) : "—", known: productionMetrics !== null, ok: (productionMetrics?.modelCalls ?? 0) > 0, tone: "indigo" },
-    { label: "n8n Execution", value: report?.executionId ?? job?.status ?? "—", known: report?.executionId !== undefined || job !== null, ok: report?.result === "PASS" || (job !== null && job.status !== "failed"), tone: "amber" },
-  ] as const;
+  const rows: Array<[string, string, "success" | "violet" | "warning" | "danger" | "neutral"]> = [
+    ["Factory API", "OWNER session verified", "success"],
+    ["Active Job", job?.status ?? "Idle", job ? "violet" : "neutral"],
+    ["Test Report", report?.result ?? "No report", report?.result === "PASS" ? "success" : report?.result === "NOT_PASS" ? "danger" : "neutral"],
+    ["Human Gate", gate?.status ?? "Inactive", gate?.status === "awaiting_human" ? "warning" : "neutral"],
+    ["Agent telemetry", "Not exposed by current contract", "neutral"],
+  ];
 
   return (
-    <Panel title="Runtime / Agents" action={<span className="text-[9px] text-indigo-400">Live</span>}>
-      <div className="space-y-2">
-        {rows.map((row) => (
-          <div key={row.label} className="flex items-center gap-3 rounded-xl border border-[#11253f] bg-[#08182a] px-3 py-2.5">
-            <span
-              className={`grid size-7 place-items-center rounded-lg border ${row.tone === "cyan" ? "border-cyan-500/20 bg-cyan-500/10 text-cyan-300" : row.tone === "amber" ? "border-amber-500/20 bg-amber-500/10 text-amber-300" : row.tone === "violet" ? "border-violet-500/20 bg-violet-500/10 text-violet-300" : "border-indigo-500/20 bg-indigo-500/10 text-indigo-300"}`}
-            >
+    <Panel title="Runtime / Agents" action={<span className="text-[9px] text-indigo-400">Source of truth</span>}>
+      <div className="space-y-2.5">
+        {rows.map(([label, value, tone]) => (
+          <div key={label} className="flex items-center gap-3 rounded-xl border border-[#11253f] bg-[#08182a] px-3 py-2.5">
+            <span className={`grid size-7 place-items-center rounded-lg border ${tone === "warning" ? "border-amber-500/25 bg-amber-500/10 text-amber-300" : tone === "danger" ? "border-rose-500/25 bg-rose-500/10 text-rose-300" : tone === "success" ? "border-cyan-500/20 bg-cyan-500/10 text-cyan-300" : "border-violet-500/20 bg-violet-500/10 text-violet-300"}`}>
               <span className="size-1.5 rounded-full bg-current" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[10px] font-medium text-slate-300">{row.label}</p>
-              <p className="mt-0.5 truncate font-mono text-[8px] text-slate-600">{row.value}</p>
+              <p className="truncate text-[10px] font-medium text-slate-300">{label}</p>
+              <p className="mt-0.5 truncate font-mono text-[8px] text-slate-600">{value}</p>
             </div>
-            <span className={`size-1.5 rounded-full ${row.known ? (row.ok ? "bg-emerald-400" : "bg-amber-400") : "bg-slate-600"}`} />
+            <StatusPill tone={tone}>{tone === "success" ? "online" : tone === "warning" ? "gate" : tone === "danger" ? "fail" : "state"}</StatusPill>
           </div>
         ))}
       </div>
