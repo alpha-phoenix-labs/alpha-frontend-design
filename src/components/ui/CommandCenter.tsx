@@ -88,37 +88,37 @@ function stageTone(index: number, current: number, job: FactoryJob | null): Stag
 
 const toneClasses: Record<StageTone, { node: string; dot: string; label: string }> = {
   done: {
-    node: "border-cyan-300/70 bg-cyan-300/[0.10] text-cyan-50 shadow-neon-cyan backdrop-blur-xl",
-    dot: "bg-emerald-400 shadow-[0_0_11px_rgba(52,211,153,.80)]",
-    label: "text-slate-50",
+    node: "border-cyan-500/30 bg-cyan-50/85 text-cyan-700 shadow-neon-cyan backdrop-blur-xl",
+    dot: "bg-emerald-500 shadow-[0_0_9px_rgba(16,185,129,.38)]",
+    label: "text-slate-900",
   },
   active: {
-    node: "border-violet-300/80 bg-violet-400/[0.13] text-violet-50 shadow-neon-purple backdrop-blur-xl",
-    dot: "bg-violet-300 shadow-[0_0_13px_rgba(196,181,253,.85)]",
-    label: "text-white",
+    node: "border-violet-500/35 bg-violet-50/90 text-violet-700 shadow-neon-purple backdrop-blur-xl",
+    dot: "bg-violet-500 shadow-[0_0_9px_rgba(139,92,246,.40)]",
+    label: "text-slate-950",
   },
   blocked: {
-    node: "border-amber-300/80 bg-amber-400/[0.12] text-amber-50 shadow-[0_0_12px_rgba(245,158,11,.50),0_0_28px_rgba(245,158,11,.20)] backdrop-blur-xl",
-    dot: "bg-amber-300 shadow-[0_0_13px_rgba(251,191,36,.82)]",
-    label: "text-amber-50",
+    node: "border-amber-500/35 bg-amber-50/90 text-amber-700 shadow-[0_8px_24px_rgba(245,158,11,.14)] backdrop-blur-xl",
+    dot: "bg-amber-500 shadow-[0_0_9px_rgba(245,158,11,.38)]",
+    label: "text-amber-800",
   },
   idle: {
-    node: "border-white/[0.12] bg-[#0b1220]/58 text-slate-500 backdrop-blur-xl",
-    dot: "bg-slate-600",
-    label: "text-slate-400",
+    node: "border-slate-900/[0.09] bg-white/65 text-slate-600 backdrop-blur-xl",
+    dot: "bg-slate-300",
+    label: "text-slate-600",
   },
 };
 
 const stageAccentClasses = [
-  "border-cyan-300/85 bg-cyan-300/[0.11] text-cyan-50 shadow-[0_0_12px_rgba(34,211,238,.48),0_0_30px_rgba(6,182,212,.22)]",
-  "border-blue-300/80 bg-blue-400/[0.11] text-blue-50 shadow-[0_0_12px_rgba(96,165,250,.48),0_0_30px_rgba(59,130,246,.22)]",
-  "border-indigo-300/85 bg-indigo-400/[0.13] text-indigo-50 shadow-[0_0_12px_rgba(129,140,248,.52),0_0_32px_rgba(79,70,229,.24)]",
-  "border-fuchsia-300/80 bg-fuchsia-400/[0.12] text-fuchsia-50 shadow-[0_0_12px_rgba(232,121,249,.48),0_0_30px_rgba(192,38,211,.22)]",
-  "border-blue-300/80 bg-blue-400/[0.11] text-blue-50 shadow-[0_0_12px_rgba(96,165,250,.46),0_0_28px_rgba(37,99,235,.20)]",
-  "border-violet-300/85 bg-violet-400/[0.12] text-violet-50 shadow-[0_0_12px_rgba(196,181,253,.48),0_0_30px_rgba(124,58,237,.22)]",
-  "border-amber-300/90 bg-amber-400/[0.12] text-amber-50 shadow-[0_0_12px_rgba(251,191,36,.56),0_0_30px_rgba(245,158,11,.23)]",
-  "border-indigo-300/85 bg-indigo-400/[0.12] text-indigo-50 shadow-[0_0_12px_rgba(129,140,248,.50),0_0_30px_rgba(79,70,229,.22)]",
-  "border-cyan-300/85 bg-cyan-300/[0.11] text-cyan-50 shadow-[0_0_12px_rgba(34,211,238,.48),0_0_30px_rgba(6,182,212,.22)]",
+  "border-cyan-500/30 bg-cyan-50/92 text-cyan-700 shadow-neon-cyan",
+  "border-blue-500/28 bg-blue-50/92 text-blue-700 shadow-[0_8px_26px_rgba(59,130,246,.14)]",
+  "border-indigo-500/30 bg-indigo-50/92 text-indigo-700 shadow-neon-indigo",
+  "border-fuchsia-500/28 bg-fuchsia-50/92 text-fuchsia-700 shadow-[0_8px_26px_rgba(192,38,211,.13)]",
+  "border-blue-500/28 bg-blue-50/92 text-blue-700 shadow-[0_8px_26px_rgba(37,99,235,.13)]",
+  "border-violet-500/30 bg-violet-50/92 text-violet-700 shadow-neon-purple",
+  "border-amber-500/32 bg-amber-50/94 text-amber-700 shadow-[0_8px_26px_rgba(245,158,11,.15)]",
+  "border-indigo-500/30 bg-indigo-50/92 text-indigo-700 shadow-neon-indigo",
+  "border-cyan-500/30 bg-cyan-50/92 text-cyan-700 shadow-neon-cyan",
 ] as const;
 
 const numberFormat = new Intl.NumberFormat("de-DE");
@@ -162,7 +162,7 @@ function StatusPill({
           ? "border-rose-500/25 bg-rose-500/10 text-rose-300"
           : tone === "violet"
             ? "border-violet-500/25 bg-violet-500/10 text-violet-300"
-            : "border-white/10 bg-[#0b0f19]/55 text-slate-400 backdrop-blur-xl";
+            : "border-white/10 bg-[#0b0f19]/55 text-slate-600 backdrop-blur-xl";
 
   return (
     <span className={`rounded-full border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.08em] ${cls}`}>
@@ -173,9 +173,9 @@ function StatusPill({
 
 function Panel({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <section className="glass-panel rounded-[18px]">
-      <div className="flex min-h-11 items-center justify-between border-b border-white/[0.07] px-4">
-        <h3 className="text-[13px] font-semibold tracking-[-0.01em] text-slate-50">{title}</h3>
+    <section className="glass-panel rounded-[18px] text-slate-700">
+      <div className="flex min-h-11 items-center justify-between border-b border-slate-900/[0.07] px-4">
+        <h3 className="text-[13px] font-semibold tracking-[-0.01em] text-slate-900">{title}</h3>
         {action}
       </div>
       <div className="p-4">{children}</div>
@@ -203,14 +203,14 @@ function Sidebar({
   ];
 
   return (
-    <aside className="hidden w-[214px] shrink-0 flex-col border-r border-white/[0.09] bg-[#070d18]/68 shadow-[18px_0_58px_rgba(0,0,0,.26)] backdrop-blur-2xl xl:flex">
-      <div className="flex h-[72px] items-center gap-3 border-b border-white/[0.07] px-5">
+    <aside className="hidden w-[214px] shrink-0 flex-col border-r border-slate-900/[0.08] bg-white/62 shadow-[18px_0_50px_rgba(30,64,175,.06)] backdrop-blur-2xl xl:flex">
+      <div className="flex h-[72px] items-center gap-3 border-b border-slate-900/[0.07] px-5">
         <div className="relative grid size-9 place-items-center">
           <div className="absolute size-8 rotate-45 rounded-[8px] bg-[linear-gradient(135deg,#22D3EE,#4F46E5_55%,#A855F7)] shadow-[0_0_22px_rgba(79,70,229,.36)]" />
-          <div className="relative size-3 rotate-45 rounded-[3px] bg-[#07101f]" />
+          <div className="relative size-3 rotate-45 rounded-[3px] bg-white" />
         </div>
         <div>
-          <p className="text-[14px] font-extrabold tracking-[0.08em] text-white">
+          <p className="text-[14px] font-extrabold tracking-[0.08em] text-slate-950">
             CRAFT<span className="text-indigo-400">FLOW</span>
           </p>
           <p className="mt-0.5 text-[7px] font-semibold tracking-[0.18em] text-slate-500 uppercase">AI Automation System</p>
@@ -224,10 +224,10 @@ function Sidebar({
             type="button"
             aria-current={index === 0 ? "page" : undefined}
             disabled={index !== 0}
-            className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-[12px] backdrop-blur-xl transition ${index === 0 ? "border-indigo-300/25 bg-[linear-gradient(90deg,rgba(79,70,229,.72),rgba(67,56,202,.48))] text-white shadow-neon-indigo" : "border-transparent bg-transparent text-slate-400 disabled:cursor-default"}`}
+            className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-[12px] backdrop-blur-xl transition ${index === 0 ? "border-indigo-300/25 bg-[linear-gradient(90deg,rgba(79,70,229,.72),rgba(67,56,202,.48))] text-white shadow-neon-indigo" : "border-transparent bg-transparent text-slate-600 disabled:cursor-default"}`}
           >
             <span
-              className={`grid size-6 place-items-center rounded-lg border font-mono text-[12px] ${index === 0 ? "border-white/15 bg-white/10 shadow-neon-purple" : "border-white/[0.06] bg-white/[0.025]"}`}
+              className={`grid size-6 place-items-center rounded-lg border font-mono text-[12px] ${index === 0 ? "border-white/25 bg-white/15 shadow-neon-purple" : "border-slate-900/[0.06] bg-white/60"}`}
             >
               {glyph}
             </span>
@@ -238,14 +238,14 @@ function Sidebar({
 
       <div className="mt-auto p-4">
         <div className="glass-soft rounded-2xl p-4">
-          <p className="text-[11px] font-semibold text-slate-200">System Status</p>
+          <p className="text-[11px] font-semibold text-slate-900">System Status</p>
           <div className="mt-3 space-y-2 text-[10px]">
             {systemRows.map((row) => (
               <div key={row.label} className="flex items-center gap-2">
                 <span
                   className={`size-1.5 rounded-full ${row.known ? (row.ok ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,.65)]" : "bg-amber-400") : "bg-slate-600"}`}
                 />
-                <span className={row.known ? "text-slate-400" : "text-slate-600"}>{row.label}</span>
+                <span className={row.known ? "text-slate-600" : "text-slate-600"}>{row.label}</span>
               </div>
             ))}
           </div>
@@ -284,14 +284,14 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-[16px] font-semibold tracking-[-0.015em] text-white">Workflow: {activeJobId ?? "Kein aktiver Lauf"}</h2>
+            <h2 className="text-[16px] font-semibold tracking-[-0.015em] text-slate-950">Workflow: {activeJobId ?? "Kein aktiver Lauf"}</h2>
             {job !== null && (
               <StatusPill tone={job.status === "completed" ? "success" : job.status === "failed" ? "danger" : "success"}>
                 {job.status}
               </StatusPill>
             )}
           </div>
-          <p className="mt-1 text-[10px] text-slate-500">Von Anforderung bis Production — automatisiert, überprüft, nachvollziehbar.</p>
+          <p className="mt-1 text-[10px] text-slate-600">Von Anforderung bis Production — automatisiert, überprüft, nachvollziehbar.</p>
         </div>
         <div className="flex items-center gap-2">
           {job !== null && <StatusPill tone="violet">{`v${job.version}`}</StatusPill>}
@@ -316,7 +316,7 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
               <stop offset="100%" stopColor="#22D3EE" stopOpacity="0.72" />
             </linearGradient>
           </defs>
-          <path d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="rgba(148,163,184,0.22)" strokeWidth="0.78" />
+          <path d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="rgba(71,85,105,0.18)" strokeWidth="0.78" />
           {job !== null && (
             <><path className="neon-line-cyan" d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="url(#flow-line)" strokeWidth="0.5" opacity="0.98" /><g className="neon-line-cyan" fill="#67E8F9"><circle cx="29" cy="27" r="0.42" /><circle cx="50" cy="27" r="0.42" /><circle cx="72" cy="27" r="0.42" /><circle cx="92" cy="49" r="0.42" /><circle cx="76" cy="61" r="0.42" /><circle cx="55" cy="61" r="0.42" /><circle cx="33" cy="61" r="0.42" /><circle cx="10" cy="68" r="0.42" /></g></>
           )}
@@ -338,18 +338,18 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
       <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
         <div className="glass-soft rounded-xl p-3">
           <p className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Aktueller Schritt</p>
-          <p data-testid="factory-status" className="mt-1 text-[12px] font-semibold text-slate-100">{job?.status ?? "idle"}</p>
+          <p data-testid="factory-status" className="mt-1 text-[12px] font-semibold text-slate-900">{job?.status ?? "idle"}</p>
           <p className="mt-0.5 text-[9px] text-slate-500">
             {job ? `Aktualisiert: ${new Date(job.updatedAt).toLocaleTimeString("de-DE")}` : "Bereit für neue Anforderung"}
           </p>
         </div>
         <div className="glass-soft rounded-xl px-4 py-3">
           <p className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Version</p>
-          <p className="mt-1 font-mono text-[12px] text-slate-200">{job?.version ?? "—"}</p>
+          <p className="mt-1 font-mono text-[12px] text-slate-800">{job?.version ?? "—"}</p>
         </div>
         <div className="glass-soft rounded-xl px-4 py-3">
           <p className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Job ID</p>
-          <p className="mt-1 max-w-[160px] truncate font-mono text-[10px] text-slate-300">{activeJobId ?? "—"}</p>
+          <p className="mt-1 max-w-[160px] truncate font-mono text-[10px] text-slate-700">{activeJobId ?? "—"}</p>
         </div>
       </div>
     </section>
@@ -385,7 +385,7 @@ function RuntimePanel({
               <span className="size-1.5 rounded-full bg-current" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[10px] font-medium text-slate-300">{label}</p>
+              <p className="truncate text-[10px] font-medium text-slate-700">{label}</p>
               <p className="mt-0.5 truncate font-mono text-[8px] text-slate-600">{value}</p>
             </div>
             <StatusPill tone={tone}>{tone === "success" ? "online" : tone === "warning" ? "gate" : tone === "danger" ? "fail" : "state"}</StatusPill>
@@ -417,9 +417,9 @@ function TestPanel({
             className="grid size-20 shrink-0 place-items-center rounded-full"
             style={{ background: planned > 0 ? `conic-gradient(#34d399 ${ratio}%, #ef4444 ${ratio}% ${Math.min(100, ratio + (failed / planned) * 100)}%, #172744 0)` : "#172744" }}
           >
-            <div className="grid size-[58px] place-items-center rounded-full border border-white/[0.06] bg-[#0b0f19]/72 text-center backdrop-blur-xl">
+            <div className="grid size-[58px] place-items-center rounded-full border border-slate-900/[0.06] bg-white/82 text-center backdrop-blur-xl">
               <div>
-                <p className="text-[14px] font-bold text-white">{planned > 0 ? `${passed}/${planned}` : "—"}</p>
+                <p className="text-[14px] font-bold text-slate-950">{planned > 0 ? `${passed}/${planned}` : "—"}</p>
                 <p className="text-[7px] text-slate-600">Tests</p>
               </div>
             </div>
@@ -429,8 +429,8 @@ function TestPanel({
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[8px]">
               <span className="text-slate-600">Bestanden</span><span className="text-emerald-300">{passed}</span>
               <span className="text-slate-600">Fehlgeschlagen</span><span className="text-rose-300">{failed}</span>
-              <span className="text-slate-600">Retry</span><span className="text-slate-300">{productionMetrics?.retryLoops ?? "—"}</span>
-              <span className="text-slate-600">Repair</span><span className="text-slate-300">{productionMetrics?.repairLoops ?? "—"}</span>
+              <span className="text-slate-600">Retry</span><span className="text-slate-700">{productionMetrics?.retryLoops ?? "—"}</span>
+              <span className="text-slate-600">Repair</span><span className="text-slate-700">{productionMetrics?.repairLoops ?? "—"}</span>
             </div>
           </div>
         </div>
@@ -443,7 +443,7 @@ function CostPanel({ metrics }: { metrics: WorkflowProductionMetrics | null }) {
   const tokenTotal = metrics === null ? null : metrics.tokensIn + metrics.tokensOut;
   return (
     <Panel title="Kosten / Token / Dauer" action={<span className="text-[9px] text-slate-600">{metrics?.testMode ?? "Runtime"}</span>}>
-      <p className="text-[24px] font-semibold tracking-[-0.04em] text-white">{formatCost(metrics)}</p>
+      <p className="text-[24px] font-semibold tracking-[-0.04em] text-slate-950">{formatCost(metrics)}</p>
       <div className="mt-4 grid grid-cols-3 gap-2">
         {[
           ["Tokens", tokenTotal === null ? "—" : numberFormat.format(tokenTotal)],
@@ -452,16 +452,16 @@ function CostPanel({ metrics }: { metrics: WorkflowProductionMetrics | null }) {
         ].map(([label, value]) => (
           <div key={label} className="glass-soft rounded-xl p-3">
             <p className="text-[7px] uppercase tracking-[0.1em] text-slate-600">{label}</p>
-            <p className="mt-2 truncate font-mono text-[11px] font-semibold text-slate-300">{value}</p>
+            <p className="mt-2 truncate font-mono text-[11px] font-semibold text-slate-700">{value}</p>
           </div>
         ))}
       </div>
       {metrics !== null && (
         <div className="mt-3 space-y-1.5">
           <div className="flex justify-between text-[7px] text-slate-600"><span>Input Tokens</span><span>{numberFormat.format(metrics.tokensIn)}</span></div>
-          <div className="h-1 rounded-full bg-white/[0.06]"><div className="h-1 max-w-full rounded-full bg-cyan-400/70" style={{ width: `${tokenTotal && tokenTotal > 0 ? Math.max(4, (metrics.tokensIn / tokenTotal) * 100) : 0}%` }} /></div>
+          <div className="h-1 rounded-full bg-slate-900/[0.06]"><div className="h-1 max-w-full rounded-full bg-cyan-400/70" style={{ width: `${tokenTotal && tokenTotal > 0 ? Math.max(4, (metrics.tokensIn / tokenTotal) * 100) : 0}%` }} /></div>
           <div className="flex justify-between text-[7px] text-slate-600"><span>Output Tokens</span><span>{numberFormat.format(metrics.tokensOut)}</span></div>
-          <div className="h-1 rounded-full bg-white/[0.06]"><div className="h-1 max-w-full rounded-full bg-violet-400/70" style={{ width: `${tokenTotal && tokenTotal > 0 ? Math.max(4, (metrics.tokensOut / tokenTotal) * 100) : 0}%` }} /></div>
+          <div className="h-1 rounded-full bg-slate-900/[0.06]"><div className="h-1 max-w-full rounded-full bg-violet-400/70" style={{ width: `${tokenTotal && tokenTotal > 0 ? Math.max(4, (metrics.tokensOut / tokenTotal) * 100) : 0}%` }} /></div>
         </div>
       )}
     </Panel>
@@ -484,8 +484,8 @@ function GatePanel({
   const awaiting = gate?.type === "approval" && gate.status === "awaiting_human";
   return (
     <Panel title="Human Gate" action={<StatusPill tone={awaiting ? "warning" : "neutral"}>{awaiting ? "ausstehend" : "inaktiv"}</StatusPill>}>
-      <div className={`rounded-xl border p-3 backdrop-blur-xl ${awaiting ? "border-amber-400/35 bg-amber-400/[0.07] shadow-[0_0_18px_rgba(245,158,11,.18)]" : "border-white/[0.08] bg-[#0b0f19]/55"}`}>
-        <p className="text-[10px] font-semibold text-slate-200">{awaiting ? "Benötigt deine Entscheidung." : "Keine Freigabe ausstehend."}</p>
+      <div className={`rounded-xl border p-3 backdrop-blur-xl ${awaiting ? "border-amber-400/35 bg-amber-400/[0.07] shadow-[0_0_18px_rgba(245,158,11,.18)]" : "border-slate-900/[0.08] bg-white/65"}`}>
+        <p className="text-[10px] font-semibold text-slate-800">{awaiting ? "Benötigt deine Entscheidung." : "Keine Freigabe ausstehend."}</p>
         <p className="mt-1 text-[8px] leading-4 text-slate-500">
           {awaiting ? (
             <>Approval-Snapshot <span data-testid="approval-version">version {approvalVersion ?? "—"}</span> ist an den sichtbaren Gate-Snapshot gebunden.</>
@@ -540,7 +540,7 @@ function EvidencePanel({
         {entries.map(([label, value]) => (
           <div key={label} className="glass-soft rounded-xl px-3 py-2.5">
             <p className="text-[8px] uppercase tracking-[0.1em] text-slate-600">{label}</p>
-            <p className="mt-1 truncate font-mono text-[9px] text-slate-300">{value}</p>
+            <p className="mt-1 truncate font-mono text-[9px] text-slate-700">{value}</p>
           </div>
         ))}
       </div>
@@ -561,7 +561,7 @@ function RunsPanel({ job, activeJobId }: { job: FactoryJob | null; activeJobId: 
         <div className="glass-soft flex items-center gap-3 rounded-xl p-3">
           <span className="rounded-md bg-indigo-500/10 px-2 py-1 font-mono text-[9px] text-indigo-300">#{job.version}</span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[9px] font-medium text-slate-300">{activeJobId}</p>
+            <p className="truncate text-[9px] font-medium text-slate-700">{activeJobId}</p>
             <p className="mt-0.5 text-[8px] text-slate-600">{new Date(job.updatedAt).toLocaleString("de-DE")}</p>
           </div>
           <StatusPill tone={job.status === "completed" ? "success" : job.status === "failed" ? "danger" : "violet"}>
@@ -602,9 +602,9 @@ function LogPanel({
           <p className="text-slate-600">Keine Laufereignisse im aktuellen Snapshot.</p>
         ) : (
           lines.map(([time, message], index) => (
-            <div key={`${time}-${index}`} className="grid grid-cols-[52px_1fr] gap-2 border-b border-white/[0.055] pb-2 text-slate-500 last:border-0 last:pb-0">
+            <div key={`${time}-${index}`} className="grid grid-cols-[52px_1fr] gap-2 border-b border-slate-900/[0.055] pb-2 text-slate-500 last:border-0 last:pb-0">
               <span>{time}</span>
-              <span className="text-slate-300">{message}</span>
+              <span className="text-slate-700">{message}</span>
             </div>
           ))
         )}
@@ -633,18 +633,18 @@ export function CommandCenter({
   const runtimeActive = metrics.edgeComputeActive;
 
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-[radial-gradient(circle_at_48%_-6%,rgba(37,99,235,.17),transparent_30rem),radial-gradient(circle_at_88%_10%,rgba(124,58,237,.15),transparent_27rem),radial-gradient(circle_at_8%_82%,rgba(6,182,212,.07),transparent_24rem),#02050c] text-slate-200">
+    <div className="min-h-dvh overflow-x-hidden bg-[radial-gradient(circle_at_48%_-6%,rgba(59,130,246,.12),transparent_31rem),radial-gradient(circle_at_88%_10%,rgba(124,58,237,.09),transparent_28rem),radial-gradient(circle_at_8%_82%,rgba(6,182,212,.08),transparent_25rem),#eef4fb] text-slate-700">
       <div className="flex min-h-dvh">
         <Sidebar metrics={metrics} job={job} report={testReport} productionMetrics={productionMetrics} />
 
         <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-40 flex h-[72px] items-center gap-3 border-b border-white/[0.10] bg-[#07101c]/70 px-3 shadow-[0_10px_38px_rgba(0,0,0,.24)] backdrop-blur-2xl sm:px-4 xl:px-5">
+          <header className="sticky top-0 z-40 flex h-[72px] items-center gap-3 border-b border-slate-900/[0.08] bg-white/68 px-3 shadow-[0_10px_34px_rgba(30,64,175,.06)] backdrop-blur-2xl sm:px-4 xl:px-5">
             <div className="flex shrink-0 items-center gap-2 xl:hidden">
               <span className="relative grid size-8 place-items-center">
                 <span className="absolute size-7 rotate-45 rounded-[7px] bg-[linear-gradient(135deg,#22D3EE,#4F46E5_55%,#A855F7)] shadow-neon-indigo" />
-                <span className="relative size-2.5 rotate-45 rounded-[2px] bg-[#07101c]" />
+                <span className="relative size-2.5 rotate-45 rounded-[2px] bg-white" />
               </span>
-              <span className="hidden text-[11px] font-extrabold tracking-[0.08em] text-white sm:inline">CRAFT<span className="text-indigo-300">FLOW</span></span>
+              <span className="hidden text-[11px] font-extrabold tracking-[0.08em] text-slate-950 sm:inline">CRAFT<span className="text-indigo-300">FLOW</span></span>
             </div>
             <div className="min-w-0 flex-1">
               <IntentNode
@@ -657,7 +657,7 @@ export function CommandCenter({
               />
             </div>
             <div className="hidden items-center gap-3 md:flex">
-              <div className={`rounded-xl border px-3 py-2 ${runtimeActive ? "border-emerald-300/25 bg-emerald-400/[0.06] shadow-[0_0_14px_rgba(52,211,153,.16)] backdrop-blur-xl" : "border-white/10 bg-[#0b0f19]/55 backdrop-blur-xl"}`}>
+              <div className={`rounded-xl border px-3 py-2 ${runtimeActive ? "border-emerald-500/20 bg-emerald-50/82 shadow-[0_8px_22px_rgba(16,185,129,.08)] backdrop-blur-xl" : "border-slate-900/[0.08] bg-white/65 backdrop-blur-xl"}`}>
                 <div className={`flex items-center gap-2 text-[9px] font-semibold ${runtimeActive ? "text-emerald-300" : "text-slate-500"}`}>
                   <span className={`size-2 rounded-full ${runtimeActive ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.6)]" : "bg-slate-600"}`} />
                   {runtimeActive ? "Runtime Active" : "Runtime Idle"}
@@ -672,22 +672,22 @@ export function CommandCenter({
             <div className="mb-3 flex flex-wrap items-start justify-between gap-4 px-1 py-1">
               <div>
                 <p className="text-[8px] font-semibold tracking-[0.16em] text-slate-600 uppercase">Willkommen zurück</p>
-                <h1 className="mt-1 text-[26px] font-bold tracking-[-0.04em] text-white sm:text-[28px] 2xl:text-[30px]">
+                <h1 className="mt-1 text-[26px] font-bold tracking-[-0.04em] text-slate-950 sm:text-[28px] 2xl:text-[30px]">
                   CRAFTFLOW <span className="bg-[linear-gradient(90deg,#818CF8,#A855F7)] bg-clip-text text-transparent">Command Center</span>
                 </h1>
-                <p className="mt-1 text-[10px] text-slate-400 2xl:text-[11px]">Workflows entwickeln. Mit KI ausführen. Automatisch testen. Sicher deployen.</p>
+                <p className="mt-1 text-[10px] text-slate-600 2xl:text-[11px]">Workflows entwickeln. Mit KI ausführen. Automatisch testen. Sicher deployen.</p>
               </div>
 
               <div className="flex items-stretch gap-3">
                 <div className="min-w-[86px] text-right">
                   <p className="font-mono text-[9px] text-slate-600">{new Date(metrics.sampledAt).toLocaleDateString("de-DE")}</p>
-                  <p className="mt-1 text-[18px] font-semibold text-slate-200">{new Date(metrics.sampledAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</p>
+                  <p className="mt-1 text-[18px] font-semibold text-slate-800">{new Date(metrics.sampledAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</p>
                 </div>
                 {job !== null && (
                   <div className="glass-soft hidden min-w-[225px] items-center justify-between rounded-xl px-3 py-2 md:flex">
                     <div className="min-w-0">
                       <p className="text-[7px] uppercase tracking-[0.1em] text-indigo-400">Aktiver Workflow</p>
-                      <p className="mt-1 max-w-[165px] truncate text-[10px] font-semibold text-slate-200">{activeJobId}</p>
+                      <p className="mt-1 max-w-[165px] truncate text-[10px] font-semibold text-slate-800">{activeJobId}</p>
                       <p className="mt-1 text-[8px] text-emerald-300">{job.status}</p>
                     </div>
                     <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-violet-300/25 bg-[linear-gradient(135deg,rgba(79,70,229,.92),rgba(124,58,237,.88))] text-white shadow-neon-purple backdrop-blur-xl">→</span>
