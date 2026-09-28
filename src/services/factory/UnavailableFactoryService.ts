@@ -13,6 +13,7 @@ const unavailable = <T>(): Promise<FactoryResult<T>> => Promise.resolve({ ok: fa
 /** Used when the factory configuration is invalid: answers every call with `FACTORY_CONFIG_INVALID`, never falls back to the mock. */
 export class UnavailableFactoryService implements FactoryService {
   readonly submitWorkflowRequest: FactoryService['submitWorkflowRequest'] = () => unavailable();
+  readonly recoverWorkflowRequest: FactoryService['recoverWorkflowRequest'] = () => unavailable();
   readonly getJobStatus: FactoryService['getJobStatus'] = () => unavailable();
   readonly getGeneratedWorkflow: FactoryService['getGeneratedWorkflow'] = () => unavailable();
   readonly getTestStatus: FactoryService['getTestStatus'] = () => unavailable();
