@@ -658,17 +658,20 @@ export function CommandCenter({
               </div>
 
               <div className="flex items-stretch gap-3">
-                {job !== null && (
-                  <div className="hidden min-w-[210px] rounded-xl border border-[#203657] bg-[#0a1728] px-3 py-2 md:block">
-                    <p className="text-[7px] uppercase tracking-[0.1em] text-indigo-400">Aktiver Workflow</p>
-                    <p className="mt-1 max-w-[190px] truncate text-[10px] font-semibold text-slate-200">{activeJobId}</p>
-                    <p className="mt-1 text-[8px] text-emerald-300">{job.status}</p>
-                  </div>
-                )}
                 <div className="min-w-[86px] text-right">
                   <p className="font-mono text-[9px] text-slate-600">{new Date(metrics.sampledAt).toLocaleDateString("de-DE")}</p>
                   <p className="mt-1 text-[18px] font-semibold text-slate-200">{new Date(metrics.sampledAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</p>
                 </div>
+                {job !== null && (
+                  <div className="hidden min-w-[225px] items-center justify-between rounded-xl border border-[#203657] bg-[#0a1728] px-3 py-2 md:flex">
+                    <div className="min-w-0">
+                      <p className="text-[7px] uppercase tracking-[0.1em] text-indigo-400">Aktiver Workflow</p>
+                      <p className="mt-1 max-w-[165px] truncate text-[10px] font-semibold text-slate-200">{activeJobId}</p>
+                      <p className="mt-1 text-[8px] text-emerald-300">{job.status}</p>
+                    </div>
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[linear-gradient(135deg,#4338CA,#4F46E5)] text-white shadow-[0_0_18px_rgba(79,70,229,.25)]">→</span>
+                  </div>
+                )}
               </div>
             </div>
 
