@@ -2,8 +2,8 @@ import { useSyncExternalStore } from "react";
 import { Canvas } from "@react-three/fiber";
 import NeuralTerrainScene from "@/scenes/NeuralTerrainScene.tsx";
 
-const FOG_COLOR = "#030305";
-const FOG_DENSITY = 0.04;
+const FOG_COLOR = "#f6f8fc";
+const FOG_DENSITY = 0.035;
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 function subscribeReducedMotion(onChange: () => void) {
@@ -24,7 +24,7 @@ export default function NeuralTerrainCanvas() {
   const reducedMotion = useSyncExternalStore(subscribeReducedMotion, getReducedMotion, getServerReducedMotion);
 
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0">
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 opacity-55">
       <Canvas
         flat
         dpr={[1, 2]}
