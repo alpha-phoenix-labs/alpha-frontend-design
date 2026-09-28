@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import type { KeyboardEvent, Ref } from "react";
 import type { IntentNodePosture } from "@/types/index.ts";
-import { MicrophoneIcon } from "@/components/ui/icons.tsx";
 import { intentNodeMotion } from "@/components/ui/motion.ts";
 
 export interface IntentNodeProps {
@@ -20,8 +19,7 @@ export function IntentNode({
   value,
   onValueChange,
   onSubmit,
-  onVoiceInput,
-  placeholder = "What's your intent? (Try 'kosten' or '3d')",
+  placeholder = "What's your intent?",
   autoFocus = true,
   inputRef,
 }: IntentNodeProps) {
@@ -34,13 +32,18 @@ export function IntentNode({
 
   return (
     <motion.div
-      className="pointer-events-auto absolute z-50 w-full max-w-xl"
+      className="pointer-events-auto relative w-full max-w-[610px]"
       variants={intentNodeMotion}
       initial={false}
       animate={posture}
     >
-      <div className="glass-pill flex items-center gap-3 rounded-full p-2 pr-3 pl-5 sm:gap-5 sm:pl-6">
-        <div className="intent-orb" aria-hidden="true" />
+      <div className="group flex h-10 items-center gap-3 rounded-xl border border-slate-900/[0.08] bg-white/70 px-3 shadow-glass-soft backdrop-blur-xl transition-[border-color,box-shadow,background-color] duration-200 focus-within:border-cyan-500/30 focus-within:bg-white/88 focus-within:shadow-neon-cyan">
+        <span
+          className="text-[14px] text-cyan-600/55 transition group-focus-within:text-cyan-600"
+          aria-hidden="true"
+        >
+          ⌕
+        </span>
         <input
           ref={inputRef}
           type="text"
@@ -52,17 +55,11 @@ export function IntentNode({
           autoComplete="off"
           autoFocus={autoFocus}
           enterKeyHint="go"
-          className="min-w-0 flex-1 border-none bg-transparent py-3 text-base font-light text-white outline-none placeholder:font-light placeholder:text-white/20 sm:text-lg"
+          className="min-w-0 flex-1 border-none bg-transparent text-[11px] text-slate-800 outline-none placeholder:text-slate-400"
         />
-        <button
-          type="button"
-          onClick={onVoiceInput}
-          disabled={onVoiceInput === undefined}
-          aria-label="Spracheingabe"
-          className="group flex size-10 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none disabled:cursor-default disabled:hover:bg-transparent"
-        >
-          <MicrophoneIcon className="size-4 text-spatial-dim transition-colors group-hover:text-white group-disabled:group-hover:text-spatial-dim" />
-        </button>
+        <span className="rounded-md border border-slate-900/[0.08] bg-white/72 px-2 py-1 font-mono text-[8px] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,.9)]">
+          ⌘ K
+        </span>
       </div>
     </motion.div>
   );
