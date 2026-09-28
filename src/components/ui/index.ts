@@ -2,6 +2,7 @@ export { SystemHeader } from "@/components/ui/SystemHeader.tsx";
 export type { SystemHeaderProps } from "@/components/ui/SystemHeader.tsx";
 export { IntentNode } from "@/components/ui/IntentNode.tsx";
 export type { IntentNodeProps } from "@/components/ui/IntentNode.tsx";
+export { CommandCenter } from "@/components/ui/CommandCenter.tsx";
 export { ModuleStage } from "@/components/ui/ModuleStage.tsx";
 export type { ModuleStageProps } from "@/components/ui/ModuleStage.tsx";
 export { CostEstimateModule } from "@/components/ui/CostEstimateModule.tsx";
