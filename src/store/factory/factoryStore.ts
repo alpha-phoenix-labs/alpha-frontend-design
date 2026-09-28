@@ -118,11 +118,8 @@ export function createFactoryStore(service: FactoryService) {
       },
       recoverWorkflowRequest: async (clientRequestId) => {
         const result = await service.recoverWorkflowRequest(clientRequestId);
-        if (!result.ok) {
-          set({ lastError: result.error });
-          return result;
-        }
-        if (result.value !== null) {
+        // Recovery is read-only. Keep the original MUTATION_UNCONFIRMED visible if lookup is unavailable.
+        if (result.ok && result.value !== null) {
           storeJob(result.value);
           set({ activeJobId: result.value.id });
         }
