@@ -632,7 +632,7 @@ export function CommandCenter({
                 onValueChange={onIntentChange}
                 onSubmit={onIntentSubmit}
                 {...(inputRef ? { inputRef } : {})}
-                placeholder="Workflows, Runs, Agenten, Logs …"
+                placeholder="Describe the workflow you want Craftflow to build"
               />
             </div>
             <div className="hidden items-center gap-3 md:flex">
