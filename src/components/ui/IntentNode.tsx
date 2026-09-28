@@ -34,7 +34,7 @@ export function IntentNode({
 
   return (
     <motion.div
-      className="pointer-events-auto absolute z-50 w-[calc(100%-2rem)] max-w-2xl"
+      className="pointer-events-auto absolute z-50 w-[calc(100%_-_2rem)] max-w-2xl"
       variants={intentNodeMotion}
       initial={false}
       animate={posture}
@@ -65,7 +65,7 @@ export function IntentNode({
         </button>
       </div>
       <div className="pointer-events-none mt-3 flex justify-center">
-        <span className="rounded-full border border-white/80 bg-white/72 px-3 py-1.5 font-mono text-[9px] tracking-[0.12em] text-slate-400 uppercase shadow-sm backdrop-blur">
+        <span className="rounded-full border border-white/80 bg-white/[0.72] px-3 py-1.5 font-mono text-[9px] tracking-[0.12em] text-slate-400 uppercase shadow-sm backdrop-blur">
           Press Enter to build
         </span>
       </div>
