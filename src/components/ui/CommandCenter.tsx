@@ -315,7 +315,7 @@ function GatePanel({
       <div className={`rounded-xl border p-3 ${awaiting ? "border-amber-500/30 bg-amber-500/[0.07]" : "border-[#122641] bg-[#08182a]"}`}>
         <p className="text-[10px] font-semibold text-slate-200">{awaiting ? "Benötigt deine Entscheidung." : "Keine Freigabe ausstehend."}</p>
         <p className="mt-1 text-[8px] leading-4 text-slate-500">
-          {awaiting ? <>Approval-Version <span data-testid="approval-version">{approvalVersion ?? "—"}</span> ist an den sichtbaren Gate-Snapshot gebunden.</> : "Craftflow fährt ohne offenen Human Gate fort."}
+          {awaiting ? <>Approval-Snapshot <span data-testid="approval-version">version {approvalVersion ?? "—"}</span> ist an den sichtbaren Gate-Snapshot gebunden.</> : "Craftflow fährt ohne offenen Human Gate fort."}
         </p>
         {approvalConflict && <p className="mt-2 text-[8px] text-amber-300">Version geändert — Entscheidung erneut prüfen.</p>}
         <div className="mt-3 grid grid-cols-2 gap-2">
