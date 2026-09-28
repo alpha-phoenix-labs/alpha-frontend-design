@@ -4,9 +4,9 @@ import { AdditiveBlending, PlaneGeometry, PointsMaterial } from "three";
 
 const PLANE_SIZE = 40;
 const PLANE_SEGMENTS = 60;
-const POINT_SIZE = 0.03;
-const POINT_COLOR = 0x8899aa;
-const POINT_OPACITY = 0.4;
+const POINT_SIZE = 0.034;
+const POINT_COLOR = 0x7c83ff;
+const POINT_OPACITY = 0.34;
 const CAMERA_BASE_X = 0;
 const CAMERA_BASE_Y = 5;
 const PARALLAX_EASE = 0.02;
@@ -53,17 +53,17 @@ export default function NeuralTerrainScene({ animated }: NeuralTerrainSceneProps
 
   const applyWave = useCallback(
     (time: number) => {
-    const positions = geometry.getAttribute("position");
-    const count = positions.count;
-    for (let i = 0; i < count; i++) {
-      const x = positions.getX(i);
-      const z = positions.getZ(i);
-      const wave1 = Math.sin(x * 0.2 + time * 0.5) * 0.5;
-      const wave2 = Math.cos(z * 0.3 + time * 0.3) * 0.5;
-      const wave3 = Math.sin(x * z * 0.05 + time * 0.2) * 0.2;
-      positions.setY(i, (baseY[i] ?? 0) + wave1 + wave2 + wave3);
-    }
-    positions.needsUpdate = true;
+      const positions = geometry.getAttribute("position");
+      const count = positions.count;
+      for (let i = 0; i < count; i++) {
+        const x = positions.getX(i);
+        const z = positions.getZ(i);
+        const wave1 = Math.sin(x * 0.2 + time * 0.5) * 0.5;
+        const wave2 = Math.cos(z * 0.3 + time * 0.3) * 0.5;
+        const wave3 = Math.sin(x * z * 0.05 + time * 0.2) * 0.2;
+        positions.setY(i, (baseY[i] ?? 0) + wave1 + wave2 + wave3);
+      }
+      positions.needsUpdate = true;
     },
     [geometry, baseY],
   );
