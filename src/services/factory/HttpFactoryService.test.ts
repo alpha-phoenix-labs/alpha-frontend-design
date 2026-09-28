@@ -83,6 +83,54 @@ describe('HttpFactoryService', () => {
     });
   });
 
+  it('create sends the stable clientRequestId and keeps it in the local request', async () => {
+    const prefix = `${BASE}/api/orchestrator`;
+    const { fetch, calls } = fakeFetch(
+      () => json({ jobId: 'job-1', version: 1, status: 'CREATED', testReport: null, errorMessage: null, clarificationQuestion: null }),
+      () => json(backendJob({ status: 'PLANNED', version: 2 })),
+    );
+    const result = await service(fetch).submitWorkflowRequest({
+      description: 'Baue X',
+      testMode: 'mock',
+      clientRequestId: 'cf_req-1',
+    });
+
+    expect(calls[0]?.body).toStrictEqual({ prompt: 'Baue X', clientRequestId: 'cf_req-1' });
+    expect(result).toMatchObject({
+      ok: true,
+      value: { request: { description: 'Baue X', testMode: 'mock', clientRequestId: 'cf_req-1' } },
+    });
+    expect(calls[1]?.url).toBe(`${prefix}?jobId=job-1`);
+  });
+
+  it('read-only recovery resolves a job by clientRequestId and maps 404 to null', async () => {
+    const { fetch, calls } = fakeFetch(
+      () => json(backendJob({ status: 'WAITING_FOR_APPROVAL' })),
+      () => text('Not Found', 404),
+    );
+    const http = service(fetch);
+
+    const found = await http.recoverWorkflowRequest('cf_req-2');
+    expect(found).toMatchObject({ ok: true, value: { id: 'job-1', status: 'awaiting_human' } });
+    expect(calls[0]).toMatchObject({
+      url: `${BASE}/api/orchestrator?clientRequestId=cf_req-2`,
+      method: 'GET',
+    });
+
+    expect(await http.recoverWorkflowRequest('cf_missing')).toEqual({ ok: true, value: null });
+    expect(calls).toHaveLength(2);
+  });
+
+  it('rejects an invalid clientRequestId without HTTP', async () => {
+    const { fetch, calls } = fakeFetch();
+    const http = service(fetch);
+    expect(
+      await http.submitWorkflowRequest({ description: 'Baue X', testMode: 'mock', clientRequestId: '../bad' }),
+    ).toMatchObject({ ok: false, error: { code: 'VALIDATION' } });
+    expect(await http.recoverWorkflowRequest('../bad')).toMatchObject({ ok: false, error: { code: 'VALIDATION' } });
+    expect(calls).toHaveLength(0);
+  });
+
   it('GET maps TestReportV1 without inventing or leaking fields', async () => {
     const report = {
       contractVersion: '1.0',
@@ -210,6 +258,17 @@ describe('HttpFactoryService', () => {
     });
     expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
     expect(calls.filter((call) => call.method === 'GET')).toHaveLength(1);
+  });
+
+  it('server failure after POST dispatch is MUTATION_UNCONFIRMED', async () => {
+    const { fetch, calls } = fakeFetch(() => json({ error: 'runner failed' }, 500));
+    const result = await service(fetch).submitWorkflowRequest({
+      description: 'Baue X',
+      testMode: 'mock',
+      clientRequestId: 'cf_req-3',
+    });
+    expect(result).toMatchObject({ ok: false, error: { code: 'MUTATION_UNCONFIRMED' } });
+    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
   });
 
   it('POST dispatched -> transport failure before response -> MUTATION_UNCONFIRMED', async () => {
