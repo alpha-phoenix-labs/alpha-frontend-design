@@ -1,6 +1,11 @@
 import type { ReactNode, Ref } from "react";
 import type { IntentNodePosture, SystemMetrics } from "@/types/index.ts";
-import type { FactoryJob, HumanGateState, TestReportV1 } from "@/types/factory/index.ts";
+import type {
+  FactoryJob,
+  HumanGateState,
+  TestReportV1,
+  WorkflowProductionMetrics,
+} from "@/types/factory/index.ts";
 import { IntentNode } from "@/components/ui/IntentNode.tsx";
 
 interface CommandCenterProps {
@@ -9,6 +14,7 @@ interface CommandCenterProps {
   job: FactoryJob | null;
   gate: HumanGateState | null;
   testReport: TestReportV1 | null;
+  productionMetrics: WorkflowProductionMetrics | null;
   intentPosture: IntentNodePosture;
   intentValue: string;
   onIntentChange: (value: string) => void;
@@ -25,13 +31,26 @@ type StageTone = "done" | "active" | "idle" | "blocked";
 const pipeline = [
   { key: "intent", label: "Anforderung", short: "Ziele analysieren" },
   { key: "architect", label: "Architect", short: "Plan erstellen" },
-  { key: "build", label: "Workflow Build", short: "Workflow erzeugen" },
+  { key: "build", label: "Workflow Build", short: "n8n generieren" },
   { key: "n8n", label: "n8n", short: "Workflow aktiv" },
   { key: "tests", label: "Tests", short: "Automatisch testen" },
   { key: "repair", label: "Repair", short: "Fehler beheben" },
   { key: "gate", label: "Human Gate", short: "Freigabe erforderlich" },
   { key: "production", label: "Production", short: "Deploy & Monitor" },
   { key: "evidence", label: "Drive Evidence", short: "Nachweise sichern" },
+] as const;
+
+const navItems = [
+  ["⌂", "Übersicht"],
+  ["⌘", "Workflows"],
+  ["◉", "Agenten"],
+  ["△", "Tests"],
+  ["◇", "Deployments"],
+  ["▣", "Drive Evidence"],
+  ["∞", "Integrationen"],
+  ["$", "Kosten"],
+  ["▥", "Analysen"],
+  ["⚙", "Einstellungen"],
 ] as const;
 
 function activeIndex(job: FactoryJob | null): number {
@@ -69,33 +88,59 @@ function stageTone(index: number, current: number, job: FactoryJob | null): Stag
 
 const toneClasses: Record<StageTone, { node: string; dot: string; label: string }> = {
   done: {
-    node: "border-cyan-400/55 bg-cyan-400/10 text-cyan-200 shadow-[0_0_24px_rgba(34,211,238,.16)]",
-    dot: "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.55)]",
+    node: "border-cyan-400/60 bg-cyan-400/10 text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,.18)]",
+    dot: "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.65)]",
     label: "text-slate-100",
   },
   active: {
-    node: "border-violet-400/70 bg-violet-500/15 text-violet-200 shadow-[0_0_30px_rgba(124,58,237,.30)]",
-    dot: "bg-violet-400 shadow-[0_0_12px_rgba(167,139,250,.65)]",
+    node: "border-violet-400/80 bg-violet-500/15 text-violet-100 shadow-[0_0_32px_rgba(124,58,237,.35)]",
+    dot: "bg-violet-400 shadow-[0_0_12px_rgba(167,139,250,.75)]",
     label: "text-white",
   },
   blocked: {
-    node: "border-amber-400/70 bg-amber-500/10 text-amber-200 shadow-[0_0_26px_rgba(245,158,11,.18)]",
-    dot: "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,.55)]",
+    node: "border-amber-400/80 bg-amber-500/10 text-amber-100 shadow-[0_0_28px_rgba(245,158,11,.20)]",
+    dot: "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,.65)]",
     label: "text-amber-100",
   },
   idle: {
-    node: "border-slate-700 bg-slate-900/70 text-slate-500",
+    node: "border-slate-700 bg-slate-900/72 text-slate-500",
     dot: "bg-slate-600",
     label: "text-slate-400",
   },
 };
+
+const numberFormat = new Intl.NumberFormat("de-DE");
+const moneyFormat = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function formatCost(metrics: WorkflowProductionMetrics | null): string {
+  return metrics === null ? "—" : moneyFormat.format(metrics.totalCostMicros / 1_000_000);
+}
+
+function formatDuration(ms: number | undefined): string {
+  if (ms === undefined) return "—";
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+}
 
 function NodeGlyph({ index }: { index: number }) {
   const glyphs = ["⌁", "◈", "⌘", "∞", "△", "⌕", "◎", "⇧", "▣"];
   return <span className="font-mono text-[17px]">{glyphs[index]}</span>;
 }
 
-function StatusPill({ children, tone = "neutral" }: { children: string; tone?: "neutral" | "success" | "warning" | "danger" | "violet" }) {
+function StatusPill({
+  children,
+  tone = "neutral",
+}: {
+  children: string;
+  tone?: "neutral" | "success" | "warning" | "danger" | "violet";
+}) {
   const cls =
     tone === "success"
       ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
@@ -107,12 +152,16 @@ function StatusPill({ children, tone = "neutral" }: { children: string; tone?: "
             ? "border-violet-500/25 bg-violet-500/10 text-violet-300"
             : "border-slate-700 bg-slate-800/70 text-slate-400";
 
-  return <span className={`rounded-full border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.08em] ${cls}`}>{children}</span>;
+  return (
+    <span className={`rounded-full border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.08em] ${cls}`}>
+      {children}
+    </span>
+  );
 }
 
 function Panel({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <section className="rounded-[18px] border border-[#172744] bg-[#07101f]/92 shadow-[0_14px_40px_rgba(0,0,0,.18)]">
+    <section className="rounded-[18px] border border-[#172744] bg-[#07101f]/94 shadow-[0_14px_40px_rgba(0,0,0,.18)]">
       <div className="flex min-h-11 items-center justify-between border-b border-[#172744] px-4">
         <h3 className="text-[12px] font-semibold text-slate-100">{title}</h3>
         {action}
@@ -122,19 +171,24 @@ function Panel({ title, children, action }: { title: string; children: ReactNode
   );
 }
 
-function Sidebar() {
-  const items = [
-    ["⌂", "Übersicht"],
-    ["⌘", "Workflows"],
-    ["◎", "Agenten"],
-    ["◇", "Tests"],
-    ["⇧", "Deployments"],
-    ["▱", "Drive Evidence"],
-    ["⌬", "Integrationen"],
-    ["$", "Kosten"],
-    ["∿", "Analysen"],
-    ["⚙", "Einstellungen"],
-  ] as const;
+function Sidebar({
+  metrics,
+  job,
+  report,
+  productionMetrics,
+}: {
+  metrics: SystemMetrics;
+  job: FactoryJob | null;
+  report: TestReportV1 | null;
+  productionMetrics: WorkflowProductionMetrics | null;
+}) {
+  const systemRows = [
+    { label: "Core Services", known: true, ok: metrics.edgeComputeActive },
+    { label: "n8n Runtime", known: report?.executionId !== undefined || report?.importedId !== undefined, ok: report?.result === "PASS" },
+    { label: "Agent Pool", known: productionMetrics !== null, ok: (productionMetrics?.agentCalls ?? 0) > 0 },
+    { label: "Tests bereit", known: productionMetrics !== null, ok: (productionMetrics?.testCount ?? 0) > 0 && (productionMetrics?.failed ?? 0) === 0 },
+    { label: "Drive Evidence", known: report?.evidence !== undefined, ok: report?.evidence !== undefined },
+  ];
 
   return (
     <aside className="hidden w-[205px] shrink-0 flex-col border-r border-[#15243f] bg-[#06101d]/96 lg:flex">
@@ -144,13 +198,15 @@ function Sidebar() {
           <div className="relative size-3 rotate-45 rounded-[3px] bg-[#07101f]" />
         </div>
         <div>
-          <p className="text-[14px] font-extrabold tracking-[0.08em] text-white">CRAFT<span className="text-indigo-400">FLOW</span></p>
+          <p className="text-[14px] font-extrabold tracking-[0.08em] text-white">
+            CRAFT<span className="text-indigo-400">FLOW</span>
+          </p>
           <p className="mt-0.5 text-[7px] font-semibold tracking-[0.18em] text-slate-500 uppercase">AI Automation System</p>
         </div>
       </div>
 
       <nav className="space-y-1 px-3 py-4">
-        {items.map(([glyph, item], index) => (
+        {navItems.map(([glyph, item], index) => (
           <button
             key={item}
             type="button"
@@ -158,7 +214,11 @@ function Sidebar() {
             disabled={index !== 0}
             className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[12px] transition ${index === 0 ? "bg-[linear-gradient(90deg,#4338CA,#3730A3)] text-white shadow-[0_0_22px_rgba(79,70,229,.28)]" : "text-slate-400 disabled:cursor-default"}`}
           >
-            <span className={`grid size-6 place-items-center text-[14px] ${index === 0 ? "text-white" : "text-slate-500"}`}>{glyph}</span>
+            <span
+              className={`grid size-6 place-items-center rounded-lg border font-mono text-[12px] ${index === 0 ? "border-indigo-300/30 bg-white/10" : "border-slate-800 bg-slate-900/70"}`}
+            >
+              {glyph}
+            </span>
             {item}
           </button>
         ))}
@@ -167,56 +227,43 @@ function Sidebar() {
       <div className="mt-auto p-4">
         <div className="rounded-2xl border border-[#1a3151] bg-[#08182a] p-4">
           <p className="text-[11px] font-semibold text-slate-200">System Status</p>
-          <div className="mt-3 space-y-2 text-[10px] text-slate-400">
-            {["OWNER Session", "Factory API", "Frontend Runtime"].map((label) => (
-              <div key={label} className="flex items-center gap-2">
-                <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,.65)]" />
-                <span>{label}</span>
+          <div className="mt-3 space-y-2 text-[10px]">
+            {systemRows.map((row) => (
+              <div key={row.label} className="flex items-center gap-2">
+                <span
+                  className={`size-1.5 rounded-full ${row.known ? (row.ok ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,.65)]" : "bg-amber-400") : "bg-slate-600"}`}
+                />
+                <span className={row.known ? "text-slate-400" : "text-slate-600"}>{row.label}</span>
               </div>
             ))}
           </div>
+          {job !== null && <p className="mt-3 truncate font-mono text-[8px] text-slate-600">{job.id}</p>}
         </div>
       </div>
     </aside>
   );
 }
 
+function StageNode({ index, current, job }: { index: number; current: number; job: FactoryJob | null }) {
+  const stage = pipeline[index];
+  if (stage === undefined) return null;
+  const tone = stageTone(index, current, job);
+  const cls = toneClasses[tone];
+
+  return (
+    <div className="relative flex min-w-0 flex-col items-center text-center">
+      <div className={`grid size-12 place-items-center rounded-2xl border ${cls.node}`}>
+        <NodeGlyph index={index} />
+      </div>
+      <span className={`mt-2 text-[10px] font-semibold ${cls.label}`}>{stage.label}</span>
+      <span className="mt-0.5 text-[8px] text-slate-600">{stage.short}</span>
+      <span className={`mt-2 size-1.5 rounded-full ${cls.dot}`} />
+    </div>
+  );
+}
+
 function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobId: string | null }) {
   const current = activeIndex(job);
-  const nodePalettes = [
-    "border-cyan-400/70 bg-cyan-400/10 text-cyan-200 shadow-[0_0_24px_rgba(34,211,238,.16)]",
-    "border-blue-400/65 bg-blue-500/10 text-blue-200 shadow-[0_0_22px_rgba(59,130,246,.15)]",
-    "border-indigo-400/70 bg-indigo-500/12 text-indigo-200 shadow-[0_0_24px_rgba(99,102,241,.18)]",
-    "border-fuchsia-400/65 bg-fuchsia-500/10 text-fuchsia-200 shadow-[0_0_22px_rgba(217,70,239,.16)]",
-    "border-indigo-400/60 bg-indigo-500/10 text-indigo-200 shadow-[0_0_20px_rgba(99,102,241,.14)]",
-    "border-violet-400/65 bg-violet-500/10 text-violet-200 shadow-[0_0_22px_rgba(139,92,246,.16)]",
-    "border-amber-400/70 bg-amber-500/10 text-amber-200 shadow-[0_0_24px_rgba(245,158,11,.16)]",
-    "border-blue-400/60 bg-blue-500/10 text-blue-200 shadow-[0_0_20px_rgba(59,130,246,.14)]",
-    "border-cyan-400/60 bg-cyan-500/10 text-cyan-200 shadow-[0_0_20px_rgba(34,211,238,.14)]",
-  ] as const;
-
-  function StageNode({ index }: { index: number }) {
-    const stage = pipeline[index];
-    if (!stage) return null;
-    const tone = stageTone(index, current, job);
-    const cls = toneClasses[tone];
-    const palette = nodePalettes[index] ?? nodePalettes[0];
-
-    return (
-      <div className="relative flex min-w-[112px] flex-1 flex-col items-center text-center">
-        <div className={`grid size-12 place-items-center rounded-2xl border ${palette} ${tone === "idle" ? "opacity-62 saturate-75" : "opacity-100"}`}>
-          <NodeGlyph index={index} />
-        </div>
-        <span className={`mt-2 text-[10px] font-semibold ${tone === "idle" ? "text-slate-400" : cls.label}`}>{stage.label}</span>
-        <span className="mt-0.5 text-[8px] text-slate-600">{stage.short}</span>
-        {tone === "done" ? (
-          <span className="mt-2 grid size-4 place-items-center rounded-full bg-emerald-400 text-[9px] font-black text-[#042016] shadow-[0_0_10px_rgba(52,211,153,.55)]">✓</span>
-        ) : (
-          <span className={`mt-2 size-1.5 rounded-full ${cls.dot}`} />
-        )}
-      </div>
-    );
-  }
 
   return (
     <section className="rounded-[18px] border border-[#172744] bg-[#07101f]/94 p-4 shadow-[0_16px_50px_rgba(0,0,0,.22)]">
@@ -224,44 +271,63 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-[15px] font-semibold text-white">Workflow: {activeJobId ?? "Kein aktiver Lauf"}</h2>
-            {job !== null && <StatusPill tone={job.status === "completed" ? "success" : job.status === "failed" ? "danger" : "success"}>{job.status}</StatusPill>}
+            {job !== null && (
+              <StatusPill tone={job.status === "completed" ? "success" : job.status === "failed" ? "danger" : "success"}>
+                {job.status}
+              </StatusPill>
+            )}
           </div>
           <p className="mt-1 text-[10px] text-slate-500">Von Anforderung bis Production — automatisiert, überprüft, nachvollziehbar.</p>
         </div>
         <div className="flex items-center gap-2">
           {job !== null && <StatusPill tone="violet">{`v${job.version}`}</StatusPill>}
-          <button type="button" disabled className="rounded-lg border border-[#203657] bg-[#0b1728] px-3 py-2 text-[10px] text-slate-500">Bearbeiten</button>
-          <button type="button" disabled className="grid size-8 place-items-center rounded-lg border border-[#203657] bg-[#0b1728] text-[9px] text-slate-500">•••</button>
+          <button type="button" disabled className="rounded-lg border border-[#203657] bg-[#0b1728] px-3 py-2 text-[10px] text-slate-500">
+            Details
+          </button>
         </div>
       </div>
 
-      <div className="relative mt-5 overflow-x-auto rounded-2xl border border-[#142744] bg-[#050d19] px-4 py-5">
-        <div className="absolute inset-0 opacity-[0.16] [background-image:radial-gradient(circle,#38BDF8_1px,transparent_1px)] [background-size:19px_19px]" />
-        <div className="relative min-w-[760px]">
-          <div className="absolute top-[23px] right-[8%] left-[8%] h-px bg-[linear-gradient(90deg,transparent,#22D3EE_10%,#60A5FA_32%,#818CF8_55%,#D946EF_78%,transparent)] opacity-75" />
-          <div className="absolute top-[21px] right-[12%] left-[12%] h-[4px] bg-[linear-gradient(90deg,#22D3EE,#6366F1,#D946EF)] opacity-25 blur-[6px]" />
-          <div className="grid grid-cols-4 gap-4">
-            {[0, 1, 2, 3].map((index) => <StageNode key={index} index={index} />)}
-          </div>
+      <div className="relative mt-5 overflow-hidden rounded-2xl border border-[#142744] bg-[#050d19] px-4 py-5">
+        <div className="absolute inset-0 opacity-[0.15] [background-image:radial-gradient(circle,#38BDF8_1px,transparent_1px)] [background-size:19px_19px]" />
+        <svg
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <linearGradient id="flow-line" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.72" />
+              <stop offset="48%" stopColor="#6366F1" stopOpacity="0.86" />
+              <stop offset="100%" stopColor="#22D3EE" stopOpacity="0.72" />
+            </linearGradient>
+          </defs>
+          <path d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="#172744" strokeWidth="1.15" />
+          {job !== null && (
+            <path d="M9 27 H70 C84 27 92 31 92 41 V48 C92 57 86 61 74 61 H9 C5 61 5 68 9 68 H92" fill="none" stroke="url(#flow-line)" strokeWidth="0.8" strokeDasharray="1.7 1.2" opacity="0.85" />
+          )}
+        </svg>
 
-          <div className="relative my-2 h-9">
-            <div className="absolute top-0 right-[9%] h-7 w-[82%] rounded-tr-[22px] border-t border-r border-indigo-500/70 shadow-[0_0_10px_rgba(99,102,241,.18)]" />
-            <div className="absolute bottom-0 left-[7%] h-px w-[84%] bg-[linear-gradient(90deg,#22D3EE,#8B5CF6,#F59E0B,#3B82F6,#22D3EE)] opacity-75" />
-            <div className="absolute bottom-[-1px] left-[9%] h-[4px] w-[80%] bg-[linear-gradient(90deg,#22D3EE,#8B5CF6,#F59E0B,#22D3EE)] opacity-20 blur-[6px]" />
-            <span className="absolute bottom-[-2px] left-[7%] size-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(34,211,238,.8)]" />
-          </div>
+        <div className="relative mx-auto grid max-w-[76%] grid-cols-4 gap-4">
+          {[0, 1, 2, 3].map((index) => (
+            <StageNode key={index} index={index} current={current} job={job} />
+          ))}
+        </div>
 
-          <div className="grid grid-cols-5 gap-4">
-            {[4, 5, 6, 7, 8].map((index) => <StageNode key={index} index={index} />)}
-          </div>
+        <div className="relative mt-7 grid grid-cols-5 gap-3">
+          {[4, 5, 6, 7, 8].map((index) => (
+            <StageNode key={index} index={index} current={current} job={job} />
+          ))}
         </div>
       </div>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
         <div className="rounded-xl border border-[#152945] bg-[#091625] p-3">
-          <p className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Aktueller Status</p>
+          <p className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Aktueller Schritt</p>
           <p data-testid="factory-status" className="mt-1 text-[12px] font-semibold text-slate-100">{job?.status ?? "idle"}</p>
-          <p className="mt-0.5 text-[9px] text-slate-500">{job ? `Aktualisiert: ${new Date(job.updatedAt).toLocaleTimeString("de-DE")}` : "Bereit für neue Anforderung"}</p>
+          <p className="mt-0.5 text-[9px] text-slate-500">
+            {job ? `Aktualisiert: ${new Date(job.updatedAt).toLocaleTimeString("de-DE")}` : "Bereit für neue Anforderung"}
+          </p>
         </div>
         <div className="rounded-xl border border-[#152945] bg-[#091625] px-4 py-3">
           <p className="text-[9px] uppercase tracking-[0.12em] text-slate-500">Version</p>
@@ -276,26 +342,40 @@ function WorkflowCore({ job, activeJobId }: { job: FactoryJob | null; activeJobI
   );
 }
 
-function RuntimePanel({ metrics, job }: { metrics: SystemMetrics; job: FactoryJob | null }) {
+function RuntimePanel({
+  metrics,
+  job,
+  report,
+  productionMetrics,
+}: {
+  metrics: SystemMetrics;
+  job: FactoryJob | null;
+  report: TestReportV1 | null;
+  productionMetrics: WorkflowProductionMetrics | null;
+}) {
   const rows = [
-    ["Edge Compute", metrics.edgeComputeActive ? "Active" : "Idle"],
-    ["Inference Runtime", metrics.inferenceRuntime === "localSlm" ? "Local SLM" : metrics.inferenceRuntime],
-    ["Memory", metrics.memoryArchitecture === "unified" ? "Unified" : metrics.memoryArchitecture],
-    ["Factory Job", job?.status ?? "Idle"],
-  ];
+    { label: "Edge Compute", value: metrics.edgeComputeActive ? "Active" : "Idle", known: true, ok: metrics.edgeComputeActive, tone: "cyan" },
+    { label: "Inference Runtime", value: "Local SLM", known: true, ok: true, tone: "indigo" },
+    { label: "Agent Calls", value: productionMetrics ? numberFormat.format(productionMetrics.agentCalls) : "—", known: productionMetrics !== null, ok: (productionMetrics?.agentCalls ?? 0) > 0, tone: "violet" },
+    { label: "Model Calls", value: productionMetrics ? numberFormat.format(productionMetrics.modelCalls) : "—", known: productionMetrics !== null, ok: (productionMetrics?.modelCalls ?? 0) > 0, tone: "indigo" },
+    { label: "n8n Execution", value: report?.executionId ?? job?.status ?? "—", known: report?.executionId !== undefined || job !== null, ok: report?.result === "PASS" || (job !== null && job.status !== "failed"), tone: "amber" },
+  ] as const;
+
   return (
     <Panel title="Runtime / Agents" action={<span className="text-[9px] text-indigo-400">Live</span>}>
-      <div className="space-y-2.5">
-        {rows.map(([label, value], index) => (
-          <div key={label} className="flex items-center gap-3 rounded-xl border border-[#11253f] bg-[#08182a] px-3 py-2.5">
-            <span className={`grid size-7 place-items-center rounded-lg border ${index === 3 ? "border-violet-500/25 bg-violet-500/10 text-violet-300" : "border-cyan-500/20 bg-cyan-500/10 text-cyan-300"}`}>
+      <div className="space-y-2">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center gap-3 rounded-xl border border-[#11253f] bg-[#08182a] px-3 py-2.5">
+            <span
+              className={`grid size-7 place-items-center rounded-lg border ${row.tone === "cyan" ? "border-cyan-500/20 bg-cyan-500/10 text-cyan-300" : row.tone === "amber" ? "border-amber-500/20 bg-amber-500/10 text-amber-300" : row.tone === "violet" ? "border-violet-500/20 bg-violet-500/10 text-violet-300" : "border-indigo-500/20 bg-indigo-500/10 text-indigo-300"}`}
+            >
               <span className="size-1.5 rounded-full bg-current" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[10px] font-medium text-slate-300">{label}</p>
-              <p className="mt-0.5 truncate font-mono text-[8px] text-slate-600">{value}</p>
+              <p className="truncate text-[10px] font-medium text-slate-300">{row.label}</p>
+              <p className="mt-0.5 truncate font-mono text-[8px] text-slate-600">{row.value}</p>
             </div>
-            <span className="size-1.5 rounded-full bg-emerald-400" />
+            <span className={`size-1.5 rounded-full ${row.known ? (row.ok ? "bg-emerald-400" : "bg-amber-400") : "bg-slate-600"}`} />
           </div>
         ))}
       </div>
@@ -303,43 +383,74 @@ function RuntimePanel({ metrics, job }: { metrics: SystemMetrics; job: FactoryJo
   );
 }
 
-function TestPanel({ report }: { report: TestReportV1 | null }) {
+function TestPanel({
+  report,
+  productionMetrics,
+}: {
+  report: TestReportV1 | null;
+  productionMetrics: WorkflowProductionMetrics | null;
+}) {
+  const planned = productionMetrics?.testCount ?? 0;
+  const passed = productionMetrics?.passed ?? 0;
+  const failed = productionMetrics?.failed ?? 0;
+  const ratio = planned > 0 ? Math.round((passed / planned) * 100) : 0;
   const tone = report?.result === "PASS" ? "success" : report?.result === "NOT_PASS" ? "danger" : "neutral";
+
   return (
-    <div data-testid="test-report-v1"><Panel title="Tests / Repair" action={<span className="text-[9px] text-slate-600">TestReportV1</span>}>
-      <div className="flex items-center gap-4">
-        <div className="grid size-20 shrink-0 place-items-center rounded-full border-[8px] border-[#152945] bg-[#081524]">
-          <div className="text-center">
-            <p className="text-[14px] font-bold text-white">{report?.result ?? "—"}</p>
-            <p className="text-[8px] text-slate-600">result</p>
+    <div data-testid="test-report-v1">
+      <Panel title="Tests / Repair" action={<span className="text-[9px] text-slate-600">TestReportV1</span>}>
+        <div className="flex items-center gap-4">
+          <div
+            className="grid size-20 shrink-0 place-items-center rounded-full"
+            style={{ background: planned > 0 ? `conic-gradient(#34d399 ${ratio}%, #ef4444 ${ratio}% ${Math.min(100, ratio + (failed / planned) * 100)}%, #172744 0)` : "#172744" }}
+          >
+            <div className="grid size-[58px] place-items-center rounded-full bg-[#081524] text-center">
+              <div>
+                <p className="text-[14px] font-bold text-white">{planned > 0 ? `${passed}/${planned}` : "—"}</p>
+                <p className="text-[7px] text-slate-600">Tests</p>
+              </div>
+            </div>
+          </div>
+          <div className="min-w-0 flex-1 space-y-2">
+            <StatusPill tone={tone}>{report?.result ?? (planned > 0 ? "RUNNING" : "NOT RUN")}</StatusPill>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[8px]">
+              <span className="text-slate-600">Bestanden</span><span className="text-emerald-300">{passed}</span>
+              <span className="text-slate-600">Fehlgeschlagen</span><span className="text-rose-300">{failed}</span>
+              <span className="text-slate-600">Retry</span><span className="text-slate-300">{productionMetrics?.retryLoops ?? "—"}</span>
+              <span className="text-slate-600">Repair</span><span className="text-slate-300">{productionMetrics?.repairLoops ?? "—"}</span>
+            </div>
           </div>
         </div>
-        <div className="min-w-0 space-y-2 text-[9px]">
-          <div className="flex items-center gap-2"><StatusPill tone={tone}>{report?.result ?? "NOT RUN"}</StatusPill></div>
-          <p className="truncate text-slate-500">Reason: <span className="text-slate-300">{report?.reason ?? "—"}</span></p>
-          <p className="truncate text-slate-500">Execution: <span className="font-mono text-slate-300">{report?.executionId ?? "—"}</span></p>
-        </div>
-      </div>
-    </Panel></div>
+      </Panel>
+    </div>
   );
 }
 
-function CostPanel() {
+function CostPanel({ metrics }: { metrics: WorkflowProductionMetrics | null }) {
+  const tokenTotal = metrics === null ? null : metrics.tokensIn + metrics.tokensOut;
   return (
-    <Panel title="Kosten / Token / Dauer" action={<span className="text-[9px] text-slate-600">Runtime source required</span>}>
-      <div className="grid grid-cols-3 gap-2">
+    <Panel title="Kosten / Token / Dauer" action={<span className="text-[9px] text-slate-600">{metrics?.testMode ?? "Runtime"}</span>}>
+      <p className="text-[24px] font-semibold tracking-[-0.04em] text-white">{formatCost(metrics)}</p>
+      <div className="mt-4 grid grid-cols-3 gap-2">
         {[
-          ["Kosten", "—"],
-          ["Tokens", "—"],
-          ["Laufzeit", "—"],
+          ["Tokens", tokenTotal === null ? "—" : numberFormat.format(tokenTotal)],
+          ["Laufzeit", formatDuration(metrics?.productionTimeMs)],
+          ["Calls", metrics === null ? "—" : numberFormat.format(metrics.modelCalls + metrics.agentCalls)],
         ].map(([label, value]) => (
           <div key={label} className="rounded-xl border border-[#122641] bg-[#08182a] p-3">
-            <p className="text-[8px] uppercase tracking-[0.1em] text-slate-600">{label}</p>
-            <p className="mt-2 font-mono text-[15px] font-semibold text-slate-300">{value}</p>
+            <p className="text-[7px] uppercase tracking-[0.1em] text-slate-600">{label}</p>
+            <p className="mt-2 truncate font-mono text-[11px] font-semibold text-slate-300">{value}</p>
           </div>
         ))}
       </div>
-      <p className="mt-3 text-[8px] leading-4 text-slate-600">Keine Produktionsmetrik wird erfunden. Anzeige aktiviert sich erst mit Runtime-Evidence.</p>
+      {metrics !== null && (
+        <div className="mt-3 space-y-1.5">
+          <div className="flex justify-between text-[7px] text-slate-600"><span>Input Tokens</span><span>{numberFormat.format(metrics.tokensIn)}</span></div>
+          <div className="h-1 rounded-full bg-[#122641]"><div className="h-1 max-w-full rounded-full bg-cyan-400/70" style={{ width: `${tokenTotal && tokenTotal > 0 ? Math.max(4, (metrics.tokensIn / tokenTotal) * 100) : 0}%` }} /></div>
+          <div className="flex justify-between text-[7px] text-slate-600"><span>Output Tokens</span><span>{numberFormat.format(metrics.tokensOut)}</span></div>
+          <div className="h-1 rounded-full bg-[#122641]"><div className="h-1 max-w-full rounded-full bg-violet-400/70" style={{ width: `${tokenTotal && tokenTotal > 0 ? Math.max(4, (metrics.tokensOut / tokenTotal) * 100) : 0}%` }} /></div>
+        </div>
+      )}
     </Panel>
   );
 }
@@ -363,7 +474,11 @@ function GatePanel({
       <div className={`rounded-xl border p-3 ${awaiting ? "border-amber-500/30 bg-amber-500/[0.07]" : "border-[#122641] bg-[#08182a]"}`}>
         <p className="text-[10px] font-semibold text-slate-200">{awaiting ? "Benötigt deine Entscheidung." : "Keine Freigabe ausstehend."}</p>
         <p className="mt-1 text-[8px] leading-4 text-slate-500">
-          {awaiting ? <>Approval-Snapshot <span data-testid="approval-version">version {approvalVersion ?? "—"}</span> ist an den sichtbaren Gate-Snapshot gebunden.</> : "Craftflow fährt ohne offenen Human Gate fort."}
+          {awaiting ? (
+            <>Approval-Snapshot <span data-testid="approval-version">version {approvalVersion ?? "—"}</span> ist an den sichtbaren Gate-Snapshot gebunden.</>
+          ) : (
+            "Craftflow fährt ohne offenen Human Gate fort."
+          )}
         </p>
         {approvalConflict && <p className="mt-2 text-[8px] text-amber-300">Version geändert — Entscheidung erneut prüfen.</p>}
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -391,26 +506,37 @@ function GatePanel({
   );
 }
 
-function EvidencePanel({ report, job }: { report: TestReportV1 | null; job: FactoryJob | null }) {
+function EvidencePanel({
+  report,
+  job,
+  productionMetrics,
+}: {
+  report: TestReportV1 | null;
+  job: FactoryJob | null;
+  productionMetrics: WorkflowProductionMetrics | null;
+}) {
   const entries = [
     ["Job Status", job?.status ?? "—"],
-    ["Evidence", report?.evidence ?? "—"],
+    ["Workflow ID", productionMetrics?.workflowId ?? "—"],
+    ["Imported ID", report?.importedId ?? "—"],
     ["Execution ID", report?.executionId ?? "—"],
   ];
-
   return (
-    <Panel title="Evidence / Deploy Truth" action={<span className="text-[9px] text-indigo-400">Drive Evidence</span>}>
-      <div className="flex flex-col gap-2 sm:flex-row">
+    <Panel title="Evidence / Deploy Truth" action={<span className="text-[9px] text-indigo-400">auditierbar</span>}>
+      <div className="grid gap-2 sm:grid-cols-2">
         {entries.map(([label, value]) => (
-          <div key={label} className="min-w-0 flex-1 rounded-xl border border-[#122641] bg-[#08182a] px-3 py-2.5">
+          <div key={label} className="rounded-xl border border-[#122641] bg-[#08182a] px-3 py-2.5">
             <p className="text-[8px] uppercase tracking-[0.1em] text-slate-600">{label}</p>
             <p className="mt-1 truncate font-mono text-[9px] text-slate-300">{value}</p>
           </div>
         ))}
-        <button type="button" disabled className="rounded-xl border border-indigo-500/25 bg-indigo-500/[0.08] px-4 py-2.5 text-[9px] font-semibold text-indigo-300 disabled:opacity-70">
-          Drive Evidence öffnen →
-        </button>
       </div>
+      {report?.evidence !== undefined && (
+        <div className="mt-2 rounded-xl border border-[#122641] bg-[#08182a] px-3 py-2.5">
+          <p className="text-[8px] uppercase tracking-[0.1em] text-slate-600">Evidence</p>
+          <p className="mt-1 break-all font-mono text-[9px] text-cyan-300">{report.evidence}</p>
+        </div>
+      )}
     </Panel>
   );
 }
@@ -425,7 +551,9 @@ function RunsPanel({ job, activeJobId }: { job: FactoryJob | null; activeJobId: 
             <p className="truncate text-[9px] font-medium text-slate-300">{activeJobId}</p>
             <p className="mt-0.5 text-[8px] text-slate-600">{new Date(job.updatedAt).toLocaleString("de-DE")}</p>
           </div>
-          <StatusPill tone={job.status === "completed" ? "success" : job.status === "failed" ? "danger" : "violet"}>{job.status}</StatusPill>
+          <StatusPill tone={job.status === "completed" ? "success" : job.status === "failed" ? "danger" : "violet"}>
+            {job.status}
+          </StatusPill>
         </div>
       ) : (
         <p className="text-[9px] text-slate-600">Noch kein aktiver Factory-Run.</p>
@@ -434,11 +562,25 @@ function RunsPanel({ job, activeJobId }: { job: FactoryJob | null; activeJobId: 
   );
 }
 
-function LogPanel({ job, report }: { job: FactoryJob | null; report: TestReportV1 | null }) {
-  const lines = [
-    job ? [new Date(job.updatedAt).toLocaleTimeString("de-DE"), `Factory status: ${job.status}`] : null,
-    report ? [new Date().toLocaleTimeString("de-DE"), `TestReportV1: ${report.result}`] : null,
-  ].filter(Boolean) as string[][];
+function LogPanel({
+  job,
+  report,
+  productionMetrics,
+}: {
+  job: FactoryJob | null;
+  report: TestReportV1 | null;
+  productionMetrics: WorkflowProductionMetrics | null;
+}) {
+  const lines: Array<[string, string]> = [];
+  if (job !== null) {
+    lines.push([new Date(job.updatedAt).toLocaleTimeString("de-DE"), `Factory status: ${job.status}`]);
+  }
+  if (report !== null && job !== null) {
+    lines.push([new Date(job.updatedAt).toLocaleTimeString("de-DE"), `TestReportV1: ${report.result}`]);
+  }
+  if (productionMetrics !== null) {
+    lines.push([new Date(productionMetrics.updatedAt).toLocaleTimeString("de-DE"), `Production metrics updated · ${productionMetrics.modelCalls} model / ${productionMetrics.agentCalls} agent calls`]);
+  }
 
   return (
     <Panel title="System Logs" action={<span className="text-[9px] text-emerald-400">Live snapshot</span>}>
@@ -446,8 +588,8 @@ function LogPanel({ job, report }: { job: FactoryJob | null; report: TestReportV
         {lines.length === 0 ? (
           <p className="text-slate-600">Keine Laufereignisse im aktuellen Snapshot.</p>
         ) : (
-          lines.map(([time, message]) => (
-            <div key={`${time}-${message}`} className="grid grid-cols-[52px_1fr] gap-2 border-b border-[#10213a] pb-2 text-slate-500 last:border-0 last:pb-0">
+          lines.map(([time, message], index) => (
+            <div key={`${time}-${index}`} className="grid grid-cols-[52px_1fr] gap-2 border-b border-[#10213a] pb-2 text-slate-500 last:border-0 last:pb-0">
               <span>{time}</span>
               <span className="text-slate-300">{message}</span>
             </div>
@@ -464,6 +606,7 @@ export function CommandCenter({
   job,
   gate,
   testReport,
+  productionMetrics,
   intentPosture,
   intentValue,
   onIntentChange,
@@ -474,10 +617,12 @@ export function CommandCenter({
   approvalConflict,
   onApproval,
 }: CommandCenterProps) {
+  const runtimeActive = metrics.edgeComputeActive;
+
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-[#030812] text-slate-200">
+    <div className="min-h-dvh bg-[#030812] text-slate-200">
       <div className="flex min-h-dvh">
-        <Sidebar />
+        <Sidebar metrics={metrics} job={job} report={testReport} productionMetrics={productionMetrics} />
 
         <div className="min-w-0 flex-1">
           <header className="sticky top-0 z-40 flex h-[72px] items-center gap-4 border-b border-[#15243f] bg-[#050d18]/95 px-4 backdrop-blur-xl sm:px-5">
@@ -488,47 +633,42 @@ export function CommandCenter({
                 onValueChange={onIntentChange}
                 onSubmit={onIntentSubmit}
                 {...(inputRef ? { inputRef } : {})}
-                placeholder="Workflows, Runs, Agenten, Logs …"
+                placeholder="Describe the workflow you want Craftflow to build"
               />
             </div>
             <div className="hidden items-center gap-3 md:flex">
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2">
-                <div className="flex items-center gap-2 text-[9px] font-semibold text-emerald-300">
-                  <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.6)]" />
-                  System Online
+              <div className={`rounded-xl border px-3 py-2 ${runtimeActive ? "border-emerald-500/20 bg-emerald-500/[0.06]" : "border-slate-700 bg-slate-900/70"}`}>
+                <div className={`flex items-center gap-2 text-[9px] font-semibold ${runtimeActive ? "text-emerald-300" : "text-slate-500"}`}>
+                  <span className={`size-2 rounded-full ${runtimeActive ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.6)]" : "bg-slate-600"}`} />
+                  {runtimeActive ? "Runtime Active" : "Runtime Idle"}
                 </div>
-                <p className="mt-0.5 text-[7px] text-slate-600">OWNER + Factory session valid</p>
+                <p className="mt-0.5 text-[7px] text-slate-600">Factory control surface</p>
               </div>
-              <span className="text-[15px] text-slate-500">♧</span>
-              <span className="text-[15px] text-slate-500">☼</span>
               <div className="grid size-9 place-items-center rounded-full border border-indigo-500/25 bg-indigo-500/10 text-[10px] font-semibold text-indigo-200">SO</div>
             </div>
           </header>
 
           <main className="p-3 sm:p-4">
-            <div className="mb-3 flex flex-wrap items-start justify-between gap-4 px-1 py-1">
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3 rounded-[18px] border border-[#14243e] bg-[#07101e]/80 px-4 py-4">
               <div>
                 <p className="text-[8px] font-semibold tracking-[0.16em] text-slate-600 uppercase">Willkommen zurück</p>
-                <h1 className="mt-1 text-[25px] font-bold tracking-[-0.04em] text-white">
+                <h1 className="mt-1 text-[24px] font-bold tracking-[-0.035em] text-white">
                   CRAFTFLOW <span className="bg-[linear-gradient(90deg,#818CF8,#A855F7)] bg-clip-text text-transparent">Command Center</span>
                 </h1>
                 <p className="mt-1 text-[10px] text-slate-500">Workflows entwickeln. Mit KI ausführen. Automatisch testen. Sicher deployen.</p>
               </div>
 
               <div className="flex items-stretch gap-3">
-                <div className="hidden px-3 py-1 text-right sm:block">
+                {job !== null && (
+                  <div className="hidden min-w-[210px] rounded-xl border border-[#203657] bg-[#0a1728] px-3 py-2 md:block">
+                    <p className="text-[7px] uppercase tracking-[0.1em] text-indigo-400">Aktiver Workflow</p>
+                    <p className="mt-1 max-w-[190px] truncate text-[10px] font-semibold text-slate-200">{activeJobId}</p>
+                    <p className="mt-1 text-[8px] text-emerald-300">{job.status}</p>
+                  </div>
+                )}
+                <div className="min-w-[86px] text-right">
                   <p className="font-mono text-[9px] text-slate-600">{new Date(metrics.sampledAt).toLocaleDateString("de-DE")}</p>
                   <p className="mt-1 text-[18px] font-semibold text-slate-200">{new Date(metrics.sampledAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</p>
-                </div>
-                <div className="min-w-[210px] rounded-xl border border-indigo-500/20 bg-[#08172a] px-3 py-2.5">
-                  <p className="text-[7px] uppercase tracking-[0.1em] text-slate-600">Aktiver Workflow</p>
-                  <div className="mt-1 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-[9px] font-semibold text-slate-200">{activeJobId ?? "Kein aktiver Job"}</p>
-                      <p className="mt-0.5 text-[7px] text-emerald-400">{job?.status ?? "Bereit"}</p>
-                    </div>
-                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[linear-gradient(135deg,#4338CA,#4F46E5)] text-white shadow-[0_0_18px_rgba(79,70,229,.25)]">→</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -538,8 +678,8 @@ export function CommandCenter({
                 <WorkflowCore job={job} activeJobId={activeJobId} />
 
                 <div className="grid gap-3 lg:grid-cols-3">
-                  <TestPanel report={testReport} />
-                  <CostPanel />
+                  <TestPanel report={testReport} productionMetrics={productionMetrics} />
+                  <CostPanel metrics={productionMetrics} />
                   <GatePanel
                     gate={gate}
                     approvalVersion={approvalVersion}
@@ -549,13 +689,13 @@ export function CommandCenter({
                   />
                 </div>
 
-                <EvidencePanel report={testReport} job={job} />
+                <EvidencePanel report={testReport} job={job} productionMetrics={productionMetrics} />
               </div>
 
               <div className="space-y-3">
-                <RuntimePanel metrics={metrics} job={job} />
+                <RuntimePanel metrics={metrics} job={job} report={testReport} productionMetrics={productionMetrics} />
                 <RunsPanel job={job} activeJobId={activeJobId} />
-                <LogPanel job={job} report={testReport} />
+                <LogPanel job={job} report={testReport} productionMetrics={productionMetrics} />
               </div>
             </div>
           </main>
@@ -564,4 +704,3 @@ export function CommandCenter({
     </div>
   );
 }
-
