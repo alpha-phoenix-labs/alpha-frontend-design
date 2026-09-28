@@ -18,6 +18,8 @@ const evidence = {
   phase: 'initialization',
   jobId: null,
   submittedStatus: null,
+  backendErrorMessage: null,
+  backendTestReport: null,
   waitingForApproval: false,
   approvalVersion: null,
   n8n: { pass: false, executionId: null, importedId: null },
@@ -78,6 +80,8 @@ try {
   if (!createResponse.ok() || typeof created?.jobId !== 'string') fail('BUSINESS_E2E_CREATE_FAILED');
   evidence.jobId = created.jobId;
   evidence.submittedStatus = created.status ?? null;
+  evidence.backendErrorMessage = typeof created?.errorMessage === 'string' ? created.errorMessage : null;
+  evidence.backendTestReport = created?.testReport ?? null;
 
   if (created.status === 'WAITING_FOR_USER') {
     fail('BUSINESS_E2E_UNEXPECTED_CLARIFICATION');
