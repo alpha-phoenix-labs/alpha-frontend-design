@@ -5,6 +5,7 @@ import {
   CostEstimateModule,
   FactoryWorkflowModule,
   IntentNode,
+  LoginScreen,
   ModuleStage,
   SpatialModelModule,
   SystemHeader,
@@ -18,11 +19,10 @@ import {
 } from "@/hooks/index.ts";
 import { normalizeFactoryBaseUrl } from "@/services/factory/index.ts";
 import { useSystemMetricsSnapshot } from "@/store/index.ts";
+import type { AuthState } from "@/types/auth.ts";
 
 const NeuralTerrainCanvas = lazy(() => import("@/components/canvas/NeuralTerrainCanvas.tsx"));
 const WORKSPACE_PLACEHOLDER = "Describe the workflow you want Craftflow to build";
-
-type AuthState = "checking" | "authenticated" | "unauthenticated" | "unavailable";
 
 function HeaderSlot() {
   const metrics = useSystemMetricsSnapshot();
@@ -54,7 +54,14 @@ function Workspace() {
   );
 
   return (
-    <main className="relative mt-10 flex w-full flex-1 items-center justify-center">
+    <main className="relative mt-6 flex min-h-[calc(100dvh-13rem)] w-full flex-1 items-center justify-center md:mt-8">
+      <div className="pointer-events-none absolute top-8 left-1/2 w-full max-w-3xl -translate-x-1/2 text-center">
+        <p className="font-mono text-[10px] font-medium tracking-[0.18em] text-indigo-500 uppercase">
+          Workflow production surface
+        </p>
+        <p className="mt-2 text-sm text-slate-400">Turn one clear intent into a tested, reviewable automation.</p>
+      </div>
+
       <IntentNode
         posture={factoryVisible ? "receded" : router.posture}
         value={router.value}
@@ -118,12 +125,17 @@ function AuthenticatedCraftflow() {
 
   return (
     <MotionConfig reducedMotion="user">
+      <div className="pointer-events-none fixed inset-0 bg-[#F6F8FC]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(99,102,241,.12),transparent_30%),radial-gradient(circle_at_82%_15%,rgba(56,189,248,.13),transparent_26%),radial-gradient(circle_at_70%_84%,rgba(168,85,247,.10),transparent_34%)]" />
       <Suspense fallback={null}>
         <NeuralTerrainCanvas />
       </Suspense>
-      <div className="pointer-events-none relative z-10 flex min-h-dvh w-full flex-col p-6 md:p-12">
-        <HeaderSlot />
-        <Workspace />
+
+      <div className="pointer-events-none relative z-10 flex min-h-dvh w-full flex-col p-3 sm:p-5 md:p-7">
+        <div className="flex min-h-[calc(100dvh-1.5rem)] w-full flex-1 flex-col rounded-[1.75rem] border border-white/80 bg-white/72 p-5 shadow-[0_30px_90px_rgba(30,41,59,.10)] backdrop-blur-xl sm:min-h-[calc(100dvh-2.5rem)] md:min-h-[calc(100dvh-3.5rem)] md:rounded-[2.25rem] md:p-8">
+          <HeaderSlot />
+          <Workspace />
+        </div>
       </div>
       <AmbientSlot />
     </MotionConfig>
@@ -213,71 +225,12 @@ function AuthGate() {
     return <AuthenticatedCraftflow />;
   }
 
-  if (state === "checking") {
-    return (
-      <main
-        data-testid="auth-gate-checking"
-        className="flex min-h-dvh items-center justify-center bg-[#05070b] px-6 text-slate-100"
-      >
-        <p className="font-mono text-sm text-slate-400">OWNER Session wird geprüft…</p>
-      </main>
-    );
-  }
-
-  if (state === "unauthenticated" && baseUrl !== null) {
-    return (
-      <main
-        data-testid="auth-gate-unauthenticated"
-        className="flex min-h-dvh items-center justify-center bg-[#05070b] px-6 text-slate-100"
-      >
-        <section className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-950/80 p-8 shadow-2xl shadow-black/30">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-400">Craftflow Control</p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight">OWNER Login erforderlich</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
-            Die Produktionsoberfläche wird erst nach einer gültigen OWNER-Session freigegeben.
-          </p>
-          <button
-            data-testid="auth-login-button"
-            className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-950"
-            type="button"
-            onClick={openOwnerLogin}
-          >
-            OWNER Login öffnen
-          </button>
-          <button
-            data-testid="auth-retry"
-            className="mt-3 w-full rounded-xl border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200"
-            type="button"
-            onClick={() => void checkSession()}
-          >
-            Sitzung erneut prüfen
-          </button>
-        </section>
-      </main>
-    );
-  }
-
   return (
-    <main
-      data-testid="auth-gate-unavailable"
-      className="flex min-h-dvh items-center justify-center bg-[#05070b] px-6 text-slate-100"
-    >
-      <section className="w-full max-w-md rounded-3xl border border-red-900/60 bg-slate-950/80 p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">Fail-closed</p>
-        <h1 className="mt-3 text-2xl font-black">Sitzungsprüfung nicht verfügbar</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-400">
-          Craftflow bleibt gesperrt, bis die OWNER-Session sicher geprüft werden kann.
-        </p>
-        <button
-          data-testid="auth-retry"
-          className="mt-6 w-full rounded-xl border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200"
-          type="button"
-          onClick={() => void checkSession()}
-        >
-          Erneut prüfen
-        </button>
-      </section>
-    </main>
+    <LoginScreen
+      state={state}
+      onOwnerLogin={openOwnerLogin}
+      onRetry={() => void checkSession()}
+    />
   );
 }
 
