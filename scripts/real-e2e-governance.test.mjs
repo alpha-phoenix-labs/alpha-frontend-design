@@ -5,6 +5,7 @@ import { test } from 'node:test';
 const workflow = readFileSync(new URL('../.github/workflows/real-e2e.yml', import.meta.url), 'utf8');
 const business = readFileSync(new URL('./real-business-e2e.mjs', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
+const loginScreen = readFileSync(new URL('../src/components/ui/LoginScreen.tsx', import.meta.url), 'utf8');
 
 test('PR validation and main business E2E are distinct', () => {
   assert.match(workflow, /real-e2e-contract:/);
@@ -83,8 +84,8 @@ test('frontend remains fail-closed behind OWNER session gate', () => {
   assert.match(app, /factoryMode === "http" \? <AuthGate \/> : <AuthenticatedCraftflow \/>/);
   assert.match(app, /\/api\/runtime-truth/);
   assert.match(app, /credentials: "include"/);
-  assert.match(app, /data-testid="auth-login-button"/);
-  assert.match(app, /data-testid="auth-gate-unavailable"/);
+  assert.match(loginScreen, /data-testid="auth-login-button"/);
+  assert.match(loginScreen, /data-testid="auth-gate-unavailable"/);
 });
 
 test('business E2E never embeds credentials or Drive secrets', () => {
