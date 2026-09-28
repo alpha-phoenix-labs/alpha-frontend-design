@@ -30,6 +30,12 @@ jobs:
       VITE_FACTORY_API_BASE_URL: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.g5_preview == true)) && 'https://api.vantarialabs.tech' || '' }}
 
     steps:
+      - name: Block permanent design sandbox from Cloudflare
+        if: ${{ github.head_ref == 'design/v2-rebuild' || github.ref == 'refs/heads/design/v2-rebuild' }}
+        run: |
+          echo "::error::BLOCKED: design/v2-rebuild is a permanent no-deploy sandbox."
+          exit 1
+
       - name: Checkout exact SHA
         uses: actions/checkout@v6
         with:
@@ -62,6 +68,7 @@ jobs:
         run: npm run build
 
       - name: Upload version to Cloudflare (no traffic)
+        if: ${{ github.head_ref != 'design/v2-rebuild' && github.ref != 'refs/heads/design/v2-rebuild' }}
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
