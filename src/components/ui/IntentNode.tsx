@@ -37,9 +37,9 @@ export function IntentNode({
       initial={false}
       animate={posture}
     >
-      <div className="group flex h-10 items-center gap-3 rounded-xl border border-white/10 bg-[#0b0f19]/70 px-3 shadow-glass-soft backdrop-blur-xl transition-[border-color,box-shadow,background-color] duration-200 focus-within:border-cyan-300/35 focus-within:bg-[#0b0f19]/78 focus-within:shadow-neon-cyan">
+      <div className="group flex h-10 items-center gap-3 rounded-xl border border-slate-900/[0.08] bg-white/70 px-3 shadow-glass-soft backdrop-blur-xl transition-[border-color,box-shadow,background-color] duration-200 focus-within:border-cyan-500/30 focus-within:bg-white/88 focus-within:shadow-neon-cyan">
         <span
-          className="text-[14px] text-cyan-200/60 drop-shadow-[0_0_7px_rgba(34,211,238,.30)] transition group-focus-within:text-cyan-200"
+          className="text-[14px] text-cyan-600/55 transition group-focus-within:text-cyan-600"
           aria-hidden="true"
         >
           ⌕
@@ -55,9 +55,9 @@ export function IntentNode({
           autoComplete="off"
           autoFocus={autoFocus}
           enterKeyHint="go"
-          className="min-w-0 flex-1 border-none bg-transparent text-[11px] text-slate-100 outline-none placeholder:text-slate-600"
+          className="min-w-0 flex-1 border-none bg-transparent text-[11px] text-slate-800 outline-none placeholder:text-slate-400"
         />
-        <span className="rounded-md border border-white/10 bg-white/[0.035] px-2 py-1 font-mono text-[8px] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,.04)]">
+        <span className="rounded-md border border-slate-900/[0.08] bg-white/72 px-2 py-1 font-mono text-[8px] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,.9)]">
           ⌘ K
         </span>
       </div>
