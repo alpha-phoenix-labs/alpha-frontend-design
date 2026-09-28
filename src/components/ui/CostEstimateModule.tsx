@@ -33,54 +33,48 @@ export function CostEstimateModule({
   return (
     <section
       aria-labelledby={titleId}
-      className="glass-panel pointer-events-auto flex w-full max-w-[440px] flex-col gap-8 rounded-[2rem] p-6 sm:p-8"
+      className="glass-panel pointer-events-auto flex w-full max-w-[440px] flex-col gap-7 rounded-[22px] p-6 sm:p-7"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50">
-            <CalculatorIcon className="size-3.5 text-indigo-600" />
+          <div className="flex size-9 items-center justify-center rounded-xl border border-indigo-500/25 bg-indigo-500/10">
+            <CalculatorIcon className="size-3.5 text-indigo-300" />
           </div>
-          <h2 id={titleId} className="text-xs font-semibold tracking-wide text-slate-500">{title}</h2>
+          <h2 id={titleId} className="text-[11px] font-semibold tracking-wide text-slate-300">{title}</h2>
         </div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Modul schließen"
-          className="flex size-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-100"
+          className="flex size-8 items-center justify-center rounded-lg border border-[#1a2f50] bg-[#08172a] text-slate-500 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30"
         >
           <CloseIcon className="size-4" />
         </button>
       </div>
 
       <div>
-        <p className="mb-2 text-4xl font-semibold tracking-[-0.04em] text-slate-950">{formatCents(estimate.totalCents, estimate.currency, 2)}</p>
-        <p className="text-[11px] leading-relaxed text-slate-500">{estimate.note}</p>
+        <p className="text-4xl font-semibold tracking-[-0.04em] text-white">{formatCents(estimate.totalCents, estimate.currency, 2)}</p>
+        <p className="mt-2 text-[10px] leading-5 text-slate-500">{estimate.note}</p>
       </div>
 
-      <dl className="space-y-4">
-        {estimate.lineItems.map((item, index) => {
-          const isLast = index === estimate.lineItems.length - 1;
-          return (
-            <div
-              key={`${item.category}-${index}`}
-              className={`flex items-center justify-between text-sm ${isLast ? "pb-1" : "border-b border-slate-100 pb-3"}`}
-            >
-              <dt className="font-normal text-slate-500">
-                {item.label}
-                {item.estimatedHours !== undefined && (
-                  <span className="ml-2 font-mono text-[10px] text-slate-400">{hoursFormat.format(item.estimatedHours)} h</span>
-                )}
-              </dt>
-              <dd className="font-semibold text-slate-900">{formatCents(item.amountCents, estimate.currency, 0)}</dd>
-            </div>
-          );
-        })}
+      <dl className="space-y-3">
+        {estimate.lineItems.map((item, index) => (
+          <div key={`${item.category}-${index}`} className="flex items-center justify-between border-b border-[#14243f] pb-3 text-[11px] last:border-0">
+            <dt className="text-slate-500">
+              {item.label}
+              {item.estimatedHours !== undefined && (
+                <span className="ml-2 font-mono text-[8px] text-slate-600">{hoursFormat.format(item.estimatedHours)} h</span>
+              )}
+            </dt>
+            <dd className="font-semibold text-slate-200">{formatCents(item.amountCents, estimate.currency, 0)}</dd>
+          </div>
+        ))}
       </dl>
 
       <button
         type="button"
         onClick={onCommit}
-        className="mt-2 w-full rounded-2xl bg-[linear-gradient(135deg,#4F46E5,#7C3AED)] py-3.5 font-semibold text-white shadow-[0_14px_32px_rgba(79,70,229,.22)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
+        className="w-full rounded-xl bg-[linear-gradient(90deg,#4338CA,#4F46E5)] py-3 text-[11px] font-semibold text-white shadow-[0_0_22px_rgba(79,70,229,.25)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50"
       >
         {commitLabel}
       </button>
