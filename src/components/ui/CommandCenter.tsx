@@ -258,7 +258,7 @@ function RuntimePanel({ metrics, job }: { metrics: SystemMetrics; job: FactoryJo
 function TestPanel({ report }: { report: TestReportV1 | null }) {
   const tone = report?.result === "PASS" ? "success" : report?.result === "NOT_PASS" ? "danger" : "neutral";
   return (
-    <Panel title="Tests / Repair" action={<span className="text-[9px] text-slate-600">TestReportV1</span>}>
+    <div data-testid="test-report-v1"><Panel title="Tests / Repair" action={<span className="text-[9px] text-slate-600">TestReportV1</span>}>
       <div className="flex items-center gap-4">
         <div className="grid size-20 shrink-0 place-items-center rounded-full border-[8px] border-[#152945] bg-[#081524]">
           <div className="text-center">
@@ -272,7 +272,7 @@ function TestPanel({ report }: { report: TestReportV1 | null }) {
           <p className="truncate text-slate-500">Execution: <span className="font-mono text-slate-300">{report?.executionId ?? "—"}</span></p>
         </div>
       </div>
-    </Panel>
+    </Panel></div>
   );
 }
 
@@ -315,13 +315,14 @@ function GatePanel({
       <div className={`rounded-xl border p-3 ${awaiting ? "border-amber-500/30 bg-amber-500/[0.07]" : "border-[#122641] bg-[#08182a]"}`}>
         <p className="text-[10px] font-semibold text-slate-200">{awaiting ? "Benötigt deine Entscheidung." : "Keine Freigabe ausstehend."}</p>
         <p className="mt-1 text-[8px] leading-4 text-slate-500">
-          {awaiting ? `Approval-Version ${approvalVersion ?? "—"} ist an den sichtbaren Gate-Snapshot gebunden.` : "Craftflow fährt ohne offenen Human Gate fort."}
+          {awaiting ? <>Approval-Version <span data-testid="approval-version">{approvalVersion ?? "—"}</span> ist an den sichtbaren Gate-Snapshot gebunden.</> : "Craftflow fährt ohne offenen Human Gate fort."}
         </p>
         {approvalConflict && <p className="mt-2 text-[8px] text-amber-300">Version geändert — Entscheidung erneut prüfen.</p>}
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => onApproval(false)}
+            aria-label="Reject"
             disabled={!awaiting || approvalBusy || approvalVersion === null}
             className="rounded-lg border border-rose-500/25 bg-rose-500/[0.06] px-3 py-2 text-[9px] font-semibold text-rose-300 disabled:opacity-30"
           >
@@ -330,6 +331,7 @@ function GatePanel({
           <button
             type="button"
             onClick={() => onApproval(true)}
+            aria-label="Approve"
             disabled={!awaiting || approvalBusy || approvalVersion === null}
             className="rounded-lg border border-indigo-400/30 bg-[linear-gradient(90deg,#4338CA,#4F46E5)] px-3 py-2 text-[9px] font-semibold text-white shadow-[0_0_18px_rgba(79,70,229,.22)] disabled:opacity-30"
           >
@@ -435,7 +437,7 @@ export function CommandCenter({
                 onValueChange={onIntentChange}
                 onSubmit={onIntentSubmit}
                 inputRef={inputRef}
-                placeholder="Workflows, Runs, Agenten, Logs …"
+                placeholder="Describe the workflow you want Craftflow to build"
               />
             </div>
             <div className="hidden items-center gap-3 md:flex">
