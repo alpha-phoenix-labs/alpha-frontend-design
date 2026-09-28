@@ -162,7 +162,7 @@ function StatusPill({
           ? "border-rose-500/25 bg-rose-500/10 text-rose-300"
           : tone === "violet"
             ? "border-violet-500/25 bg-violet-500/10 text-violet-300"
-            : "border-white/10 bg-[#0b0f19]/55 text-slate-600 backdrop-blur-xl";
+            : "border-slate-900/[0.08] bg-white/72 text-slate-600 backdrop-blur-xl";
 
   return (
     <span className={`rounded-full border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.08em] ${cls}`}>
