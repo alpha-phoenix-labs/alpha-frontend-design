@@ -305,6 +305,7 @@ export function useSpectreFactoryIntegration(): SpectreFactoryIntegration {
         pendingClientRequestIdRef.current = pendingClientRequestId;
         void recoverWorkflowRequest(pendingClientRequestId).then((result) => {
           if (result.ok && result.value !== null) {
+            writeStoredFactoryJobId(window.sessionStorage, result.value.id);
             pendingClientRequestIdRef.current = null;
             writeStoredFactoryPendingRequestId(window.sessionStorage, null);
             clearLastError();
@@ -348,6 +349,9 @@ export function useSpectreFactoryIntegration(): SpectreFactoryIntegration {
       if (!keepPending) {
         pendingClientRequestIdRef.current = null;
         if (typeof window !== 'undefined') {
+          if (knownJobId !== null) {
+            writeStoredFactoryJobId(window.sessionStorage, knownJobId);
+          }
           writeStoredFactoryPendingRequestId(window.sessionStorage, null);
         }
       }
@@ -430,6 +434,7 @@ export function useSpectreFactoryIntegration(): SpectreFactoryIntegration {
       if (result.ok && result.value !== null) {
         pendingClientRequestIdRef.current = null;
         if (typeof window !== 'undefined') {
+          writeStoredFactoryJobId(window.sessionStorage, result.value.id);
           writeStoredFactoryPendingRequestId(window.sessionStorage, null);
         }
         clearLastError();
