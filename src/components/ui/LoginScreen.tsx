@@ -6,152 +6,108 @@ export interface LoginScreenProps {
   onRetry: () => void;
 }
 
-const featureItems = [
-  { label: "Automate", detail: "From intent to executable workflow" },
-  { label: "Validate", detail: "Real tests, evidence and human gates" },
-  { label: "Deploy", detail: "Controlled delivery with exact runtime truth" },
-] as const;
-
 export function LoginScreen({ state, onOwnerLogin, onRetry }: LoginScreenProps) {
   const checking = state === "checking";
   const unavailable = state === "unavailable";
 
   return (
-    <main className="min-h-dvh bg-white text-slate-950">
-      <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1.35fr)_minmax(440px,0.65fr)]">
-        <section className="relative isolate hidden overflow-hidden lg:flex lg:min-h-dvh lg:flex-col lg:justify-between lg:p-12 xl:p-16">
-          <img
-            src="/login-background.svg"
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 -z-20 h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 -z-10 bg-[linear-gradient(135deg,rgba(255,255,255,.88)_0%,rgba(255,255,255,.38)_46%,rgba(238,242,255,.16)_100%)]" />
+    <main className="relative min-h-dvh overflow-hidden bg-[#02060d] text-slate-100">
+      <img src="/login-background.svg" alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,13,.30),rgba(2,6,13,.08)_48%,rgba(2,6,13,.58))]" />
+      <div className="absolute inset-x-0 top-0 h-48 bg-[linear-gradient(180deg,rgba(2,6,13,.78),transparent)]" />
 
-          <div className="flex items-center gap-3">
-            <div className="grid size-10 place-items-center rounded-2xl border border-white/70 bg-white/75 shadow-[0_18px_55px_rgba(99,102,241,.16)] backdrop-blur-xl">
-              <div className="size-3 rounded-full bg-[linear-gradient(135deg,#4F46E5,#8B5CF6)] shadow-[0_0_24px_rgba(99,102,241,.65)]" />
-            </div>
-            <div>
-              <p className="text-sm font-bold tracking-[0.18em] text-slate-900 uppercase">Craftflow</p>
-              <p className="text-xs text-slate-500">AI workflow production system</p>
-            </div>
+      <div className="relative z-10 flex min-h-dvh flex-col p-6 sm:p-8 lg:p-12">
+        <div className="flex items-center gap-3">
+          <div className="relative grid size-10 place-items-center">
+            <div className="absolute size-9 rotate-45 rounded-[9px] bg-[linear-gradient(135deg,#22D3EE,#4F46E5_55%,#A855F7)] shadow-[0_0_25px_rgba(79,70,229,.45)]" />
+            <div className="relative size-3 rotate-45 rounded-[3px] bg-[#07101f]" />
           </div>
-
-          <div className="max-w-3xl pb-10">
-            <p className="mb-5 font-mono text-[11px] font-medium tracking-[0.2em] text-indigo-600 uppercase">
-              Production intelligence
-            </p>
-            <h1 className="max-w-2xl text-5xl font-semibold tracking-[-0.055em] text-slate-950 xl:text-7xl">
-              Build real workflows from one clear intent.
-            </h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 xl:text-lg">
-              Plan, generate, validate and approve automation in one controlled production surface.
-            </p>
-
-            <div className="mt-10 grid max-w-2xl grid-cols-3 gap-3">
-              {featureItems.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-white/60 bg-white/60 p-4 shadow-[0_12px_45px_rgba(71,85,105,.08)] backdrop-blur-xl">
-                  <p className="text-sm font-semibold text-slate-900">{item.label}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{item.detail}</p>
-                </div>
-              ))}
-            </div>
+          <div>
+            <p className="text-[15px] font-extrabold tracking-[0.08em] text-white">CRAFT<span className="text-indigo-400">FLOW</span></p>
+            <p className="text-[7px] font-semibold tracking-[0.18em] text-slate-500 uppercase">AI Automation System</p>
           </div>
-        </section>
+        </div>
 
-        <section className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[#F8FAFC] px-6 py-10 sm:px-10 lg:bg-white">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(99,102,241,.12),transparent_34%),radial-gradient(circle_at_80%_82%,rgba(56,189,248,.12),transparent_34%)] lg:hidden" />
-
-          <div className="relative w-full max-w-[460px]">
-            <div className="mb-10 flex items-center gap-3 lg:hidden">
-              <div className="grid size-10 place-items-center rounded-2xl bg-white shadow-[0_14px_40px_rgba(79,70,229,.12)]">
-                <div className="size-3 rounded-full bg-indigo-600" />
-              </div>
-              <div>
-                <p className="text-sm font-bold tracking-[0.16em] uppercase">Craftflow</p>
-                <p className="text-xs text-slate-500">AI workflow production system</p>
+        <div className="mt-auto flex justify-end pb-[8vh]">
+          <section className="w-full max-w-[390px] rounded-[22px] border border-[#1b3152] bg-[#07101f]/92 p-6 shadow-[0_28px_90px_rgba(0,0,0,.48)] backdrop-blur-xl">
+            <div className="mb-5 flex items-center justify-center">
+              <div className="relative grid size-14 place-items-center">
+                <div className="absolute size-11 rotate-45 rounded-[11px] bg-[linear-gradient(135deg,#22D3EE,#4F46E5_55%,#A855F7)] shadow-[0_0_28px_rgba(99,102,241,.42)]" />
+                <div className="relative size-4 rotate-45 rounded-[4px] bg-[#07101f]" />
               </div>
             </div>
 
-            <p className="font-mono text-[11px] font-medium tracking-[0.18em] text-indigo-600 uppercase">
-              Owner access
-            </p>
-            <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em] text-slate-950">Welcome back.</h2>
-            <p className="mt-4 max-w-md text-sm leading-6 text-slate-500">
-              Craftflow stays locked until the backend confirms a valid OWNER session.
-            </p>
+            <div className="text-center">
+              <p className="text-[13px] font-extrabold tracking-[0.12em] text-white">CRAFTFLOW</p>
+              <p className="mt-1 text-[8px] tracking-[0.14em] text-slate-500 uppercase">AI Automation System</p>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-[#142744] bg-[#050d19]/80 p-4">
+              <h1 className="text-[17px] font-semibold text-white">Willkommen zurück</h1>
+              <p className="mt-1 text-[10px] text-slate-500">Zugriff auf dein Command Center</p>
+            </div>
 
             {checking ? (
-              <div
-                data-testid="auth-gate-checking"
-                className="mt-9 rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,.08)]"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="relative size-11 rounded-2xl bg-indigo-50">
-                    <div className="absolute inset-0 m-auto size-3 animate-pulse rounded-full bg-indigo-600 motion-reduce:animate-none" />
-                  </div>
+              <div data-testid="auth-gate-checking" className="mt-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.06] p-4">
+                <div className="flex items-center gap-3">
+                  <span className="size-2.5 animate-pulse rounded-full bg-indigo-400 shadow-[0_0_14px_rgba(129,140,248,.7)] motion-reduce:animate-none" />
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">OWNER session is being checked</p>
-                    <p className="mt-1 text-xs text-slate-500">Secure runtime validation in progress.</p>
+                    <p className="text-[10px] font-semibold text-slate-200">OWNER Session wird geprüft</p>
+                    <p className="mt-1 text-[8px] text-slate-600">Runtime-Truth wird fail-closed verifiziert.</p>
                   </div>
                 </div>
               </div>
             ) : unavailable ? (
-              <div
-                data-testid="auth-gate-unavailable"
-                className="mt-9 rounded-3xl border border-rose-200 bg-rose-50/70 p-6 shadow-[0_24px_80px_rgba(15,23,42,.06)]"
-              >
-                <p className="text-xs font-semibold tracking-[0.14em] text-rose-600 uppercase">Fail-closed</p>
-                <h3 className="mt-3 text-lg font-semibold text-slate-950">Session verification unavailable</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Craftflow remains locked until OWNER access can be verified safely.
-                </p>
+              <div data-testid="auth-gate-unavailable" className="mt-4 rounded-2xl border border-rose-500/25 bg-rose-500/[0.06] p-4">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-rose-300">Fail-closed</p>
+                <p className="mt-2 text-[10px] text-slate-300">Sitzungsprüfung nicht verfügbar. Craftflow bleibt gesperrt.</p>
                 <button
                   data-testid="auth-retry"
                   type="button"
                   onClick={onRetry}
-                  className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
+                  className="mt-4 w-full rounded-xl border border-[#243b61] bg-[#0a1728] py-2.5 text-[10px] font-semibold text-slate-200 transition hover:border-indigo-400/40"
                 >
-                  Check session again
+                  Erneut prüfen
                 </button>
               </div>
             ) : (
-              <div
-                data-testid="auth-gate-unauthenticated"
-                className="mt-9 rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,.08)]"
-              >
-                <div className="rounded-2xl border border-indigo-100 bg-[linear-gradient(135deg,#EEF2FF,#F8FAFC)] p-4">
-                  <p className="text-sm font-semibold text-slate-900">Secure OWNER authentication</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Login opens in a protected window. This interface never stores your credentials.
-                  </p>
+              <div data-testid="auth-gate-unauthenticated" className="mt-4">
+                <div className="space-y-2">
+                  <div className="rounded-xl border border-[#172744] bg-[#050d19]/72 px-3 py-3">
+                    <p className="text-[9px] text-slate-500">Authentifizierung</p>
+                    <p className="mt-1 text-[10px] text-slate-300">Sicherer OWNER-Popup-Flow über das bestehende Backend</p>
+                  </div>
+                  <div className="rounded-xl border border-[#172744] bg-[#050d19]/72 px-3 py-3">
+                    <p className="text-[9px] text-slate-500">Session</p>
+                    <p className="mt-1 text-[10px] text-slate-300">Runtime-Truth + credentialed cookie verification</p>
+                  </div>
                 </div>
+
                 <button
                   data-testid="auth-login-button"
                   type="button"
                   onClick={onOwnerLogin}
-                  className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#4F46E5,#7C3AED)] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(79,70,229,.24)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(79,70,229,.28)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
+                  className="mt-4 flex w-full items-center justify-center rounded-xl border border-indigo-400/30 bg-[linear-gradient(90deg,#4338CA,#4F46E5)] py-3 text-[10px] font-semibold text-white shadow-[0_0_24px_rgba(79,70,229,.28)] transition hover:brightness-110"
                 >
-                  Open OWNER Login
+                  OWNER Login öffnen →
                 </button>
                 <button
                   data-testid="auth-retry"
                   type="button"
                   onClick={onRetry}
-                  className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-100"
+                  className="mt-2 w-full rounded-xl border border-[#1b3152] bg-[#071426] py-2.5 text-[9px] font-medium text-slate-400 transition hover:text-slate-200"
                 >
-                  Check session again
+                  Session erneut prüfen
                 </button>
               </div>
             )}
 
-            <div className="mt-8 flex items-center justify-between border-t border-slate-100 pt-5 font-mono text-[10px] tracking-[0.12em] text-slate-400 uppercase">
-              <span>Fail-closed security</span>
-              <span>Craftflow Control</span>
+            <div className="mt-5 flex items-center justify-between border-t border-[#142744] pt-4 text-[7px] text-slate-600">
+              <span>Nur für autorisierte Nutzer</span>
+              <span>CRAFTFLOW Control</span>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </main>
   );
