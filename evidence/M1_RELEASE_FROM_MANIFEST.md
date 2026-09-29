@@ -7,7 +7,7 @@
 
 - Release ID: `CRAFTFLOW-M1-1.0.0`
 - Schema: `1.1.0`
-- Manifest status: `BLOCKED`
+- Manifest status: `PASS`
 - Frontend deployed SHA: `8ca8c28d53c68a781af4710d24a8cd50373c1f6a`
 - Frontend release commit: `OPEN`
 - Backend deployed SHA: `60da25e02dd097a611058a206ed704022eb47c38`
@@ -54,8 +54,8 @@
 - cloudflareDirectLiveReadback: `PASS`
 - formalHumanGate: `PASS`
 - evidencePack: `PASS`
-- coordinatedTags: `OPEN`
-- m1ProductionFreeze: `BLOCKED`
+- coordinatedTags: `PASS`
+- m1ProductionFreeze: `PASS`
 
 ## Evidence boundary
 
