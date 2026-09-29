@@ -1,8 +1,8 @@
 {
   "releaseId": "CRAFTFLOW-M1-1.0.0",
   "schemaVersion": "1.1.0",
-  "status": "BLOCKED",
-  "generatedAt": "2026-09-29T22:47:58Z",
+  "status": "PASS",
+  "generatedAt": "2026-09-29T23:30:15Z",
   "sourceOfTruth": true,
   "release": {
     "frontend": {
@@ -57,13 +57,13 @@
     },
     "evidencePack": {
       "path": "evidence/M1_RELEASE_FROM_MANIFEST.md",
-      "sha256": "b70250d22342967aab600d6aabfbf00825bebda201b2dd43a5f3699e425c6369",
+      "sha256": "3a9f190582f1a8ab06bdea82aa05a4605344a1aac2486b5dde5ed7bc583e3370",
       "status": "PASS"
     },
     "tags": {
       "frontend": "craftflow-m1-frontend-v1.0.0",
       "backend": "craftflow-m1-backend-v1.0.0",
-      "status": "OPEN"
+      "status": "PASS"
     }
   },
   "gates": {
@@ -76,7 +76,7 @@
     "cloudflareDirectLiveReadback": "PASS",
     "formalHumanGate": "PASS",
     "evidencePack": "PASS",
-    "coordinatedTags": "OPEN",
-    "m1ProductionFreeze": "BLOCKED"
+    "coordinatedTags": "PASS",
+    "m1ProductionFreeze": "PASS"
   }
 }
