@@ -1,0 +1,258 @@
+name: Post-Deploy Production E2E
+
+on:
+  workflow_run:
+    workflows:
+      - Production Promotion
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: post-deploy-production-e2e
+  cancel-in-progress: false
+
+jobs:
+  production-e2e:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      PRODUCTION_URL: https://control.vantarialabs.tech
+      E2E_BACKEND_URL: https://api.vantarialabs.tech
+      E2E_OWNER_EMAIL: ${{ secrets.E2E_OWNER_EMAIL }}
+      E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
+      E2E_APPROVAL_MODE: AUTOMATED_TEST_APPROVAL
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_WORKER: alpha-frontend-design
+      N8N_TEST_INSTANCE_URL: https://adaptable-gibbon.pikapod.net
+
+    steps:
+      - name: Resolve exact successful promotion
+        id: promotion
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROMOTION_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          jobs_file="$(mktemp)"
+          curl --fail --silent --show-error             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${PROMOTION_RUN_ID}/jobs?filter=latest&per_page=100"             > "$jobs_file"
+
+          job_id="$(jq -er '.jobs[] | select(.name=="promote" and .conclusion=="success") | .id' "$jobs_file" | head -1)"
+          test -n "$job_id" || { echo "::error::Successful promote job not found"; exit 1; }
+
+          log_file="$(mktemp)"
+          curl --fail --location --silent --show-error             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/jobs/${job_id}/logs"             > "$log_file"
+
+          target_sha="$(grep -Eo 'PROMOTION_SHA=[0-9a-f]{40}' "$log_file" | tail -1 | cut -d= -f2)"
+          promoted_version="$(grep -Eo 'Current Version ID: [0-9a-f-]{36}' "$log_file" | tail -1 | awk '{print $4}')"
+
+          test -n "$target_sha" || { echo "::error::PROMOTION_SHA missing from promotion evidence"; exit 1; }
+          test -n "$promoted_version" || { echo "::error::Cloudflare promoted version missing from promotion evidence"; exit 1; }
+
+          echo "target_sha=$target_sha" >> "$GITHUB_OUTPUT"
+          echo "promoted_version=$promoted_version" >> "$GITHUB_OUTPUT"
+          echo "promotion_run_id=$PROMOTION_RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "PROMOTION_CORRELATION=PASS"
+
+      - name: Checkout exact promoted SHA
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.promotion.outputs.target_sha }}
+
+      - name: Verify checkout identity
+        env:
+          TARGET_SHA: ${{ steps.promotion.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          echo "E2E_FRONTEND_SHA=$TARGET_SHA" >> "$GITHUB_ENV"
+          echo "CORRELATION_ID=craftflow-m1-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Require runtime credentials
+        run: |
+          set -euo pipefail
+          test -n "$E2E_OWNER_EMAIL" || { echo "::error::E2E_OWNER_EMAIL secret missing"; exit 1; }
+          test -n "$E2E_OWNER_PASSWORD" || { echo "::error::E2E_OWNER_PASSWORD secret missing"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN secret missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret missing"; exit 1; }
+
+      - name: Cloudflare LIVE readback BEFORE
+        id: cf_before
+        env:
+          EXPECTED_CLOUDFLARE_VERSION: ${{ steps.promotion.outputs.promoted_version }}
+        run: |
+          set -euo pipefail
+          out="$(node scripts/cloudflare-live-readback.mjs)"
+          printf '%s\n' "$out"
+          json="$(printf '%s\n' "$out" | sed -n 's/^CLOUDFLARE_LIVE_READBACK=//p' | tail -1)"
+          version="$(printf '%s' "$json" | jq -er '.activeVersion')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: PikaPods n8n preflight
+        id: preflight
+        run: |
+          set +e
+          node scripts/n8n-preflight.mjs 2>&1 | tee n8n-preflight.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "status=PASS" >> "$GITHUB_OUTPUT"
+          elif [ "$rc" -eq 2 ]; then
+            echo "status=BLOCKED_EXTERNAL" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=FAIL" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+
+      - name: Install pinned browser runner
+        if: ${{ steps.preflight.outputs.status == 'PASS' }}
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install chromium
+
+      - name: Run Production-domain E2E
+        id: e2e
+        if: ${{ steps.preflight.outputs.status == 'PASS' }}
+        env:
+          E2E_PREVIEW_URL: https://control.vantarialabs.tech
+          E2E_BUSINESS_PROMPT: >-
+            Correlation ID ${{ env.CORRELATION_ID }}.
+            Create a minimal n8n workflow that receives a webhook POST with JSON
+            and returns a JSON response containing ok=true.
+            No external services, no credentials, no dynamic URLs.
+        run: |
+          set +e
+          node scripts/real-business-e2e.mjs 2>&1 | tee production-e2e.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          evidence="$(sed -n 's/^REAL_BUSINESS_E2E_EVIDENCE=//p' production-e2e.log | tail -1)"
+          if [ -n "$evidence" ]; then
+            printf '%s' "$evidence" > production-e2e-evidence.json
+          fi
+          if [ "$rc" -eq 0 ] && grep -q '^REAL_E2E_PASS$' production-e2e.log; then
+            echo "status=PASS" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=FAIL" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+
+      - name: Cloudflare LIVE readback AFTER
+        id: cf_after
+        if: ${{ steps.preflight.outputs.status == 'PASS' }}
+        env:
+          EXPECTED_CLOUDFLARE_VERSION: ${{ steps.promotion.outputs.promoted_version }}
+        run: |
+          set -euo pipefail
+          out="$(node scripts/cloudflare-live-readback.mjs)"
+          printf '%s\n' "$out"
+          json="$(printf '%s\n' "$out" | sed -n 's/^CLOUDFLARE_LIVE_READBACK=//p' | tail -1)"
+          version="$(printf '%s' "$json" | jq -er '.activeVersion')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Cloudflare version stability
+        id: cf_stability
+        if: ${{ steps.preflight.outputs.status == 'PASS' }}
+        env:
+          PROMOTED: ${{ steps.promotion.outputs.promoted_version }}
+          BEFORE: ${{ steps.cf_before.outputs.version }}
+          AFTER: ${{ steps.cf_after.outputs.version }}
+        run: |
+          set -euo pipefail
+          test "$BEFORE" = "$PROMOTED" || { echo "::error::CF_BEFORE_PROMOTION_MISMATCH"; exit 1; }
+          test "$AFTER" = "$PROMOTED" || { echo "::error::CF_AFTER_PROMOTION_MISMATCH"; exit 1; }
+          test "$BEFORE" = "$AFTER" || { echo "::error::CF_VERSION_CHANGED_DURING_E2E"; exit 1; }
+          echo "status=PASS" >> "$GITHUB_OUTPUT"
+
+      - name: Build correlated evidence artifact
+        if: ${{ always() }}
+        env:
+          TARGET_SHA: ${{ steps.promotion.outputs.target_sha }}
+          PROMOTION_RUN_ID: ${{ steps.promotion.outputs.promotion_run_id }}
+          PROMOTED_VERSION: ${{ steps.promotion.outputs.promoted_version }}
+          CF_BEFORE: ${{ steps.cf_before.outputs.version }}
+          CF_AFTER: ${{ steps.cf_after.outputs.version }}
+          PREFLIGHT_STATUS: ${{ steps.preflight.outputs.status }}
+          E2E_STATUS: ${{ steps.e2e.outputs.status }}
+          CF_STABILITY: ${{ steps.cf_stability.outputs.status }}
+        run: |
+          set -euo pipefail
+          mkdir -p post-deploy-evidence
+          if [ "${PREFLIGHT_STATUS:-}" = "BLOCKED_EXTERNAL" ]; then
+            result="BLOCKED_EXTERNAL"
+          elif [ "${PREFLIGHT_STATUS:-}" != "PASS" ]; then
+            result="FAIL"
+          elif [ "${E2E_STATUS:-}" != "PASS" ]; then
+            result="FAIL"
+          elif [ "${CF_STABILITY:-}" != "PASS" ]; then
+            result="FAIL"
+          else
+            result="PASS"
+          fi
+
+          e2e_json=null
+          if [ -s production-e2e-evidence.json ]; then
+            e2e_json="$(cat production-e2e-evidence.json)"
+          fi
+
+          jq -n             --arg status "$result"             --arg workflowRunId "${{ github.run_id }}"             --arg workflowRunAttempt "${{ github.run_attempt }}"             --arg promotionRunId "${PROMOTION_RUN_ID:-}"             --arg correlationId "${CORRELATION_ID:-}"             --arg targetSha "${TARGET_SHA:-}"             --arg promotedVersion "${PROMOTED_VERSION:-}"             --arg cfBefore "${CF_BEFORE:-}"             --arg cfAfter "${CF_AFTER:-}"             --arg preflight "${PREFLIGHT_STATUS:-}"             --arg approvalMode "AUTOMATED_TEST_APPROVAL"             --argjson e2e "$e2e_json"             '{
+              schema: 1,
+              status: $status,
+              workflow_run_id: $workflowRunId,
+              workflow_run_attempt: $workflowRunAttempt,
+              promotion_run_id: $promotionRunId,
+              correlation_id: $correlationId,
+              frontend_deployed_sha: $targetSha,
+              approval_mode: $approvalMode,
+              cloudflare: {
+                promoted_version: $promotedVersion,
+                version_before: $cfBefore,
+                version_after: $cfAfter,
+                stable: ($cfBefore != "" and $cfBefore == $cfAfter and $cfBefore == $promotedVersion)
+              },
+              preflight_status: $preflight,
+              e2e: $e2e
+            }' > post-deploy-evidence/result.json
+
+          cp n8n-preflight.log post-deploy-evidence/ 2>/dev/null || true
+          cp production-e2e.log post-deploy-evidence/ 2>/dev/null || true
+          cat post-deploy-evidence/result.json
+
+      - name: Upload correlated evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-deploy-production-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          path: post-deploy-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce release-gate outcome
+        if: ${{ always() }}
+        env:
+          PREFLIGHT_STATUS: ${{ steps.preflight.outputs.status }}
+          E2E_STATUS: ${{ steps.e2e.outputs.status }}
+          CF_STABILITY: ${{ steps.cf_stability.outputs.status }}
+        run: |
+          if [ "${PREFLIGHT_STATUS:-}" = "BLOCKED_EXTERNAL" ]; then
+            echo "::error::BLOCKED_EXTERNAL — see docs/runbooks/pikapods-outage.md"
+            exit 2
+          fi
+          test "${PREFLIGHT_STATUS:-}" = "PASS" || exit 1
+          test "${E2E_STATUS:-}" = "PASS" || exit 1
+          test "${CF_STABILITY:-}" = "PASS" || exit 1
+          echo "POST_DEPLOY_PRODUCTION_E2E=PASS"
