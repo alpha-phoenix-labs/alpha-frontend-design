@@ -1,0 +1,87 @@
+name: Post-Deploy Production Gate
+
+on:
+  workflow_run:
+    workflows:
+      - Production Promotion
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: post-deploy-production-gate
+  cancel-in-progress: false
+
+jobs:
+  production-gate:
+    if: ${{ github.event.workflow_run.event == 'workflow_run' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+      E2E_FRONTEND_SHA: ${{ github.event.workflow_run.head_sha }}
+      E2E_PREVIEW_URL: https://control.vantarialabs.tech
+      E2E_BACKEND_URL: https://api.vantarialabs.tech
+      E2E_APPROVAL_MODE: AUTOMATED_TEST_APPROVAL
+      E2E_OWNER_EMAIL: ${{ secrets.E2E_OWNER_EMAIL }}
+      E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Checkout exact promoted SHA
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TARGET_SHA }}
+
+      - name: Verify exact release identity
+        run: test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: PikaPods n8n preflight
+        run: node scripts/n8n-preflight.mjs | tee n8n-preflight.log
+
+      - name: Install pinned browser runner
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install chromium
+
+      - name: Cloudflare LIVE readback before E2E
+        run: node scripts/cloudflare-live-readback.mjs | tee cloudflare-before.log
+
+      - name: Run production-domain E2E
+        run: node scripts/real-business-e2e.mjs | tee production-e2e.log
+
+      - name: Cloudflare LIVE readback after E2E
+        run: node scripts/cloudflare-live-readback.mjs | tee cloudflare-after.log
+
+      - name: Enforce same active Cloudflare version before and after E2E
+        run: |
+          BEFORE="$(sed -n 's/^CLOUDFLARE_LIVE_READBACK=//p' cloudflare-before.log | tail -1)"
+          AFTER="$(sed -n 's/^CLOUDFLARE_LIVE_READBACK=//p' cloudflare-after.log | tail -1)"
+          test -n "$BEFORE"
+          test -n "$AFTER"
+          node -e 'const a=JSON.parse(process.argv[1]),b=JSON.parse(process.argv[2]);if(a.activeVersion!==b.activeVersion)process.exit(1);console.log("CLOUDFLARE_VERSION_STABLE="+a.activeVersion)' "$BEFORE" "$AFTER"
+
+      - name: Upload correlated post-deploy evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: m1-post-deploy-${{ env.TARGET_SHA }}
+          path: |
+            n8n-preflight.log
+            cloudflare-before.log
+            production-e2e.log
+            cloudflare-after.log
+          if-no-files-found: error
+          retention-days: 30
