@@ -1,0 +1,51 @@
+name: TEMP M1 Blocked Diagnostic
+
+on:
+  push:
+    branches:
+      - test/m1-blocked-diagnostic-94cc499-20260929
+    paths:
+      - .github/workflows/m1-blocked-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_FACTORY_MODE: http
+      VITE_FACTORY_API_BASE_URL: https://api.vantarialabs.tech
+      E2E_BACKEND_URL: https://api.vantarialabs.tech
+      E2E_OWNER_EMAIL: ${{ secrets.E2E_OWNER_EMAIL }}
+      E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
+      E2E_FRONTEND_SHA: 94cc499c241f383d64d125cda9598db2ebc00fec
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - id: upload
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.141.0"
+          command: versions upload
+      - id: preview
+        env:
+          WRANGLER_OUTPUT: ${{ steps.upload.outputs.command-output }}
+        run: |
+          URL="$(printf '%s\n' "$WRANGLER_OUTPUT" | sed -n 's/.*Version Preview URL: \(https:\/\/[^ ]*\).*/\1/p' | tail -1)"
+          test -n "$URL"
+          echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
+      - run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install chromium
+      - env:
+          E2E_PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
+        run: node scripts/real-business-e2e.mjs
