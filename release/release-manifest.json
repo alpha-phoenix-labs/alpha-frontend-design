@@ -2,7 +2,7 @@
   "releaseId": "CRAFTFLOW-M1-1.0.0",
   "schemaVersion": "1.1.0",
   "status": "BLOCKED",
-  "generatedAt": "2026-09-29T22:39:28Z",
+  "generatedAt": "2026-09-29T22:47:58Z",
   "sourceOfTruth": true,
   "release": {
     "frontend": {
@@ -45,9 +45,9 @@
       "artifactDigest": "sha256:c30edef4a98898468e1e39617c4e0575a22d15dc760819ae4e0635dcc7830882"
     },
     "humanGate": {
-      "recordPath": null,
-      "sha256": null,
-      "status": "NOT_PROVEN"
+      "recordPath": "evidence/CRAFTFLOW_M1_HUMAN_GATE_2026-09-30.md",
+      "sha256": "6a6deaa02e583274c21554f68637227536adc72daf49a738d525daae22853995",
+      "status": "PASS"
     },
     "governance": {
       "id": "M1-GOV-001",
@@ -57,8 +57,8 @@
     },
     "evidencePack": {
       "path": "evidence/M1_RELEASE_FROM_MANIFEST.md",
-      "sha256": null,
-      "status": "DRAFT"
+      "sha256": "b70250d22342967aab600d6aabfbf00825bebda201b2dd43a5f3699e425c6369",
+      "status": "PASS"
     },
     "tags": {
       "frontend": "craftflow-m1-frontend-v1.0.0",
@@ -74,8 +74,8 @@
     "postDeployProductionGate": "PASS",
     "productionDomainE2E": "PASS",
     "cloudflareDirectLiveReadback": "PASS",
-    "formalHumanGate": "NOT_PROVEN",
-    "evidencePack": "DRAFT",
+    "formalHumanGate": "PASS",
+    "evidencePack": "PASS",
     "coordinatedTags": "OPEN",
     "m1ProductionFreeze": "BLOCKED"
   }
