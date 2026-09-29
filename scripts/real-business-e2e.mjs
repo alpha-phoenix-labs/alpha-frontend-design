@@ -18,6 +18,7 @@ const evidence = {
   phase: 'initialization',
   jobId: null,
   submittedStatus: null,
+  errorMessage: null,
   waitingForApproval: false,
   approvalVersion: null,
   n8n: { pass: false, executionId: null, importedId: null },
@@ -78,6 +79,7 @@ try {
   if (!createResponse.ok() || typeof created?.jobId !== 'string') fail('BUSINESS_E2E_CREATE_FAILED');
   evidence.jobId = created.jobId;
   evidence.submittedStatus = created.status ?? null;
+  evidence.errorMessage = created.errorMessage ?? null;
 
   if (created.status === 'WAITING_FOR_USER') {
     fail('BUSINESS_E2E_UNEXPECTED_CLARIFICATION');
