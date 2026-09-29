@@ -20,6 +20,7 @@ const evidence = {
   submittedStatus: null,
   waitingForApproval: false,
   approvalVersion: null,
+  approvalMode: process.env.E2E_APPROVAL_MODE?.trim() || 'AUTOMATED_TEST_APPROVAL',
   n8n: { pass: false, executionId: null, importedId: null },
   completed: false,
   drive: {
@@ -114,7 +115,7 @@ try {
   if (!versionMatch) fail('BUSINESS_E2E_APPROVAL_VERSION_MISSING');
   evidence.approvalVersion = Number(versionMatch[1]);
 
-  evidence.phase = 'human-approval-via-frontend';
+  evidence.phase = 'approval-via-frontend';
   const approvalResponsePromise = page.waitForResponse(
     (response) => response.url() === `${backendUrl}/api/orchestrator/approve` &&
       response.request().method() === 'POST',
