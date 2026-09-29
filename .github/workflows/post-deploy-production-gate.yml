@@ -207,7 +207,14 @@ jobs:
             e2e_json="$(cat production-e2e-evidence.json)"
           fi
 
-          jq -n             --arg status "$result"             --arg workflowRunId "${{ github.run_id }}"             --arg workflowRunAttempt "${{ github.run_attempt }}"             --arg promotionRunId "${PROMOTION_RUN_ID:-}"             --arg correlationId "${CORRELATION_ID:-}"             --arg targetSha "${TARGET_SHA:-}"             --arg promotedVersion "${PROMOTED_VERSION:-}"             --arg cfBefore "${CF_BEFORE:-}"             --arg cfAfter "${CF_AFTER:-}"             --arg preflight "${PREFLIGHT_STATUS:-}"             --arg approvalMode "AUTOMATED_TEST_APPROVAL"             --argjson e2e "$e2e_json"             '{
+          test_target_host="${E2E_PREVIEW_URL#*://}"
+          test_target_host="${test_target_host%%/*}"
+          test -n "$test_target_host" || { echo "::error::E2E target host missing"; exit 1; }
+          case "$test_target_host" in
+            *.workers.dev) echo "::error::Preview host is not a production evidence target"; exit 1 ;;
+          esac
+
+          jq -n             --arg status "$result"             --arg workflowRunId "${{ github.run_id }}"             --arg workflowRunAttempt "${{ github.run_attempt }}"             --arg promotionRunId "${PROMOTION_RUN_ID:-}"             --arg correlationId "${CORRELATION_ID:-}"             --arg targetSha "${TARGET_SHA:-}"             --arg promotedVersion "${PROMOTED_VERSION:-}"             --arg cfBefore "${CF_BEFORE:-}"             --arg cfAfter "${CF_AFTER:-}"             --arg preflight "${PREFLIGHT_STATUS:-}"             --arg approvalMode "AUTOMATED_TEST_APPROVAL"             --arg testTargetHost "$test_target_host"             --argjson e2e "$e2e_json"             '{
               schema: 1,
               status: $status,
               workflow_run_id: $workflowRunId,
@@ -215,6 +222,7 @@ jobs:
               promotion_run_id: $promotionRunId,
               correlation_id: $correlationId,
               frontend_deployed_sha: $targetSha,
+              test_target_host: $testTargetHost,
               approval_mode: $approvalMode,
               cloudflare: {
                 promoted_version: $promotedVersion,

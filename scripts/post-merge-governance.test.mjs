@@ -53,6 +53,11 @@ function validatePostDeploy(text) {
   assert.match(text, /github\.event\.workflow_run\.head_branch == 'main'/);
   assert.match(text, /github\.event\.workflow_run\.conclusion == 'success'/);
   assert.match(text, /E2E_PREVIEW_URL: https:\/\/control\.vantarialabs\.tech/, 'must test production domain');
+  assert.match(text, /test_target_host="\$\{E2E_PREVIEW_URL#\*:\/\/\}"/, 'evidence target host must derive from E2E_PREVIEW_URL');
+  assert.match(text, /test -n "\$test_target_host"/, 'evidence target host must be non-empty');
+  assert.match(text, /\*\.workers\.dev\) echo "::error::Preview host is not a production evidence target"; exit 1 ;;/, 'preview host must be rejected');
+  assert.match(text, /--arg testTargetHost "\$test_target_host"/, 'target host must be passed into result JSON');
+  assert.match(text, /test_target_host: \$testTargetHost/, 'result JSON must contain target host');
   assert.match(text, /E2E_APPROVAL_MODE: AUTOMATED_TEST_APPROVAL/, 'automated approval must never be mislabeled human');
   assert.match(text, /node scripts\/n8n-preflight\.mjs/, 'n8n preflight required');
   assert.equal((text.match(/node scripts\/cloudflare-live-readback\.mjs/g)||[]).length, 2, 'Cloudflare readback required before and after E2E');
