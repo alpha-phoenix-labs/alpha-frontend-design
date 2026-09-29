@@ -30,6 +30,8 @@ jobs:
       E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROMOTION_RUN_ID: ${{ github.event.workflow_run.id }}
+      GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout exact promoted SHA
@@ -57,6 +59,14 @@ jobs:
           npm install --no-save --ignore-scripts playwright@1.55.0
           npx playwright install chromium
 
+      - name: Resolve immutable version from successful promotion log
+        run: |
+          gh run view "$PROMOTION_RUN_ID" --repo "$GITHUB_REPOSITORY" --log > promotion.log
+          VERSION="$(sed -n 's/.*Current Version ID: \([0-9a-f-][0-9a-f-]*\).*/\1/p' promotion.log | tail -1)"
+          test -n "$VERSION"
+          echo "EXPECTED_CLOUDFLARE_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "PROMOTED_CLOUDFLARE_VERSION=$VERSION"
+
       - name: Cloudflare LIVE readback before E2E
         run: node scripts/cloudflare-live-readback.mjs | tee cloudflare-before.log
 
@@ -79,6 +89,7 @@ jobs:
         with:
           name: m1-post-deploy-${{ env.TARGET_SHA }}
           path: |
+            promotion.log
             n8n-preflight.log
             cloudflare-before.log
             production-e2e.log
