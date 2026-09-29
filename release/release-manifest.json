@@ -1,39 +1,48 @@
 {
   "releaseId": "CRAFTFLOW-M1-1.0.0",
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "status": "BLOCKED",
+  "generatedAt": "2026-09-29T22:39:28Z",
   "sourceOfTruth": true,
   "release": {
     "frontend": {
       "repository": "alpha-phoenix-labs/alpha-frontend-design",
-      "sha": "94cc499c241f383d64d125cda9598db2ebc00fec",
-      "productionDomain": "https://control.vantarialabs.tech"
+      "sha": "8ca8c28d53c68a781af4710d24a8cd50373c1f6a",
+      "productionDomain": "https://control.vantarialabs.tech",
+      "deployedSha": "8ca8c28d53c68a781af4710d24a8cd50373c1f6a",
+      "releaseCommit": null
     },
     "backend": {
       "repository": "alpha-phoenix-labs/n8n-workflow-factory",
       "sha": "60da25e02dd097a611058a206ed704022eb47c38",
       "serviceId": "srv-daqk0sp7lnhs73d9nr7g",
       "renderDeployId": "dep-dau23arrjlhs73cc13k0",
-      "productionUrl": "https://api.vantarialabs.tech"
+      "productionUrl": "https://api.vantarialabs.tech",
+      "deployedSha": "60da25e02dd097a611058a206ed704022eb47c38",
+      "releaseCommit": null
     },
     "runtimeBackendPin": "60da25e02dd097a611058a206ed704022eb47c38",
     "cloudflare": {
-      "promotionRunId": 36630348187,
-      "versionId": "03279c5f-7a95-41ae-b6d7-79b715f31627",
-      "preE2EVersionId": null,
-      "postE2EVersionId": null,
-      "directLiveReadback": "NOT_PROVEN"
+      "promotionRunId": 36640691870,
+      "versionId": "16bc24fd-d784-4292-9ced-8057901b5489",
+      "directLiveReadback": "PASS",
+      "preE2EVersionId": "16bc24fd-d784-4292-9ced-8057901b5489",
+      "postE2EVersionId": "16bc24fd-d784-4292-9ced-8057901b5489"
     },
     "productionE2E": {
-      "runId": null,
-      "jobId": null,
-      "status": "NOT_PROVEN",
+      "runId": 36640752286,
+      "jobId": "cmun9dco4000713vmm204gj8l",
+      "status": "PASS",
       "approvalMode": "AUTOMATED_TEST_APPROVAL",
-      "approvalVersion": null,
-      "n8nImportedId": null,
-      "n8nExecutionId": null,
-      "driveStatus": null,
-      "persistedReportMatches": null
+      "approvalVersion": 11,
+      "n8nImportedId": "B3AAGdSdABVK8oAC",
+      "n8nExecutionId": "29",
+      "driveStatus": "COMPLETE",
+      "persistedReportMatches": true,
+      "correlationId": "craftflow-m1-36640752286-1",
+      "testTargetHost": "control.vantarialabs.tech",
+      "artifactId": 11066556636,
+      "artifactDigest": "sha256:c30edef4a98898468e1e39617c4e0575a22d15dc760819ae4e0635dcc7830882"
     },
     "humanGate": {
       "recordPath": null,
@@ -43,7 +52,7 @@
     "governance": {
       "id": "M1-GOV-001",
       "version": "1.1.0",
-      "status": "APPROVED_PENDING_RELEASE_EVIDENCE",
+      "status": "APPROVED",
       "supersedes": "1.0.0"
     },
     "evidencePack": {
@@ -62,9 +71,9 @@
     "backendMainRenderLive": "PASS",
     "runtimePin": "PASS",
     "productionPromotion": "PASS",
-    "postDeployProductionGate": "PENDING_MERGE",
-    "productionDomainE2E": "NOT_PROVEN",
-    "cloudflareDirectLiveReadback": "NOT_PROVEN",
+    "postDeployProductionGate": "PASS",
+    "productionDomainE2E": "PASS",
+    "cloudflareDirectLiveReadback": "PASS",
     "formalHumanGate": "NOT_PROVEN",
     "evidencePack": "DRAFT",
     "coordinatedTags": "OPEN",
