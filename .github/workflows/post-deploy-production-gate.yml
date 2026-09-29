@@ -96,7 +96,7 @@ jobs:
         id: cf_before
         run: |
           set -euo pipefail
-          out="$(node scripts/cloudflare-live-readback.mjs)"
+          out="$(node scripts/cloudflare-live-readback.mjs | tee cloudflare-before.log)"
           printf '%s\n' "$out"
           json="$(printf '%s\n' "$out" | sed -n 's/^CLOUDFLARE_LIVE_READBACK=//p' | tail -1)"
           version="$(printf '%s' "$json" | jq -er '.activeVersion')"
@@ -154,7 +154,7 @@ jobs:
         if: ${{ steps.preflight.outputs.status == 'PASS' }}
         run: |
           set -euo pipefail
-          out="$(node scripts/cloudflare-live-readback.mjs)"
+          out="$(node scripts/cloudflare-live-readback.mjs | tee cloudflare-after.log)"
           printf '%s\n' "$out"
           json="$(printf '%s\n' "$out" | sed -n 's/^CLOUDFLARE_LIVE_READBACK=//p' | tail -1)"
           version="$(printf '%s' "$json" | jq -er '.activeVersion')"
@@ -225,8 +225,10 @@ jobs:
               e2e: $e2e
             }' > post-deploy-evidence/result.json
 
+          cp cloudflare-before.log post-deploy-evidence/ 2>/dev/null || true
           cp n8n-preflight.log post-deploy-evidence/ 2>/dev/null || true
           cp production-e2e.log post-deploy-evidence/ 2>/dev/null || true
+          cp cloudflare-after.log post-deploy-evidence/ 2>/dev/null || true
           cat post-deploy-evidence/result.json
 
       - name: Upload correlated post-deploy evidence
