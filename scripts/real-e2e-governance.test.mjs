@@ -14,6 +14,20 @@ test('PR validation and main business E2E are distinct', () => {
   assert.match(workflow, /github\.ref == 'refs\/heads\/main'/);
 });
 
+test('main push ignores only release evidence paths while PR trigger stays unfiltered', () => {
+  const trigger = workflow.split('\npermissions:')[0];
+  const prBlock = trigger.match(/\n  pull_request:\n([\s\S]*?)\n  push:/)?.[1] ?? '';
+  const pushBlock = trigger.match(/\n  push:\n([\s\S]*?)\n  workflow_dispatch:/)?.[1] ?? '';
+  assert.doesNotMatch(prBlock, /paths-ignore:/, 'pull-request trigger must remain unfiltered');
+  assert.match(pushBlock, /paths-ignore:/, 'main push must declare paths-ignore');
+  const ignored = pushBlock
+    .split('paths-ignore:\n')[1]
+    .split('\n')
+    .filter((line) => /^\s+- /.test(line))
+    .map((line) => line.trim().slice(2));
+  assert.deepEqual(ignored, ['evidence/**', 'release/**']);
+});
+
 test('main real-e2e runs the full business script only after a real preview build', () => {
   assert.match(workflow, /command: versions upload/);
   assert.match(workflow, /Run full real business E2E through Google Drive COMPLETE/);
