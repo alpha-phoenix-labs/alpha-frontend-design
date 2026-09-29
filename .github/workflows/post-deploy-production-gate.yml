@@ -155,6 +155,7 @@ jobs:
         run: |
           set -euo pipefail
           out="$(node scripts/cloudflare-live-readback.mjs | tee cloudflare-after.log)"
+          test -s cloudflare-after.log
           printf '%s\n' "$out"
           json="$(printf '%s\n' "$out" | sed -n 's/^CLOUDFLARE_LIVE_READBACK=//p' | tail -1)"
           version="$(printf '%s' "$json" | jq -er '.activeVersion')"
