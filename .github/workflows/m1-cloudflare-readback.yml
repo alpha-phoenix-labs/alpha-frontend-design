@@ -1,0 +1,35 @@
+name: TEMP M1 Cloudflare Readback
+
+on:
+  push:
+    branches:
+      - test/production-e2e-3d4c0f-20260929
+    paths:
+      - .github/workflows/m1-cloudflare-readback.yml
+
+permissions:
+  contents: read
+
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Direct Cloudflare Workers deployment readback
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WORKER: alpha-frontend-design
+          EXPECTED_VERSION: fb3665e7-d968-43b3-ba79-8f45df0b4779
+        run: |
+          set -euo pipefail
+          test -n "$CF_TOKEN"
+          test -n "$CF_ACCOUNT"
+          url="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/$WORKER/deployments"
+          body="$(curl --fail-with-body -sS -H "Authorization: Bearer $CF_TOKEN" -H "Accept: application/json" "$url")"
+          echo "$body" | jq -e '.success == true' >/dev/null
+          echo "CLOUDFLARE_READBACK_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "CLOUDFLARE_ENDPOINT=/client/v4/accounts/<redacted>/workers/scripts/$WORKER/deployments"
+          echo "CLOUDFLARE_EXPECTED_VERSION=$EXPECTED_VERSION"
+          echo "CLOUDFLARE_SANITIZED_RESPONSE_BEGIN"
+          echo "$body" | jq -c '{success,errors,messages,result}'
+          echo "CLOUDFLARE_SANITIZED_RESPONSE_END"
