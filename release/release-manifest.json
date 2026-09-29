@@ -1,0 +1,73 @@
+{
+  "releaseId": "CRAFTFLOW-M1-1.0.0",
+  "schemaVersion": "1.0.0",
+  "status": "BLOCKED",
+  "sourceOfTruth": true,
+  "release": {
+    "frontend": {
+      "repository": "alpha-phoenix-labs/alpha-frontend-design",
+      "sha": "94cc499c241f383d64d125cda9598db2ebc00fec",
+      "productionDomain": "https://control.vantarialabs.tech"
+    },
+    "backend": {
+      "repository": "alpha-phoenix-labs/n8n-workflow-factory",
+      "sha": "60da25e02dd097a611058a206ed704022eb47c38",
+      "serviceId": "srv-daqk0sp7lnhs73d9nr7g",
+      "renderDeployId": "dep-dau23arrjlhs73cc13k0",
+      "productionUrl": "https://api.vantarialabs.tech"
+    },
+    "runtimeBackendPin": "60da25e02dd097a611058a206ed704022eb47c38",
+    "cloudflare": {
+      "promotionRunId": 36630348187,
+      "versionId": "03279c5f-7a95-41ae-b6d7-79b715f31627",
+      "preE2EVersionId": null,
+      "postE2EVersionId": null,
+      "directLiveReadback": "NOT_PROVEN"
+    },
+    "productionE2E": {
+      "runId": null,
+      "jobId": null,
+      "status": "NOT_PROVEN",
+      "approvalMode": "AUTOMATED_TEST_APPROVAL",
+      "approvalVersion": null,
+      "n8nImportedId": null,
+      "n8nExecutionId": null,
+      "driveStatus": null,
+      "persistedReportMatches": null
+    },
+    "humanGate": {
+      "recordPath": null,
+      "sha256": null,
+      "status": "NOT_PROVEN"
+    },
+    "governance": {
+      "id": "M1-GOV-001",
+      "version": "1.1.0",
+      "status": "APPROVED_PENDING_RELEASE_EVIDENCE",
+      "supersedes": "1.0.0"
+    },
+    "evidencePack": {
+      "path": "evidence/M1_RELEASE_FROM_MANIFEST.md",
+      "sha256": null,
+      "status": "DRAFT"
+    },
+    "tags": {
+      "frontend": "craftflow-m1-frontend-v1.0.0",
+      "backend": "craftflow-m1-backend-v1.0.0",
+      "status": "OPEN"
+    }
+  },
+  "gates": {
+    "frontendMain": "PASS",
+    "backendMainRenderLive": "PASS",
+    "runtimePin": "PASS",
+    "productionPromotion": "PASS",
+    "postDeployProductionGate": "PENDING_MERGE",
+    "productionDomainE2E": "NOT_PROVEN",
+    "cloudflareDirectLiveReadback": "NOT_PROVEN",
+    "formalHumanGate": "NOT_PROVEN",
+    "evidencePack": "DRAFT",
+    "coordinatedTags": "OPEN",
+    "m1ProductionFreeze": "BLOCKED"
+  }
+}
