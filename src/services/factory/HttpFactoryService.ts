@@ -65,15 +65,33 @@ function jobIdOf(value: unknown): string | undefined {
 function httpErrorCode(status: number): string {
   if (status === 400) return 'VALIDATION';
   if (status === 401) return 'UNAUTHORIZED';
+  if (status === 403) return 'FORBIDDEN';
   if (status === 404) return 'NOT_FOUND';
   if (status === 409) return 'VERSION_CONFLICT';
+  if (status === 429) return 'RATE_LIMITED';
   if (status >= 500) return 'SERVER';
   return 'HTTP_ERROR';
 }
 
-/** Extracts a readable message from a plain-text or JSON `{ error }` error body. */
-function errorMessageOf(text: string, status: number): string {
+/** Longest error body text shown to the user; longer bodies are cut. */
+const MAX_ERROR_MESSAGE_LENGTH = 300;
+
+/**
+ * Extracts a readable message from a plain-text or JSON `{ error }` error body.
+ * HTML error pages (e.g. a proxy 502) are never shown raw; 429 names the Retry-After wait.
+ */
+function errorMessageOf(text: string, status: number, headers: Headers): string {
+  if (status === 429) {
+    const retryAfter = Number(headers.get('retry-after'));
+    return Number.isInteger(retryAfter) && retryAfter > 0
+      ? `Zu viele Anfragen. Bitte in ${retryAfter} s erneut versuchen.`
+      : 'Zu viele Anfragen. Bitte später erneut versuchen.';
+  }
   const trimmed = text.trim();
+  const mime = (headers.get('content-type') ?? '').split(';', 1)[0]?.trim().toLowerCase() ?? '';
+  if (mime === 'text/html' || trimmed.startsWith('<')) {
+    return status >= 500 ? `HTTP ${status}: Dienst vorübergehend nicht erreichbar.` : `HTTP ${status}`;
+  }
   if (trimmed.startsWith('{')) {
     try {
       const parsed: unknown = JSON.parse(trimmed);
@@ -84,7 +102,8 @@ function errorMessageOf(text: string, status: number): string {
       // Fall through to the raw text.
     }
   }
-  return trimmed === '' ? `HTTP ${status}` : trimmed;
+  if (trimmed === '') return `HTTP ${status}`;
+  return trimmed.length > MAX_ERROR_MESSAGE_LENGTH ? `${trimmed.slice(0, MAX_ERROR_MESSAGE_LENGTH)}…` : trimmed;
 }
 
 /** Factory service backed by the orchestrator HTTP API. Never throws; concurrent reads of a job share one GET. */
@@ -299,7 +318,7 @@ export class HttpFactoryService implements FactoryService {
             kind: 'http',
             httpStatus: response.status,
             code: httpErrorCode(response.status),
-            message: errorMessageOf(text, response.status),
+            message: errorMessageOf(text, response.status, response.headers),
           },
           mutationUnconfirmed: method === 'POST' && response.status >= 500,
         };

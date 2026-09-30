@@ -354,7 +354,9 @@ describe('HttpFactoryService', () => {
   it.each([
     [400, 'VALIDATION'],
     [401, 'UNAUTHORIZED'],
+    [403, 'FORBIDDEN'],
     [404, 'NOT_FOUND'],
+    [418, 'HTTP_ERROR'],
     [500, 'SERVER'],
     [503, 'SERVER'],
   ])('maps HTTP %i to code %s', async (status, code) => {
@@ -363,6 +365,44 @@ describe('HttpFactoryService', () => {
       ok: false,
       error: { kind: 'http', httpStatus: status, code, message: 'Fehlertext' },
     });
+  });
+
+  it('maps 429 to RATE_LIMITED and names the Retry-After wait', async () => {
+    const limited = (retryAfter?: string) => () =>
+      new Response(JSON.stringify({ error: 'RATE_LIMITED' }), {
+        status: 429,
+        headers: retryAfter === undefined ? { 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json', 'Retry-After': retryAfter },
+      });
+    const { fetch } = fakeFetch(limited('17'), limited(), limited('soon'));
+    const svc = service(fetch);
+    expect(await svc.getJobStatus('job-1')).toEqual({
+      ok: false,
+      error: { kind: 'http', httpStatus: 429, code: 'RATE_LIMITED', message: 'Zu viele Anfragen. Bitte in 17 s erneut versuchen.' },
+    });
+    expect(await svc.getJobStatus('job-1')).toMatchObject({ error: { code: 'RATE_LIMITED', message: 'Zu viele Anfragen. Bitte später erneut versuchen.' } });
+    expect(await svc.getJobStatus('job-1')).toMatchObject({ error: { code: 'RATE_LIMITED', message: 'Zu viele Anfragen. Bitte später erneut versuchen.' } });
+  });
+
+  it('never shows a raw HTML error page', async () => {
+    const page = '<!DOCTYPE html><html><body><h1>502 Bad Gateway</h1><script>x()</script></body></html>';
+    const { fetch } = fakeFetch(
+      () => new Response(page, { status: 502, headers: { 'Content-Type': 'text/html; charset=utf-8' } }),
+      () => new Response(page, { status: 503 }),
+      () => new Response(page, { status: 404, headers: { 'Content-Type': 'text/html' } }),
+    );
+    const svc = service(fetch);
+    expect(await svc.getJobStatus('job-1')).toEqual({
+      ok: false,
+      error: { kind: 'http', httpStatus: 502, code: 'SERVER', message: 'HTTP 502: Dienst vorübergehend nicht erreichbar.' },
+    });
+    expect(await svc.getJobStatus('job-1')).toMatchObject({ error: { code: 'SERVER', message: 'HTTP 503: Dienst vorübergehend nicht erreichbar.' } });
+    expect(await svc.getJobStatus('job-1')).toMatchObject({ error: { code: 'NOT_FOUND', message: 'HTTP 404' } });
+  });
+
+  it('cuts overlong plain-text error bodies', async () => {
+    const { fetch } = fakeFetch(() => text('x'.repeat(500), 500));
+    const result = await service(fetch).getJobStatus('job-1');
+    expect(result).toMatchObject({ ok: false, error: { code: 'SERVER', message: `${'x'.repeat(300)}…` } });
   });
 
   it('uses the JSON error message of a 500', async () => {
