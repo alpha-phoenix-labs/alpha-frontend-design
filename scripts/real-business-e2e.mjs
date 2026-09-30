@@ -13,8 +13,14 @@ const password = required('E2E_OWNER_PASSWORD');
 const prompt = process.env.E2E_BUSINESS_PROMPT?.trim() ||
   'Create a minimal n8n workflow that receives a webhook POST with JSON and returns a JSON response containing ok=true. No external services, no credentials, no dynamic URLs.';
 
+// R-05: every run carries a correlationId so the backend can remove exactly this run's test artifacts.
+const correlationId = process.env.CORRELATION_ID?.trim() ||
+  `craftflow-e2e-${process.env.GITHUB_RUN_ID ?? 'local'}-${process.env.GITHUB_RUN_ATTEMPT ?? '1'}-${Date.now()}`;
+const keepArtifacts = process.env.E2E_KEEP_ARTIFACTS?.trim() === 'true';
+
 const evidence = {
   frontendSha: process.env.E2E_FRONTEND_SHA ?? null,
+  correlationId,
   phase: 'initialization',
   jobId: null,
   submittedStatus: null,
@@ -32,6 +38,7 @@ const evidence = {
     documentationFileId: null,
     persistedReportMatches: false,
   },
+  cleanup: { marked: false, status: 'NOT_RUN', reason: null, n8n: null, drive: null },
 };
 
 const browser = await chromium.launch({ headless: true });
@@ -44,6 +51,17 @@ const jsonOf = async (response) => {
 };
 const nonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
 const driveArtifactId = (value) => typeof value === 'string' && /^[a-zA-Z0-9_-]{6,}$/.test(value);
+const backendPost = (path, body) => page.evaluate(async ({ url, body }) => {
+  const response = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  });
+  let json = null;
+  try { json = await response.json(); } catch {}
+  return { status: response.status, body: json };
+}, { url: `${backendUrl}${path}`, body });
 
 try {
   evidence.phase = 'frontend-auth-gate';
@@ -79,6 +97,16 @@ try {
   if (!createResponse.ok() || typeof created?.jobId !== 'string') fail('BUSINESS_E2E_CREATE_FAILED');
   evidence.jobId = created.jobId;
   evidence.submittedStatus = created.status ?? null;
+
+  evidence.phase = 'test-mark';
+  try {
+    const marked = await backendPost('/api/orchestrator/test-mark', { jobId: evidence.jobId, correlationId });
+    evidence.cleanup.marked = marked.status === 200 &&
+      (marked.body?.status === 'MARKED' || marked.body?.status === 'ALREADY_MARKED');
+    if (!evidence.cleanup.marked) evidence.cleanup.reason = `TEST_MARK_HTTP_${marked.status}`;
+  } catch {
+    evidence.cleanup.reason = 'TEST_MARK_REQUEST_FAILED';
+  }
 
   if (created.status === 'WAITING_FOR_USER') {
     fail('BUSINESS_E2E_UNEXPECTED_CLARIFICATION');
@@ -179,5 +207,26 @@ try {
   console.error('::error::' + (error instanceof Error ? error.message : 'REAL_BUSINESS_E2E_FAIL'));
   process.exitCode = 1;
 } finally {
+  // R-05: cleanup is reported separately and never turns a failed run into PASS or a passed run into FAIL.
+  if (evidence.jobId && evidence.cleanup.marked && !keepArtifacts) {
+    try {
+      const cleaned = await backendPost('/api/orchestrator/test-cleanup', { jobId: evidence.jobId, correlationId });
+      evidence.cleanup.status = cleaned.body?.status ?? `TEST_CLEANUP_HTTP_${cleaned.status}`;
+      evidence.cleanup.reason = cleaned.body?.reason ?? null;
+      evidence.cleanup.n8n = cleaned.body?.n8n ?? null;
+      evidence.cleanup.drive = cleaned.body?.drive ?? null;
+    } catch {
+      evidence.cleanup.status = 'CLEANUP_INCOMPLETE';
+      evidence.cleanup.reason = 'TEST_CLEANUP_REQUEST_FAILED';
+    }
+  } else if (keepArtifacts) {
+    evidence.cleanup.status = 'CLEANUP_SKIPPED_EVIDENCE';
+  } else if (evidence.jobId) {
+    evidence.cleanup.status = 'CLEANUP_SKIPPED_NOT_MARKED';
+  }
+  console.log('REAL_BUSINESS_E2E_EVIDENCE=' + JSON.stringify(evidence));
+  if (evidence.cleanup.status !== 'CLEANUP_OK' && evidence.cleanup.status !== 'NOT_RUN') {
+    console.log('::warning::R05_CLEANUP_STATUS=' + evidence.cleanup.status);
+  }
   await browser.close();
 }
