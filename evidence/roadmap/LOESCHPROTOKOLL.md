@@ -5,13 +5,13 @@ Einträge werden nur ergänzt, nie entfernt. Status: OFFEN · ERLEDIGT · ERLEDI
 
 ## A. Offen – manuell durch BOSS
 
-### A1. Git-Branches (GO 2026-09-30; aus der Agent-Umgebung blockiert)
+### A1. Git-Branches (GO 2026-09-30; aus der Agent-Umgebung blockiert) – ERLEDIGT
 Weg: GitHub → Repo → Branches → Papierkorb-Symbol. Jeder Stand entspricht genau dem gemergten PR-Head (geprüft 2026-09-30).
 | Repo | Branch | SHA | PR | Status |
 |---|---|---|---|---|
-| alpha-phoenix-labs/n8n-workflow-factory | `feat/r-05-e2e-test-cleanup-20260930` | 5db3d239dfc1ac56796b49f752bc13c68276e297 | BE#39 (merged) | OFFEN |
-| alpha-phoenix-labs/alpha-frontend-design | `feat/r-05-s4-e2e-cleanup-20260930` | 38a0ac258bb0eae187fa582c39e664af36cfdbea | FE#37 (merged) | OFFEN |
-| alpha-phoenix-labs/alpha-frontend-design | `evidence/r-01-diagnose-prs-archiv-20260930` | 938325df99c6ef26de1b8fdc5470d62e9794bab6 | FE#36 (merged) | OFFEN |
+| alpha-phoenix-labs/n8n-workflow-factory | `feat/r-05-e2e-test-cleanup-20260930` | 5db3d239dfc1ac56796b49f752bc13c68276e297 | BE#39 (merged) | ERLEDIGT 2026-09-30 (BOSS) |
+| alpha-phoenix-labs/alpha-frontend-design | `feat/r-05-s4-e2e-cleanup-20260930` | 38a0ac258bb0eae187fa582c39e664af36cfdbea | FE#37 (merged) | ERLEDIGT 2026-09-30 (BOSS) |
+| alpha-phoenix-labs/alpha-frontend-design | `evidence/r-01-diagnose-prs-archiv-20260930` | 938325df99c6ef26de1b8fdc5470d62e9794bab6 | FE#36 (merged) | ERLEDIGT 2026-09-30 (BOSS) |
 
 ### A2. n8n-Workflows (adaptable-gibbon.pikapod.net) – 20 Stück
 Vorher die beiden Workflows aus Kategorie E über „Download“ als JSON sichern.
@@ -56,6 +56,7 @@ Soll danach: 13 Workflows.
 | 2026-09-30 | Drive Batch 1 (01/02/03) | 42 Dateien → Papierkorb | Claude (GO) | ja, ca. 30 Tage über den Drive-Papierkorb | R-03b |
 | 2026-09-30 ~18:08Z | Drive 04-FERTIG | 42 Dateien inkl. 10 Evidence-Anker | BOSS („Habe sie gelöscht“) | unbekannt | R-03b |
 | 2026-09-30 | Drive Batch 2 (UNKLAR-Jobs cmukb7kma, cmukh5ylt) | 6 Dateien → Papierkorb | Claude (GO 8c) | ja, ca. 30 Tage | R-00 |
+| 2026-09-30 ~19:20Z | Git-Branches `feat/r-05-e2e-test-cleanup-20260930` (BE), `feat/r-05-s4-e2e-cleanup-20260930` (FE), `evidence/r-01-diagnose-prs-archiv-20260930` (FE) | 3 Branches (alle gemergt) | BOSS (GitHub-UI) | ja (Restore-Button am geschlossenen PR) | `git ls-remote` 2026-09-30: nicht mehr vorhanden |
 | 2026-09-30 | n8n-Testworkflows ndOKbBIF410wwHKi, xchgNbuY2vMEStP3 | 2 (automatisches E2E-Cleanup) | System (R-05) | nein | Runs 36760537296, 36760795799 |
 | 2026-09-30 | Drive-Dateien der 2 E2E-Jobs | 10 → Papierkorb (automatisches E2E-Cleanup) | System (R-05) | ja, ca. 30 Tage | wie oben |
 
