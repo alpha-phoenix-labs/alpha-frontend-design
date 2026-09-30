@@ -107,3 +107,25 @@ test('business E2E never embeds credentials or Drive secrets', () => {
   assert.match(workflow, /secrets\.E2E_OWNER_PASSWORD/);
   assert.doesNotMatch(workflow, /continue-on-error:\s*true/);
 });
+
+test('R-05 marks the created job as test job and cleans up only after the PASS decision', () => {
+  const createIndex = business.indexOf('evidence.jobId = created.jobId;');
+  const markIndex = business.indexOf("backendPost('/api/orchestrator/test-mark'");
+  const passIndex = business.indexOf("console.log('REAL_E2E_PASS')");
+  const finallyIndex = business.lastIndexOf('} finally {');
+  const cleanupIndex = business.indexOf("backendPost('/api/orchestrator/test-cleanup'");
+  assert.ok(createIndex > 0 && markIndex > createIndex, 'test-mark must follow job creation');
+  assert.ok(passIndex > 0 && finallyIndex > passIndex && cleanupIndex > finallyIndex, 'cleanup must run in finally, after PASS/FAIL');
+  assert.match(business, /jobId: evidence\.jobId, correlationId \}/);
+  assert.match(business, /credentials: 'include'/);
+});
+
+test('R-05 cleanup never changes the E2E verdict and is reported as own status', () => {
+  const finallyBlock = business.slice(business.lastIndexOf('} finally {'));
+  assert.doesNotMatch(finallyBlock, /process\.exitCode/);
+  assert.doesNotMatch(finallyBlock, /REAL_E2E_PASS/);
+  assert.match(finallyBlock, /evidence\.cleanup\.marked && !keepArtifacts/);
+  assert.match(finallyBlock, /CLEANUP_SKIPPED_EVIDENCE/);
+  assert.match(finallyBlock, /CLEANUP_SKIPPED_NOT_MARKED/);
+  assert.match(finallyBlock, /console\.log\('REAL_BUSINESS_E2E_EVIDENCE=' \+ JSON\.stringify\(evidence\)\)/);
+});
