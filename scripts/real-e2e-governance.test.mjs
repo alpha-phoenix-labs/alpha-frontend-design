@@ -129,3 +129,16 @@ test('R-05 cleanup never changes the E2E verdict and is reported as own status',
   assert.match(finallyBlock, /CLEANUP_SKIPPED_NOT_MARKED/);
   assert.match(finallyBlock, /console\.log\('REAL_BUSINESS_E2E_EVIDENCE=' \+ JSON\.stringify\(evidence\)\)/);
 });
+
+test('R-06 business E2E binds to the pinned backend runtime before creating a job', () => {
+  assert.match(business, /config\/backend-runtime-truth\.json/);
+  assert.match(business, /\/api\/runtime-truth/);
+  for (const field of ['repository', 'branch', 'commitSha', 'serviceId']) {
+    assert.match(business, new RegExp(`'${field}'`));
+  }
+  assert.match(business, /BUSINESS_E2E_RUNTIME_TRUTH_MISMATCH/);
+  assert.match(business, /BUSINESS_E2E_RUNTIME_TRUTH_UNAVAILABLE/);
+  const runtimeCheck = business.indexOf("evidence.phase = 'runtime-truth'");
+  const createJob = business.indexOf("evidence.phase = 'create-job-via-frontend'");
+  assert.ok(runtimeCheck > 0 && runtimeCheck < createJob, 'runtime truth must be verified before any job is created');
+});

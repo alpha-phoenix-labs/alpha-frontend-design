@@ -399,6 +399,13 @@ describe('HttpFactoryService', () => {
     expect(await svc.getJobStatus('job-1')).toMatchObject({ error: { code: 'NOT_FOUND', message: 'HTTP 404' } });
   });
 
+  it('cuts overlong JSON error messages the same way', async () => {
+    const { fetch } = fakeFetch(() => json({ error: 'y'.repeat(500) }, 500), () => json({ error: '' }, 500));
+    const svc = service(fetch);
+    expect(await svc.getJobStatus('job-1')).toMatchObject({ ok: false, error: { code: 'SERVER', message: `${'y'.repeat(300)}…` } });
+    expect(await svc.getJobStatus('job-1')).toMatchObject({ ok: false, error: { code: 'SERVER', message: 'HTTP 500' } });
+  });
+
   it('cuts overlong plain-text error bodies', async () => {
     const { fetch } = fakeFetch(() => text('x'.repeat(500), 500));
     const result = await service(fetch).getJobStatus('job-1');

@@ -60,4 +60,10 @@ Soll danach: 13 Workflows.
 | 2026-09-30 | n8n-Testworkflows ndOKbBIF410wwHKi, xchgNbuY2vMEStP3 | 2 (automatisches E2E-Cleanup) | System (R-05) | nein | Runs 36760537296, 36760795799 |
 | 2026-09-30 | Drive-Dateien der 2 E2E-Jobs | 10 → Papierkorb (automatisches E2E-Cleanup) | System (R-05) | ja, ca. 30 Tage | wie oben |
 
+## C. Abweichungen beim automatischen E2E-Cleanup
+
+| Datum | Lauf | Job | Befund | Nachprüfung | Status |
+|---|---|---|---|---|---|
+| 2026-09-30 19:38Z | Real E2E 36766853195 (FE `2a6760d`, BE `6835adb`) | cmuoibljs000038o1w9zcx4bg | `CLEANUP_INCOMPLETE`: n8n OoVSr582nMZDGjaG DELETED; Drive 3/5 TRASHED; `1dxO--vH7r2rPDbp_flFT9PsneECfCmDV` (testreport) und `1xiKjs7Q46K5CkRHjbIxmf4muFtp3Ci1d` (final-workflow) = `DRIVE_REQUEST_FAILED` (keine HTTP-Antwort, `drive-api.ts:129`) | 2026-09-30 ~19:45Z, read-only per Drive-Connector: beide IDs „not found“, Suche nach der Job-ID 0 Treffer. Der Connector zeigt Papierkorb-Dateien nicht an (vgl. R-03b, Probe #1) | ERLEDIGT (ANNAHME: im Papierkorb; Papierkorb vs. endgültig gelöscht NICHT UNTERSCHEIDBAR). Ursachen-Fix: BE#41 (Rückprüfung nach verlorener Antwort) |
+
 Hinweis: Ab R-05 räumt jeder E2E-Lauf seine eigene n8n-Testkopie und seine Drive-Dateien automatisch auf. Diese Löschungen stehen im `evidence.cleanup` des jeweiligen Laufs und werden hier nur bei Abweichungen einzeln eingetragen.

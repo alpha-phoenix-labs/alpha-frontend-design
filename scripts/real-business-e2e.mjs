@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const required = (name) => {
@@ -17,6 +18,9 @@ const prompt = process.env.E2E_BUSINESS_PROMPT?.trim() ||
 const correlationId = process.env.CORRELATION_ID?.trim() ||
   `craftflow-e2e-${process.env.GITHUB_RUN_ID ?? 'local'}-${process.env.GITHUB_RUN_ATTEMPT ?? '1'}-${Date.now()}`;
 const keepArtifacts = process.env.E2E_KEEP_ARTIFACTS?.trim() === 'true';
+// The backend must run exactly the pinned commit; checked with the OWNER session before any job is created.
+const backendPin = JSON.parse(readFileSync(new URL('../config/backend-runtime-truth.json', import.meta.url), 'utf8'));
+const RUNTIME_TRUTH_FIELDS = ['repository', 'branch', 'commitSha', 'serviceId'];
 
 const evidence = {
   frontendSha: process.env.E2E_FRONTEND_SHA ?? null,
@@ -38,6 +42,7 @@ const evidence = {
     documentationFileId: null,
     persistedReportMatches: false,
   },
+  runtimeTruth: { status: null, expected: backendPin, actual: null, matches: false },
   cleanup: { marked: false, status: 'NOT_RUN', reason: null, n8n: null, drive: null },
 };
 
@@ -83,6 +88,28 @@ try {
 
   const workspace = page.getByPlaceholder('Describe the workflow you want Craftflow to build');
   await workspace.waitFor({ state: 'visible', timeout: 20_000 });
+
+  evidence.phase = 'runtime-truth';
+  const runtimeTruth = await page.evaluate(async (url) => {
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    let body = null;
+    try { body = await response.json(); } catch {}
+    return { status: response.status, body };
+  }, `${backendUrl}/api/runtime-truth`);
+  evidence.runtimeTruth.status = runtimeTruth.status;
+  evidence.runtimeTruth.actual = runtimeTruth.body && typeof runtimeTruth.body === 'object'
+    ? Object.fromEntries(RUNTIME_TRUTH_FIELDS.map((key) => [key, runtimeTruth.body[key] ?? null]))
+    : null;
+  if (runtimeTruth.status !== 200) fail(`BUSINESS_E2E_RUNTIME_TRUTH_UNAVAILABLE:${runtimeTruth.status}`);
+  evidence.runtimeTruth.matches = RUNTIME_TRUTH_FIELDS.every(
+    (key) => nonEmptyString(backendPin[key]) && evidence.runtimeTruth.actual?.[key] === backendPin[key],
+  );
+  if (!evidence.runtimeTruth.matches) fail('BUSINESS_E2E_RUNTIME_TRUTH_MISMATCH');
 
   evidence.phase = 'create-job-via-frontend';
   const createResponsePromise = page.waitForResponse(

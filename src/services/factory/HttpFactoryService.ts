@@ -96,14 +96,17 @@ function errorMessageOf(text: string, status: number, headers: Headers): string 
     try {
       const parsed: unknown = JSON.parse(trimmed);
       if (typeof parsed === 'object' && parsed !== null && 'error' in parsed && typeof parsed.error === 'string') {
-        return parsed.error;
+        return truncated(parsed.error.trim() === '' ? `HTTP ${status}` : parsed.error);
       }
     } catch {
       // Fall through to the raw text.
     }
   }
-  if (trimmed === '') return `HTTP ${status}`;
-  return trimmed.length > MAX_ERROR_MESSAGE_LENGTH ? `${trimmed.slice(0, MAX_ERROR_MESSAGE_LENGTH)}…` : trimmed;
+  return trimmed === '' ? `HTTP ${status}` : truncated(trimmed);
+}
+
+function truncated(message: string): string {
+  return message.length > MAX_ERROR_MESSAGE_LENGTH ? `${message.slice(0, MAX_ERROR_MESSAGE_LENGTH)}…` : message;
 }
 
 /** Factory service backed by the orchestrator HTTP API. Never throws; concurrent reads of a job share one GET. */
