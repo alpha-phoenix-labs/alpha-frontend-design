@@ -61,6 +61,7 @@ const evidence = {
   recovery: null,
   createHttpStatus: null,
   asyncWait: null,
+  uiGate: null,
 };
 const startedAt = Date.now();
 
@@ -262,7 +263,16 @@ try {
   evidence.phase = 'approval-gate';
   const status = page.locator('[data-testid="factory-status"]');
   await status.waitFor({ state: 'visible', timeout: 20_000 });
-  if ((await status.textContent())?.trim() !== 'awaiting_human') {
+  // R-08 async: the UI learns the gate from its own 2 s polling, not from the POST answer, so it may
+  // lag the script's own GET briefly. Wait (bounded) for the gate instead of reading the text once.
+  const uiGateStartedAt = Date.now();
+  const uiGateReached = await page.waitForFunction(
+    () => document.querySelector('[data-testid="factory-status"]')?.textContent?.trim() === 'awaiting_human',
+    null,
+    { timeout: 20_000, polling: 250 },
+  ).then(() => true, () => false);
+  evidence.uiGate = { waitedMs: Date.now() - uiGateStartedAt, lastText: ((await status.textContent()) ?? '').trim().slice(0, 40) };
+  if (!uiGateReached) {
     fail('BUSINESS_E2E_UI_NOT_AWAITING_HUMAN');
   }
   const versionNode = page.getByTestId('approval-version');
