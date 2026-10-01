@@ -1,0 +1,173 @@
+name: R-07 Parallel Load E2E
+
+# Roadmap Punkt 7d: N parallel real business E2E jobs against production.
+# Manual only. No build, no Cloudflare upload or deploy, no promotion trigger
+# (Production Promotion listens to "Real E2E" only). Each job is test-marked
+# and cleaned up by correlationId (Punkt 5).
+on:
+  workflow_dispatch:
+    inputs:
+      parallel:
+        description: Number of simultaneous real jobs
+        required: true
+        type: choice
+        options:
+          - '3'
+          - '5'
+      confirm:
+        description: Type R-07d to confirm real jobs with model costs
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: parallel-load-e2e
+  cancel-in-progress: false
+
+jobs:
+  parallel-load:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirm == 'R-07d' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      E2E_PREVIEW_URL: https://control.vantarialabs.tech
+      E2E_BACKEND_URL: https://api.vantarialabs.tech
+      E2E_OWNER_EMAIL: ${{ secrets.E2E_OWNER_EMAIL }}
+      E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
+      E2E_APPROVAL_MODE: AUTOMATED_TEST_APPROVAL
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_WORKER: alpha-frontend-design
+      N8N_TEST_INSTANCE_URL: https://adaptable-gibbon.pikapod.net
+      PARALLEL: ${{ inputs.parallel }}
+
+    steps:
+      - name: Checkout exact main SHA
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Verify checkout identity and parallel bound
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          case "$PARALLEL" in 3|5) ;; *) echo "::error::PARALLEL_NOT_ALLOWED"; exit 1 ;; esac
+          echo "E2E_FRONTEND_SHA=$GITHUB_SHA" >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Require runtime credentials
+        run: |
+          set -euo pipefail
+          test -n "$E2E_OWNER_EMAIL" || { echo "::error::E2E_OWNER_EMAIL secret missing"; exit 1; }
+          test -n "$E2E_OWNER_PASSWORD" || { echo "::error::E2E_OWNER_PASSWORD secret missing"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN secret missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret missing"; exit 1; }
+
+      - name: Cloudflare LIVE readback before load
+        id: cf_before
+        run: |
+          set -euo pipefail
+          out="$(node scripts/cloudflare-live-readback.mjs | tee cloudflare-before.log)"
+          json="$(printf '%s\n' "$out" | sed -n 's/^CLOUDFLARE_LIVE_READBACK=//p' | tail -1)"
+          echo "version=$(printf '%s' "$json" | jq -er '.activeVersion')" >> "$GITHUB_OUTPUT"
+
+      - name: PikaPods n8n preflight
+        id: preflight
+        run: |
+          set +e
+          node scripts/n8n-preflight.mjs 2>&1 | tee n8n-preflight.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -eq 0 ]; then echo "status=PASS" >> "$GITHUB_OUTPUT"
+          elif [ "$rc" -eq 2 ]; then echo "status=BLOCKED_EXTERNAL" >> "$GITHUB_OUTPUT"
+          else echo "status=FAIL" >> "$GITHUB_OUTPUT"; fi
+          exit 0
+
+      - name: Install pinned browser runner
+        if: ${{ steps.preflight.outputs.status == 'PASS' }}
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install chromium
+
+      - name: Run N parallel real business E2E jobs
+        if: ${{ steps.preflight.outputs.status == 'PASS' }}
+        run: |
+          set -uo pipefail
+          mkdir -p load-runs
+          for i in $(seq 1 "$PARALLEL"); do
+            (
+              cid="craftflow-load-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-n${PARALLEL}-${i}"
+              date +%s%3N > "load-runs/run-$i.start"
+              CORRELATION_ID="$cid" \
+              E2E_BUSINESS_PROMPT="Correlation ID $cid. Create a minimal n8n workflow that receives a webhook POST with JSON and returns a JSON response containing ok=true. No external services, no credentials, no dynamic URLs." \
+                node scripts/real-business-e2e.mjs > "load-runs/run-$i.log" 2>&1
+              echo $? > "load-runs/run-$i.rc"
+              date +%s%3N > "load-runs/run-$i.end"
+            ) &
+          done
+          wait
+          exit 0
+
+      - name: Cloudflare LIVE readback after load
+        id: cf_after
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          out="$(node scripts/cloudflare-live-readback.mjs | tee cloudflare-after.log)"
+          json="$(printf '%s\n' "$out" | sed -n 's/^CLOUDFLARE_LIVE_READBACK=//p' | tail -1)"
+          echo "version=$(printf '%s' "$json" | jq -er '.activeVersion')" >> "$GITHUB_OUTPUT"
+
+      - name: Build load evidence
+        id: summary
+        if: ${{ always() }}
+        env:
+          PREFLIGHT_STATUS: ${{ steps.preflight.outputs.status }}
+          CF_BEFORE: ${{ steps.cf_before.outputs.version }}
+          CF_AFTER: ${{ steps.cf_after.outputs.version }}
+        run: |
+          set -uo pipefail
+          mkdir -p load-evidence
+          cp -r load-runs load-evidence/ 2>/dev/null || true
+          cp cloudflare-before.log cloudflare-after.log n8n-preflight.log load-evidence/ 2>/dev/null || true
+          status=FAIL
+          if [ "${PREFLIGHT_STATUS:-}" = "BLOCKED_EXTERNAL" ]; then
+            status=BLOCKED_EXTERNAL
+          elif [ "${PREFLIGHT_STATUS:-}" = "PASS" ] && node scripts/parallel-load-summary.mjs load-runs "$PARALLEL" load-evidence/summary.json; then
+            load="$(jq -r '.status' load-evidence/summary.json)"
+            if [ "$load" = "PASS" ] && [ -n "${CF_BEFORE:-}" ] && [ "$CF_BEFORE" = "${CF_AFTER:-}" ]; then status=PASS; fi
+          fi
+          jq -n --arg status "$status" --arg sha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" --arg parallel "$PARALLEL" \
+            --arg preflight "${PREFLIGHT_STATUS:-}" --arg cfBefore "${CF_BEFORE:-}" --arg cfAfter "${CF_AFTER:-}" \
+            '{schema:1,roadmap:"R-07d",status:$status,frontend_sha:$sha,workflow_run_id:$runId,parallel:($parallel|tonumber),preflight_status:$preflight,cloudflare:{version_before:$cfBefore,version_after:$cfAfter,stable:($cfBefore!="" and $cfBefore==$cfAfter)}}' \
+            > load-evidence/result.json
+          cat load-evidence/result.json
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload load evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: parallel-load-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          path: load-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce load outcome
+        if: ${{ always() }}
+        env:
+          STATUS: ${{ steps.summary.outputs.status }}
+        run: |
+          if [ "$STATUS" = "BLOCKED_EXTERNAL" ]; then echo "::error::BLOCKED_EXTERNAL — see docs/runbooks/pikapods-outage.md"; exit 2; fi
+          test "$STATUS" = "PASS" || exit 1
+          echo "PARALLEL_LOAD_E2E=PASS"
