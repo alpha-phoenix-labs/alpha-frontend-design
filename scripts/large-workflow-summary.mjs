@@ -34,6 +34,7 @@ export function summarizeStage({stage, exitCode, log}) {
     createTimedOut: e?.createTimedOut === true,
     createHttpStatus: e?.createHttpStatus ?? null,
     asyncWait: e?.asyncWait ?? null,
+    uiGate: e?.uiGate ?? null,
     recovery: e?.recovery ?? null,
     nodeCount,
     connectionCount: latest?.connectionCount ?? null,

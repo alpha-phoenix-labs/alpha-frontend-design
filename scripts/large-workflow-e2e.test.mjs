@@ -128,3 +128,13 @@ test('R-08 async: a 202 create is polled (bounded) until it leaves the pre-appro
   assert.equal(s.durationsMs.asyncPipeline, 95000);
   assert.equal(s.asyncWait.lastStatus, 'WAITING_FOR_APPROVAL');
 });
+
+test('R-08 async: the UI approval gate is awaited (bounded) and its last text is kept as evidence', () => {
+  assert.match(business, /waitForFunction\(\s*\(\) => document\.querySelector\('\[data-testid="factory-status"\]'\)\?\.textContent\?\.trim\(\) === 'awaiting_human'/);
+  assert.match(business, /\{ timeout: 20_000, polling: 250 \}/);
+  assert.match(business, /evidence\.uiGate = \{ waitedMs: Date\.now\(\) - uiGateStartedAt, lastText:/);
+  assert.doesNotMatch(business, /if \(\(await status\.textContent\(\)\)\?\.trim\(\) !== 'awaiting_human'\)/);
+  const s = summarizeStage({stage: 20, exitCode: 1, log: log(evidence({phase: 'approval-gate', uiGate: {waitedMs: 20000, lastText: 'testing'}}), false)});
+  assert.equal(s.status, 'FAIL');
+  assert.deepEqual(s.uiGate, {waitedMs: 20000, lastText: 'testing'});
+});
