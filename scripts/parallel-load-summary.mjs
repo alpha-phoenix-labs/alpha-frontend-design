@@ -56,7 +56,6 @@ export function summarize({parallel, runs, startSkewMs = null}) {
     distinctCorrelationIds: correlationIds.length === parallel && duplicates(correlationIds).length === 0,
     distinctN8nExecutions: executionIds.length === parallel && duplicates(executionIds).length === 0,
     allRuntimeTruthMatch: rows.every(row => row.runtimeTruthMatches),
-    allCleanupOk: rows.every(row => row.cleanup === 'CLEANUP_OK'),
   };
   return {
     schema: 1,

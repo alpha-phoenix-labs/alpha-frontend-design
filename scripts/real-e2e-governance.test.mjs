@@ -108,30 +108,23 @@ test('business E2E never embeds credentials or Drive secrets', () => {
   assert.doesNotMatch(workflow, /continue-on-error:\s*true/);
 });
 
-test('R-05 marks the created job as test job and cleans up only after the PASS decision', () => {
+test('R-05 marks the created job as test job (isTest/correlationId) right after creation', () => {
   const createIndex = business.indexOf('evidence.jobId = created.jobId;');
   const markIndex = business.indexOf("evidence.phase = 'test-mark';\n  await markTestJob();");
-  const passIndex = business.indexOf("console.log('REAL_E2E_PASS')");
-  const finallyIndex = business.lastIndexOf('} finally {');
-  const cleanupIndex = business.indexOf("backendPost('/api/orchestrator/test-cleanup'");
   assert.ok(createIndex > 0 && markIndex > createIndex, 'test-mark must follow job creation');
-  // R-08: the shared helper posts to test-mark and is used in recovery only after the jobId is known.
   const helper = business.slice(business.indexOf('const markTestJob = async () => {'), business.indexOf('const recoverAfterCreateTimeout'));
   assert.match(helper, /backendPost\('\/api\/orchestrator\/test-mark', \{ jobId: evidence\.jobId, correlationId \}\)/);
   const recovery = business.slice(business.indexOf('const recoverAfterCreateTimeout'), business.indexOf('const backendPost ='));
   assert.ok(recovery.indexOf('evidence.jobId = found.body.jobId;') > 0 && recovery.indexOf('await markTestJob();') > recovery.indexOf('evidence.jobId = found.body.jobId;'), 'recovery marks only a known job');
-  assert.ok(passIndex > 0 && finallyIndex > passIndex && cleanupIndex > finallyIndex, 'cleanup must run in finally, after PASS/FAIL');
-  assert.match(business, /jobId: evidence\.jobId, correlationId \}/);
   assert.match(business, /credentials: 'include'/);
 });
 
-test('R-05 cleanup never changes the E2E verdict and is reported as own status', () => {
+test('BOSS 2026-10-01: no automatic test cleanup - n8n workflows and Drive archives are kept', () => {
+  assert.doesNotMatch(business, /test-cleanup/);
+  assert.doesNotMatch(business, /E2E_KEEP_ARTIFACTS|keepArtifacts/);
   const finallyBlock = business.slice(business.lastIndexOf('} finally {'));
+  assert.match(finallyBlock, /CLEANUP_DISABLED/);
   assert.doesNotMatch(finallyBlock, /process\.exitCode/);
-  assert.doesNotMatch(finallyBlock, /REAL_E2E_PASS/);
-  assert.match(finallyBlock, /evidence\.cleanup\.marked && !keepArtifacts/);
-  assert.match(finallyBlock, /CLEANUP_SKIPPED_EVIDENCE/);
-  assert.match(finallyBlock, /CLEANUP_SKIPPED_NOT_MARKED/);
   assert.match(finallyBlock, /console\.log\('REAL_BUSINESS_E2E_EVIDENCE=' \+ JSON\.stringify\(evidence\)\)/);
 });
 

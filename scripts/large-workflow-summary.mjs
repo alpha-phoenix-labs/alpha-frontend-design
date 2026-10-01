@@ -16,7 +16,6 @@ export function summarizeStage({stage, exitCode, log}) {
     e2ePass,
     nodeCountReached: nodeCount !== null && nodeCount >= stage,
     runtimeTruthMatch: e?.runtimeTruth?.matches === true,
-    cleanupOk: e?.cleanup?.status === 'CLEANUP_OK',
   };
   return {
     schema: 1,

@@ -61,7 +61,7 @@ test('a passing stage reports every mandatory field', () => {
   assert.equal(s.cleanup, 'CLEANUP_OK');
 });
 
-test('fewer nodes than the stage target, a failed run or missing cleanup are FAIL', () => {
+test('fewer nodes than the stage target or a failed run are FAIL; cleanup is no PASS criterion', () => {
   const tooSmall = evidence();
   tooSmall.runMetrics.approve.nodeCount = 12;
   assert.equal(summarizeStage({stage: 20, exitCode: 0, log: log(tooSmall)}).checks.nodeCountReached, false);
@@ -71,7 +71,7 @@ test('fewer nodes than the stage target, a failed run or missing cleanup are FAI
   assert.equal(failed.createErrorMessage, 'INVALID_WORKFLOW');
   assert.equal(failed.error, 'BUSINESS_E2E_NOT_AT_APPROVAL:FAILED');
   assert.equal(failed.nodeCount, 31);
-  assert.equal(summarizeStage({stage: 20, exitCode: 0, log: log(evidence({cleanup: {status: 'CLEANUP_INCOMPLETE'}}))}).status, 'FAIL');
+  assert.equal(summarizeStage({stage: 20, exitCode: 0, log: log(evidence({cleanup: {status: 'CLEANUP_DISABLED'}}))}).status, 'PASS');
   assert.throws(() => summarizeStage({stage: 25, exitCode: 0, log: ''}), /STAGE_NOT_ALLOWED/);
 });
 

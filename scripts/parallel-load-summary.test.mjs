@@ -51,7 +51,6 @@ for (const [name, mutate, check] of [
   ['one failed run', i => (i === 2 ? {exitCode: 1, pass: false, error: 'BUSINESS_E2E_CREATE_FAILED', evidence: evidence(2, {phase: 'create-job-via-frontend'})} : {}), 'allPass'],
   ['duplicate jobId (double processing)', i => (i === 3 ? {evidence: evidence(3, {jobId: 'job-1'})} : {}), 'distinctJobIds'],
   ['duplicate n8n execution', i => (i === 3 ? {evidence: evidence(3, {n8n: {executionId: '101'}})} : {}), 'distinctN8nExecutions'],
-  ['cleanup incomplete', i => (i === 1 ? {evidence: evidence(1, {cleanup: {status: 'CLEANUP_INCOMPLETE'}})} : {}), 'allCleanupOk'],
   ['runtime pin mismatch', i => (i === 1 ? {evidence: evidence(1, {runtimeTruth: {matches: false}})} : {}), 'allRuntimeTruthMatch'],
   ['missing evidence', i => (i === 1 ? {evidence: {}} : {}), 'distinctJobIds'],
 ]) {
