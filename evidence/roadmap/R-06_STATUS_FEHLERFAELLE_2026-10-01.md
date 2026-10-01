@@ -42,17 +42,29 @@ Testzählung nach Abschluss (BELEGT, PR-Texte und lokaler Lauf 2026-10-01 auf `c
 
 Abweichung im Zeitraum: Real E2E 36766853195 (FE `2a6760d`) meldete `CLEANUP_INCOMPLETE` (2 Drive-Dateien mit `DRIVE_REQUEST_FAILED`), Ursache und Fix siehe BE#41 und `LOESCHPROTOKOLL.md` Abschnitt C.
 
-## Rollback-Basis (Stand nach Punkt 6)
+## Nachtrag 2026-10-01: B6/B7 geschlossen, Re-Test (BELEGT)
+| Schritt | Beleg |
+|---|---|
+| BE#42 → main `5915a26` (7b Race-Tests + 7c Fixes B3/B6/B7) | merged 2026-10-01 04:23 UTC; CI `verify` success; lokal `npm test` 152/152; 4 neue Tests rot auf altem Code |
+| Render | `dep-dauu0ttg1s2s73d2ack0` live 04:25:19Z, Commit `5915a26` |
+| FE#43 (Pin) → main `3db6e14` | merged 04:27 UTC |
+| Real E2E 36815216781 | success; jobId `cmup1ajmm00003q68croxy1b3`; `matches=true` gegen `5915a26`; `CLEANUP_OK` (n8n DELETED, 5/5 Drive TRASHED) |
+| Promotion 36815309745 | success |
+| Gate 36815349805 | `POST_DEPLOY_PRODUCTION_E2E=PASS`; jobId `cmup1cmnw00013q686wqcsut3`; `matches=true`; `CLEANUP_OK`; Cloudflare promoted = before = after = `8768b27d-b0ca-44eb-897f-720ccd5bc88c`; Artifact 11140494202 |
+
+Aktuelle Rollback-Basis: FE `3db6e14` / Cloudflare `8768b27d-b0ca-44eb-897f-720ccd5bc88c` · BE `5915a26` / Render `dep-dauu0ttg1s2s73d2ack0`.
+
+## Rollback-Basis (Stand nach Punkt 6, vor 7c)
 FE `1fb1c5c` / Cloudflare `db0c4bde-2af6-488e-b7b6-62a19cf69881` · BE `cecc5cb` / Render `dep-dauml09srm7s73b4k69g`.
 
 ## Lücken / offen
 - Fault-Injection gegen Production wurde nicht durchgeführt (Gate der Roadmap: nur nach GO). Alle Fälle außer dem Pin-Abgleich sind nur über Unit-/Contract-Tests belegt.
-- Approve-Route (`app/api/orchestrator/approve/route.ts:37-38`) gibt `error.message` ungefiltert zurück und meldet Runner-Konflikte als 500 statt 409. Gefunden in Punkt 7a (Befund B7); Fix vorgesehen in Teilschritt 7c.
-- Archive-Route meldet einen Archivierungsversuch vor COMPLETED als 500 (`DRIVE_NOT_COMPLETED`) statt 409. Befund B6 aus Punkt 7a, lokal reproduziert; Fix in 7c.
+- ~~B7: Approve-Route gab `error.message` ungefiltert zurück, Runner-Konflikte als 500.~~ **Geschlossen** mit BE#42 (Punkt 7c): `publicErrorCode`, Konflikte → 409.
+- ~~B6: Archive-Route meldete Archivierung vor COMPLETED als 500.~~ **Geschlossen** mit BE#42 (Punkt 7c): → 409.
 - Das QA-Audit `2026-09-30-audit-07-r06-post-merge-truth` liegt nicht im FE-Repo (NICHT GEPRÜFT, nur in FE#40/BE#41 zitiert).
 - Offene Entscheidungen des BOSS aus dem QA-Audit: Ausnahme für `evidence`/`release`-Commits in CF-PM-001, QA-Lesezugriff BE-Repo, Ablageort QA-Berichte, `CLEANUP_INCOMPLETE` als Gate-Fehler.
 - Neue Pflicht seit FE#40: Nach jedem BE-Deploy muss `config/backend-runtime-truth.json` nachgezogen werden, sonst blockiert Real E2E jeden FE-Deploy.
 
 ## Abnahme
 Abnahmekriterium laut Roadmap: „Fehlerkatalog vollständig, jeder Fall hat Test und Evidence; Abweichungen behoben oder ausdrücklich als Backlog freigegeben.“
-Offen: Bestätigung durch den BOSS, insbesondere ob B6/B7 in Punkt 7c behoben oder als Backlog geführt werden.
+B6/B7 sind behoben und live nachgetestet (siehe Nachtrag). Offen: Bestätigung durch den BOSS.
