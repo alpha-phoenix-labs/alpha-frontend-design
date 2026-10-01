@@ -18,6 +18,9 @@ const prompt = process.env.E2E_BUSINESS_PROMPT?.trim() ||
 const correlationId = process.env.CORRELATION_ID?.trim() ||
   `craftflow-e2e-${process.env.GITHUB_RUN_ID ?? 'local'}-${process.env.GITHUB_RUN_ATTEMPT ?? '1'}-${Date.now()}`;
 const keepArtifacts = process.env.E2E_KEEP_ARTIFACTS?.trim() === 'true';
+// R-08: optional recovery when the create request times out (0 = disabled, default for Real E2E/Gate).
+const createRecoveryMs = Math.max(0, Math.min(900_000, Number(process.env.E2E_CREATE_RECOVERY_MS) || 0));
+const RUNNING_STATUSES = new Set(['CREATED', 'PLANNED', 'BUILDING', 'SECURITY_REVIEW', 'TESTING', 'APPROVED']);
 // The backend must run exactly the pinned commit; checked with the OWNER session before any job is created.
 const backendPin = JSON.parse(readFileSync(new URL('../config/backend-runtime-truth.json', import.meta.url), 'utf8'));
 const RUNTIME_TRUTH_FIELDS = ['repository', 'branch', 'commitSha', 'serviceId'];
@@ -49,6 +52,9 @@ const evidence = {
   createErrorMessage: null,
   timingMs: { create: null, approve: null, total: null },
   runMetrics: { create: null, approve: null },
+  clientRequestId: null,
+  createTimedOut: false,
+  recovery: null,
 };
 const startedAt = Date.now();
 
@@ -62,6 +68,47 @@ const jsonOf = async (response) => {
 };
 const nonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
 const driveArtifactId = (value) => typeof value === 'string' && /^[a-zA-Z0-9_-]{6,}$/.test(value);
+const backendGet = (path) => page.evaluate(async (url) => {
+  const response = await fetch(url, { method: 'GET', credentials: 'include', headers: { Accept: 'application/json' }, cache: 'no-store' });
+  let json = null;
+  try { json = await response.json(); } catch {}
+  return { status: response.status, body: json };
+}, `${backendUrl}${path}`);
+const markTestJob = async () => {
+  try {
+    const marked = await backendPost('/api/orchestrator/test-mark', { jobId: evidence.jobId, correlationId });
+    evidence.cleanup.marked = marked.status === 200 &&
+      (marked.body?.status === 'MARKED' || marked.body?.status === 'ALREADY_MARKED');
+    if (!evidence.cleanup.marked) evidence.cleanup.reason = `TEST_MARK_HTTP_${marked.status}`;
+  } catch {
+    evidence.cleanup.reason = 'TEST_MARK_REQUEST_FAILED';
+  }
+};
+// After a create timeout the job keeps running server-side: find it by clientRequestId, mark it
+// immediately (15 min mark window) and wait for a terminal status so cleanup and metrics are complete.
+const recoverAfterCreateTimeout = async () => {
+  const recovery = { attempted: Boolean(evidence.clientRequestId) && createRecoveryMs > 0, polls: 0, waitedMs: 0, finalStatus: null, lookupStatus: null };
+  evidence.recovery = recovery;
+  if (!recovery.attempted) return;
+  const startedAt = Date.now();
+  const path = `/api/orchestrator?clientRequestId=${encodeURIComponent(evidence.clientRequestId)}`;
+  while (Date.now() - startedAt <= createRecoveryMs) {
+    recovery.polls += 1;
+    const found = await backendGet(path).catch(() => ({ status: 0, body: null }));
+    recovery.lookupStatus = found.status;
+    if (found.status === 200 && typeof found.body?.jobId === 'string') {
+      if (!evidence.jobId) {
+        evidence.jobId = found.body.jobId;
+        await markTestJob();
+      }
+      recovery.finalStatus = found.body.status ?? null;
+      evidence.runMetrics.create = found.body.runMetrics ?? evidence.runMetrics.create;
+      if (!RUNNING_STATUSES.has(recovery.finalStatus)) break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10_000));
+  }
+  recovery.waitedMs = Date.now() - startedAt;
+};
 const backendPost = (path, body) => page.evaluate(async ({ url, body }) => {
   const response = await fetch(url, {
     method: 'POST',
@@ -123,10 +170,25 @@ try {
       response.request().method() === 'POST',
     { timeout: 320_000 },
   );
+  const createRequestPromise = page.waitForRequest(
+    (request) => request.url() === `${backendUrl}/api/orchestrator` && request.method() === 'POST',
+    { timeout: 30_000 },
+  ).catch(() => null);
   await workspace.fill(prompt);
   const createStartedAt = Date.now();
   await workspace.press('Enter');
-  const createResponse = await createResponsePromise;
+  const createRequest = await createRequestPromise;
+  try { evidence.clientRequestId = createRequest?.postDataJSON()?.clientRequestId ?? null; } catch { evidence.clientRequestId = null; }
+  let createResponse;
+  try {
+    createResponse = await createResponsePromise;
+  } catch (error) {
+    evidence.timingMs.create = Date.now() - createStartedAt;
+    evidence.createTimedOut = true;
+    evidence.phase = 'create-timeout-recovery';
+    await recoverAfterCreateTimeout();
+    throw error;
+  }
   evidence.timingMs.create = Date.now() - createStartedAt;
   const created = await jsonOf(createResponse);
   evidence.runMetrics.create = created?.runMetrics ?? null;
@@ -136,14 +198,7 @@ try {
   evidence.submittedStatus = created.status ?? null;
 
   evidence.phase = 'test-mark';
-  try {
-    const marked = await backendPost('/api/orchestrator/test-mark', { jobId: evidence.jobId, correlationId });
-    evidence.cleanup.marked = marked.status === 200 &&
-      (marked.body?.status === 'MARKED' || marked.body?.status === 'ALREADY_MARKED');
-    if (!evidence.cleanup.marked) evidence.cleanup.reason = `TEST_MARK_HTTP_${marked.status}`;
-  } catch {
-    evidence.cleanup.reason = 'TEST_MARK_REQUEST_FAILED';
-  }
+  await markTestJob();
 
   if (created.status === 'WAITING_FOR_USER') {
     fail('BUSINESS_E2E_UNEXPECTED_CLARIFICATION');
