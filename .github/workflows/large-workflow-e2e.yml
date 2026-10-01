@@ -110,7 +110,7 @@ jobs:
           set -uo pipefail
           mkdir -p large-run
           node scripts/large-workflow-prompts.mjs "$STAGE" "$CORRELATION_ID" > large-run/prompt.txt
-          E2E_BUSINESS_PROMPT="$(cat large-run/prompt.txt)" node scripts/real-business-e2e.mjs > large-run/run.log 2>&1
+          E2E_CREATE_RECOVERY_MS=600000 E2E_BUSINESS_PROMPT="$(cat large-run/prompt.txt)" node scripts/real-business-e2e.mjs > large-run/run.log 2>&1
           echo $? > large-run/run.rc
           exit 0
 

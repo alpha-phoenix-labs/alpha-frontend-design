@@ -93,3 +93,23 @@ test('business E2E records sizes and durations but no prompt or workflow content
   assert.match(business, /evidence\.timingMs\.total = Date\.now\(\) - startedAt/);
   assert.doesNotMatch(business, /evidence\.prompt\s*=/);
 });
+
+test('create-timeout recovery is off by default and enabled (bounded) only for the large-workflow tool', () => {
+  const realE2e = readFileSync(new URL('../.github/workflows/real-e2e.yml', import.meta.url), 'utf8');
+  const gate = readFileSync(new URL('../.github/workflows/post-deploy-production-gate.yml', import.meta.url), 'utf8');
+  assert.match(business, /Math\.min\(900_000, Number\(process\.env\.E2E_CREATE_RECOVERY_MS\) \|\| 0\)/);
+  assert.doesNotMatch(realE2e, /E2E_CREATE_RECOVERY_MS/);
+  assert.doesNotMatch(gate, /E2E_CREATE_RECOVERY_MS/);
+  assert.match(workflow, /E2E_CREATE_RECOVERY_MS=600000 /);
+});
+
+test('a create timeout stays FAIL but keeps recovery evidence', () => {
+  const e = evidence({phase: 'create-timeout-recovery', jobId: 'job-late', submittedStatus: null, createTimedOut: true, clientRequestId: 'req-1',
+    recovery: {attempted: true, polls: 4, waitedMs: 31000, finalStatus: 'WAITING_FOR_APPROVAL', lookupStatus: 200}});
+  const s = summarizeStage({stage: 20, exitCode: 1, log: log(e, false)});
+  assert.equal(s.status, 'FAIL');
+  assert.equal(s.createTimedOut, true);
+  assert.equal(s.clientRequestId, 'req-1');
+  assert.equal(s.recovery.finalStatus, 'WAITING_FOR_APPROVAL');
+  assert.equal(s.jobId, 'job-late');
+});
