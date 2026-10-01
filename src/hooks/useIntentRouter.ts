@@ -28,8 +28,16 @@ export { INTENT_STATUS_TEXT } from '@/store/index.ts';
 
 const ROUTING_ORDER: readonly IntentKind[] = ['calculator', 'spatialModel'];
 
-/** Maps intent text to an intent kind using the reference keywords; null if nothing matches. */
+/**
+ * Local modules answer short commands only ("kosten", "Was kostet das?", "3d").
+ * R-08: a longer description is a factory order and must always reach the backend,
+ * even when it mentions a keyword such as "Preis" or "Kalkulation".
+ */
+export const LOCAL_INTENT_MAX_CHARS = 40;
+
+/** Maps a short intent command to an intent kind using the reference keywords; null for orders or no match. */
 export function routeIntent(text: string): IntentKind | null {
+  if (text.trim().length > LOCAL_INTENT_MAX_CHARS) return null;
   const normalized = text.toLowerCase();
   return ROUTING_ORDER.find((kind) => INTENT_KEYWORDS[kind].some((keyword) => normalized.includes(keyword))) ?? null;
 }
