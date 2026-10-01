@@ -3,6 +3,8 @@
 import {pathToFileURL} from 'node:url';
 
 export const STAGES = Object.freeze([20, 40, 60, 80, 100]);
+/** QG-001: stage 20 is the R-20-QUALITY reference; 40-100 are re-validated only after it passed. */
+export const QUALITY_REFERENCE_STAGE = 20;
 
 const SANDBOX_RULES = [
   'Technische Rahmenbedingungen:',
@@ -14,23 +16,38 @@ const SANDBOX_RULES = [
   '- Keine Füll-Nodes: keine zusätzlichen, doppelten oder zusammengelegten Schritte über die Liste hinaus.',
 ].join('\n');
 
+// R-20-QUALITY: branches and one named external call are required, so the straight-chain and no-external-call rules differ.
+const QUALITY_RULES = [
+  'Technische Rahmenbedingungen:',
+  '- Genau ein Auslöser: Webhook (POST, JSON), Antwortmodus lastNode, der am Ende eine JSON-Antwort mit ok=true und einer Zusammenfassung liefert.',
+  '- Keine Zugangsdaten im Workflow, keine dynamischen URLs; außer der genannten Kalenderabfrage keine externen Dienste direkt aufrufen.',
+  '- Externe Systeme (E-Mail, SMS, Kalendereintrag) werden als fachlich vollständige, vorbereitete Daten- bzw. Nachrichtenobjekte modelliert.',
+  '- Jeder Node hat einen eigenen, sprechenden deutschen Namen und eine eigene fachliche Aufgabe; keine kopierten Platzhalter-Nodes.',
+  '- Die Nodes sind ohne Schleifen verbunden; beide Ausgänge der Entscheidung führen zu einem Node.',
+  '- Keine Füll-Nodes: keine zusätzlichen, doppelten oder zusammengelegten Schritte und keine weiteren Entscheidungen, Fehler- oder Retry-Nodes über die Liste hinaus.',
+].join('\n');
+
 const ORDERS = {
+  // QG-001 R-20-QUALITY: the 20-node stage is the quality reference (authenticated input, real decision, success path,
+  // deliberately triggerable error path, retry for a transient error, no retry for a permanent validation error,
+  // separate error workflow, audit correlation, Drive archive). The test cases are fixed in the order itself.
   20: {
     branch: 'Friseur / Beauty',
-    flow: 'Online-Termin → Verfügbarkeit → Buchung → Bestätigung → Erinnerung → Bewertungsanfrage',
+    flow: 'Online-Termin → Pflichtfeldprüfung → Verfügbarkeit → Buchung → Bestätigung → Erinnerung → Bewertungsanfrage',
     detail: [
       'Ein Friseursalon nimmt Online-Terminanfragen an (Kundin, Telefon, E-Mail, gewünschte Leistung wie Schnitt, Farbe oder Strähnen, Wunschdatum, Wunschzeit, Stylistin).',
-      'Schritte: Anfrage annehmen und Pflichtfelder prüfen; Leistung der Dauer und dem Preis zuordnen; Öffnungszeiten prüfen; Verfügbarkeit der Stylistin prüfen; Ersatztermin vorschlagen, falls belegt; Buchung anlegen; Buchungsnummer erzeugen;',
+      'Schritte: Pflichtfelder prüfen und unvollständige Anfragen ablehnen; Leistung der Dauer und dem Preis zuordnen; Öffnungszeiten prüfen; Kalenderverfügbarkeit der Stylistin abrufen; Ersatztermin-Vorschlag vorbereiten; Buchung anlegen; Buchungsnummer erzeugen;',
       'Bestätigung per E-Mail und SMS vorbereiten; Kalendereintrag vorbereiten; Erinnerung 24 Stunden vorher planen; Storno-Link vorbereiten; Hinweis zur Anzahlung bei Farbbehandlungen;',
-      'nach dem Termin Bewertungsanfrage vorbereiten; Stammkundenstatus aktualisieren; Tagesliste des Salons ergänzen; Antwort an das Buchungsformular zusammenstellen.',
+      'nach dem Termin Bewertungsanfrage vorbereiten; Stammkundenstatus aktualisieren; Buchungsprotokoll schreiben; Antwort an das Buchungsformular zusammenstellen.',
     ],
     steps: [
-      'Pflichtfelder der Anfrage prüfen',
+      'Pflichtfelder vollständig? (Entscheidung: E-Mail, Leistung und Wunschdatum vorhanden)',
+      'Unvollständige Anfrage ablehnen (Stop and Error mit Fehlercode VALIDATION_FAILED)',
       'Kontaktdaten normalisieren',
       'Leistung Dauer und Preis zuordnen',
       'Öffnungszeiten prüfen',
-      'Verfügbarkeit der Stylistin prüfen',
-      'Ersatztermin vorschlagen, falls belegt',
+      'Kalenderverfügbarkeit der Stylistin abrufen (HTTP GET)',
+      'Ersatztermin-Vorschlag vorbereiten',
       'Buchung anlegen',
       'Buchungsnummer erzeugen',
       'Anzahlungshinweis bei Farbbehandlung setzen',
@@ -41,9 +58,19 @@ const ORDERS = {
       'Storno-Link vorbereiten',
       'Bewertungsanfrage nach dem Termin vorbereiten',
       'Stammkundenstatus aktualisieren',
-      'Tagesliste des Salons ergänzen',
-      'Buchungsprotokoll schreiben',
+      'Buchungsprotokoll mit jobId und Correlation ID schreiben',
       'Antwort an das Buchungsformular zusammenstellen',
+    ],
+    quality: [
+      'Qualitätsanforderungen (R-20-QUALITY):',
+      '- REQ-1 / RISK-1: Der Webhook ist mit Header-Authentifizierung geschützt; Anfragen ohne gültigen Header werden abgelehnt.',
+      '- REQ-2 / RISK-2: "Pflichtfelder vollständig?" ist eine echte Entscheidung (IF). Fehlen E-Mail, Leistung oder Wunschdatum, endet der Ablauf in "Unvollständige Anfrage ablehnen" (Stop and Error). Das ist ein permanenter Validierungsfehler: kein Retry, kein Kalenderaufruf.',
+      '- REQ-3 / RISK-3: "Kalenderverfügbarkeit der Stylistin abrufen" ist ein HTTP GET auf https://api.vantarialabs.tech/api/test-fixture/transient. Ein vorübergehender Fehler (503) wird mit Retry wiederholt (maximal 3 Versuche, 1000 ms Abstand).',
+      '- REQ-4 / RISK-4: Fehler werden über einen separaten Fehler-Workflow protokolliert und dem Salon gemeldet.',
+      'Feste Testfälle:',
+      '- TC-1 SUCCESS: {"email":"kundin@example.test","leistung":"Schnitt","wunschdatum":"2026-10-15"}; erwartet: Hauptpfad erfolgreich.',
+      '- TC-2 TRANSIENT_ERROR: {"email":"kundin@example.test","leistung":"Schnitt","wunschdatum":"2026-10-15"}; die Kalenderabfrage scheitert einmal vorübergehend; erwartet: Hauptpfad erfolgreich nach Retry.',
+      '- TC-3 VALIDATION_ERROR: {"leistung":"Schnitt"}; E-Mail und Wunschdatum fehlen; erwartet: Abbruch über Stop and Error, der Fehler-Workflow läuft.',
     ],
   },
   40: {
@@ -385,7 +412,8 @@ export function largeWorkflowPrompt(stage, correlationId) {
     // R-08: the node count follows from the listed business steps, never from padding.
     `Der Workflow besteht aus dem Webhook-Auslöser und genau diesen ${order.steps.length} fachlichen Schritten in dieser Reihenfolge, je Schritt genau ein Node (insgesamt genau ${stage} Nodes):`,
     ...order.steps.map((step, i) => `${i + 1}. ${step}`),
-    SANDBOX_RULES,
+    ...(order.quality ?? []),
+    order.quality ? QUALITY_RULES : SANDBOX_RULES,
   ].join('\n');
   if (text.length > 8000) throw new Error('PROMPT_TOO_LONG');
   return text;

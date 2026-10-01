@@ -2,7 +2,7 @@
 import {readFileSync, writeFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 import {parseRunLog} from './parallel-load-summary.mjs';
-import {STAGES} from './large-workflow-prompts.mjs';
+import {STAGES, QUALITY_REFERENCE_STAGE} from './large-workflow-prompts.mjs';
 
 export function summarizeStage({stage, exitCode, log}) {
   if (!STAGES.includes(stage)) throw new Error('STAGE_NOT_ALLOWED');
@@ -17,6 +17,14 @@ export function summarizeStage({stage, exitCode, log}) {
     nodeCountReached: nodeCount !== null && nodeCount >= stage,
     runtimeTruthMatch: e?.runtimeTruth?.matches === true,
   };
+  // QG-001 §8: the quality reference passes only with every failure case verified and the package archived in Drive.
+  const quality = latest?.quality ?? null;
+  if (stage === QUALITY_REFERENCE_STAGE) {
+    checks.qualityCasesPass = quality?.status === 'PASS' && quality.definedCases > 0 && quality.passedCases === quality.definedCases;
+    checks.webhookAuthVerified = quality?.webhookAuth === 'VERIFIED';
+    checks.errorWorkflow = quality?.errorWorkflow === true;
+    checks.driveArchived = e?.drive?.status === 'COMPLETE';
+  }
   return {
     schema: 1,
     roadmap: 'R-08',
@@ -67,6 +75,8 @@ export function summarizeStage({stage, exitCode, log}) {
       costUsd: latest?.llmCostUsd ?? null,
       costUnknown: latest?.llmCostUnknown === true,
     },
+    // QG-001: quality case outcome as reported by the backend (codes and counts only).
+    quality,
     n8n: {executionId: e?.n8n?.executionId ?? null, importedId: e?.n8n?.importedId ?? null},
     drive: e?.drive?.status ?? null,
     cleanup: e?.cleanup?.status ?? null,
