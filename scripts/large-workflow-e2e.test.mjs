@@ -113,3 +113,18 @@ test('a create timeout stays FAIL but keeps recovery evidence', () => {
   assert.equal(s.recovery.finalStatus, 'WAITING_FOR_APPROVAL');
   assert.equal(s.jobId, 'job-late');
 });
+
+test('R-08 async: a 202 create is polled (bounded) until it leaves the pre-approval statuses; sync 200 is unchanged', () => {
+  assert.match(business, /const PIPELINE_STATUSES = new Set\(\['CREATED', 'PLANNED', 'BUILDING', 'SECURITY_REVIEW', 'TESTING'\]\)/);
+  assert.match(business, /Math\.min\(1_800_000, Number\(process\.env\.E2E_JOB_WAIT_MS\) \|\| 600_000\)/);
+  assert.match(business, /if \(createResponse\.status\(\) === 202\) \{/);
+  assert.match(business, /BUSINESS_E2E_ASYNC_PIPELINE_TIMEOUT/);
+  // The test mark is set before waiting, i.e. well inside the backend's 15 min mark window.
+  assert.ok(business.indexOf('await markTestJob();\n\n  if (createResponse.status() === 202)') > 0);
+  const s = summarizeStage({stage: 20, exitCode: 0, log: log(evidence({createHttpStatus: 202, timingMs: {create: 300, pipeline: 95000, approve: 9000, total: 120000},
+    asyncWait: {polls: 30, waitedMs: 94000, lastStatus: 'WAITING_FOR_APPROVAL', lookupStatus: 200}}))});
+  assert.equal(s.status, 'PASS');
+  assert.equal(s.createHttpStatus, 202);
+  assert.equal(s.durationsMs.asyncPipeline, 95000);
+  assert.equal(s.asyncWait.lastStatus, 'WAITING_FOR_APPROVAL');
+});

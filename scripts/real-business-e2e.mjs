@@ -21,6 +21,10 @@ const keepArtifacts = process.env.E2E_KEEP_ARTIFACTS?.trim() === 'true';
 // R-08: optional recovery when the create request times out (0 = disabled, default for Real E2E/Gate).
 const createRecoveryMs = Math.max(0, Math.min(900_000, Number(process.env.E2E_CREATE_RECOVERY_MS) || 0));
 const RUNNING_STATUSES = new Set(['CREATED', 'PLANNED', 'BUILDING', 'SECURITY_REVIEW', 'TESTING', 'APPROVED']);
+// R-08 async: a 202 create means the backend worker runs the pipeline; the persisted job is polled
+// until it leaves the pre-approval statuses (bounded; default 10 min, max 30 min).
+const PIPELINE_STATUSES = new Set(['CREATED', 'PLANNED', 'BUILDING', 'SECURITY_REVIEW', 'TESTING']);
+const jobWaitMs = Math.max(10_000, Math.min(1_800_000, Number(process.env.E2E_JOB_WAIT_MS) || 600_000));
 // The backend must run exactly the pinned commit; checked with the OWNER session before any job is created.
 const backendPin = JSON.parse(readFileSync(new URL('../config/backend-runtime-truth.json', import.meta.url), 'utf8'));
 const RUNTIME_TRUTH_FIELDS = ['repository', 'branch', 'commitSha', 'serviceId'];
@@ -50,11 +54,13 @@ const evidence = {
   // R-08: sizes and durations only (backend runMetrics v1 + client-side wall time).
   promptChars: prompt.length,
   createErrorMessage: null,
-  timingMs: { create: null, approve: null, total: null },
+  timingMs: { create: null, pipeline: null, approve: null, total: null },
   runMetrics: { create: null, approve: null },
   clientRequestId: null,
   createTimedOut: false,
   recovery: null,
+  createHttpStatus: null,
+  asyncWait: null,
 };
 const startedAt = Date.now();
 
@@ -86,6 +92,25 @@ const markTestJob = async () => {
 };
 // After a create timeout the job keeps running server-side: find it by clientRequestId, mark it
 // immediately (15 min mark window) and wait for a terminal status so cleanup and metrics are complete.
+const waitForPipeline = async (jobId) => {
+  const wait = { polls: 0, waitedMs: 0, lastStatus: null, lookupStatus: null };
+  evidence.asyncWait = wait;
+  const waitStartedAt = Date.now();
+  let snapshot = null;
+  while (Date.now() - waitStartedAt < jobWaitMs) {
+    await page.waitForTimeout(3000);
+    wait.polls += 1;
+    const found = await backendGet(`/api/orchestrator?jobId=${encodeURIComponent(jobId)}`).catch(() => ({ status: 0, body: null }));
+    wait.lookupStatus = found.status;
+    if (found.status === 200 && found.body?.jobId === jobId) {
+      snapshot = found.body;
+      wait.lastStatus = snapshot.status ?? null;
+      if (!PIPELINE_STATUSES.has(wait.lastStatus)) break;
+    }
+  }
+  wait.waitedMs = Date.now() - waitStartedAt;
+  return snapshot;
+};
 const recoverAfterCreateTimeout = async () => {
   const recovery = { attempted: Boolean(evidence.clientRequestId) && createRecoveryMs > 0, polls: 0, waitedMs: 0, finalStatus: null, lookupStatus: null };
   evidence.recovery = recovery;
@@ -190,7 +215,8 @@ try {
     throw error;
   }
   evidence.timingMs.create = Date.now() - createStartedAt;
-  const created = await jsonOf(createResponse);
+  evidence.createHttpStatus = createResponse.status();
+  let created = await jsonOf(createResponse);
   evidence.runMetrics.create = created?.runMetrics ?? null;
   evidence.createErrorMessage = typeof created?.errorMessage === 'string' ? created.errorMessage.slice(0, 300) : null;
   if (!createResponse.ok() || typeof created?.jobId !== 'string') fail('BUSINESS_E2E_CREATE_FAILED');
@@ -199,6 +225,17 @@ try {
 
   evidence.phase = 'test-mark';
   await markTestJob();
+
+  if (createResponse.status() === 202) {
+    evidence.phase = 'async-pipeline-wait';
+    const settled = await waitForPipeline(created.jobId);
+    evidence.timingMs.pipeline = Date.now() - createStartedAt;
+    if (!settled || PIPELINE_STATUSES.has(settled.status)) fail(`BUSINESS_E2E_ASYNC_PIPELINE_TIMEOUT:${settled?.status ?? 'UNKNOWN'}`);
+    created = settled;
+    evidence.runMetrics.create = created.runMetrics ?? null;
+    evidence.createErrorMessage = typeof created.errorMessage === 'string' ? created.errorMessage.slice(0, 300) : null;
+    evidence.submittedStatus = created.status ?? null;
+  }
 
   if (created.status === 'WAITING_FOR_USER') {
     fail('BUSINESS_E2E_UNEXPECTED_CLARIFICATION');

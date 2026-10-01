@@ -83,6 +83,27 @@ describe('HttpFactoryService', () => {
     });
   });
 
+  it('R-08 async: a 202 create (job accepted, worker runs the pipeline) maps to a queued job and is read back by GET', async () => {
+    const accepted = backendJob({ status: 'CREATED', version: 1, runMetrics: { contractVersion: '1.0' } });
+    const { fetch, calls } = fakeFetch(
+      () => json(accepted, 202),
+      () => json(backendJob({ status: 'CREATED', version: 1 })),
+    );
+    const result = await service(fetch).submitWorkflowRequest({ description: 'Baue X', testMode: 'mock' });
+    expect(calls.map((c) => c.method)).toEqual(['POST', 'GET']);
+    expect(result).toMatchObject({ ok: true, value: { id: 'job-1', version: 1, status: 'queued' } });
+  });
+
+  it('R-08 async: a 202 clarification answer is accepted and followed by a GET', async () => {
+    const { fetch, calls } = fakeFetch(
+      () => json(backendJob({ status: 'WAITING_FOR_USER', version: 8, clarificationQuestion: 'Welches System?' }), 202),
+      () => json(backendJob({ status: 'PLANNED', version: 10 })),
+    );
+    const result = await service(fetch).submitClarification({ jobId: 'job-1', response: 'HubSpot' });
+    expect(calls.map((c) => c.method)).toEqual(['POST', 'GET']);
+    expect(result).toMatchObject({ ok: true, value: { version: 10, status: 'generating' } });
+  });
+
   it('create sends the stable clientRequestId and keeps it in the local request', async () => {
     const prefix = `${BASE}/api/orchestrator`;
     const { fetch, calls } = fakeFetch(
