@@ -44,7 +44,13 @@ const evidence = {
   },
   runtimeTruth: { status: null, expected: backendPin, actual: null, matches: false },
   cleanup: { marked: false, status: 'NOT_RUN', reason: null, n8n: null, drive: null },
+  // R-08: sizes and durations only (backend runMetrics v1 + client-side wall time).
+  promptChars: prompt.length,
+  createErrorMessage: null,
+  timingMs: { create: null, approve: null, total: null },
+  runMetrics: { create: null, approve: null },
 };
+const startedAt = Date.now();
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext();
@@ -118,9 +124,13 @@ try {
     { timeout: 320_000 },
   );
   await workspace.fill(prompt);
+  const createStartedAt = Date.now();
   await workspace.press('Enter');
   const createResponse = await createResponsePromise;
+  evidence.timingMs.create = Date.now() - createStartedAt;
   const created = await jsonOf(createResponse);
+  evidence.runMetrics.create = created?.runMetrics ?? null;
+  evidence.createErrorMessage = typeof created?.errorMessage === 'string' ? created.errorMessage.slice(0, 300) : null;
   if (!createResponse.ok() || typeof created?.jobId !== 'string') fail('BUSINESS_E2E_CREATE_FAILED');
   evidence.jobId = created.jobId;
   evidence.submittedStatus = created.status ?? null;
@@ -176,9 +186,12 @@ try {
       response.request().method() === 'POST',
     { timeout: 320_000 },
   );
+  const approveStartedAt = Date.now();
   await page.getByRole('button', { name: 'Approve' }).click();
   const approvalResponse = await approvalResponsePromise;
+  evidence.timingMs.approve = Date.now() - approveStartedAt;
   const approved = await jsonOf(approvalResponse);
+  evidence.runMetrics.approve = approved?.runMetrics ?? null;
   if (!approvalResponse.ok()) fail(`BUSINESS_E2E_APPROVAL_HTTP_${approvalResponse.status()}`);
   if (approved?.jobId !== evidence.jobId || approved?.status !== 'COMPLETED') {
     fail('BUSINESS_E2E_NOT_COMPLETED');
@@ -234,6 +247,7 @@ try {
   console.error('::error::' + (error instanceof Error ? error.message : 'REAL_BUSINESS_E2E_FAIL'));
   process.exitCode = 1;
 } finally {
+  evidence.timingMs.total = Date.now() - startedAt;
   // R-05: cleanup is reported separately and never turns a failed run into PASS or a passed run into FAIL.
   if (evidence.jobId && evidence.cleanup.marked && !keepArtifacts) {
     try {

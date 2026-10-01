@@ -1,0 +1,169 @@
+name: R-08 Large Workflow E2E
+
+# Roadmap Punkt 8: one real business E2E job per stage with a realistic large
+# workflow order (20 → 40 → 60 → 80 → 100 nodes, binding order). Manual only.
+# No build, no Cloudflare upload or deploy, no promotion trigger (Production
+# Promotion listens to "Real E2E" only). The job is test-marked and cleaned up
+# by correlationId (Punkt 5).
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: Target node count of the realistic test order
+        required: true
+        type: choice
+        options:
+          - '20'
+          - '40'
+          - '60'
+          - '80'
+          - '100'
+      confirm:
+        description: Type R-08 to confirm one real job with model costs
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: large-workflow-e2e
+  cancel-in-progress: false
+
+jobs:
+  large-workflow:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirm == 'R-08' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      E2E_PREVIEW_URL: https://control.vantarialabs.tech
+      E2E_BACKEND_URL: https://api.vantarialabs.tech
+      E2E_OWNER_EMAIL: ${{ secrets.E2E_OWNER_EMAIL }}
+      E2E_OWNER_PASSWORD: ${{ secrets.E2E_OWNER_PASSWORD }}
+      E2E_APPROVAL_MODE: AUTOMATED_TEST_APPROVAL
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_WORKER: alpha-frontend-design
+      N8N_TEST_INSTANCE_URL: https://adaptable-gibbon.pikapod.net
+      STAGE: ${{ inputs.stage }}
+
+    steps:
+      - name: Checkout exact main SHA
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Verify checkout identity and stage
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          case "$STAGE" in 20|40|60|80|100) ;; *) echo "::error::STAGE_NOT_ALLOWED"; exit 1 ;; esac
+          echo "E2E_FRONTEND_SHA=$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "CORRELATION_ID=craftflow-large-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-n${STAGE}" >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Require runtime credentials
+        run: |
+          set -euo pipefail
+          test -n "$E2E_OWNER_EMAIL" || { echo "::error::E2E_OWNER_EMAIL secret missing"; exit 1; }
+          test -n "$E2E_OWNER_PASSWORD" || { echo "::error::E2E_OWNER_PASSWORD secret missing"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN secret missing"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret missing"; exit 1; }
+
+      - name: Cloudflare LIVE readback before test
+        id: cf_before
+        run: |
+          set -euo pipefail
+          out="$(node scripts/cloudflare-live-readback.mjs | tee cloudflare-before.log)"
+          json="$(printf '%s\n' "$out" | sed -n 's/^CLOUDFLARE_LIVE_READBACK=//p' | tail -1)"
+          echo "version=$(printf '%s' "$json" | jq -er '.activeVersion')" >> "$GITHUB_OUTPUT"
+
+      - name: PikaPods n8n preflight
+        id: preflight
+        run: |
+          set +e
+          node scripts/n8n-preflight.mjs 2>&1 | tee n8n-preflight.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -eq 0 ]; then echo "status=PASS" >> "$GITHUB_OUTPUT"
+          elif [ "$rc" -eq 2 ]; then echo "status=BLOCKED_EXTERNAL" >> "$GITHUB_OUTPUT"
+          else echo "status=FAIL" >> "$GITHUB_OUTPUT"; fi
+          exit 0
+
+      - name: Install pinned browser runner
+        if: ${{ steps.preflight.outputs.status == 'PASS' }}
+        run: |
+          npm install --no-save --ignore-scripts playwright@1.55.0
+          npx playwright install chromium
+
+      - name: Run realistic large workflow business E2E
+        if: ${{ steps.preflight.outputs.status == 'PASS' }}
+        run: |
+          set -uo pipefail
+          mkdir -p large-run
+          node scripts/large-workflow-prompts.mjs "$STAGE" "$CORRELATION_ID" > large-run/prompt.txt
+          E2E_BUSINESS_PROMPT="$(cat large-run/prompt.txt)" node scripts/real-business-e2e.mjs > large-run/run.log 2>&1
+          echo $? > large-run/run.rc
+          exit 0
+
+      - name: Cloudflare LIVE readback after test
+        id: cf_after
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          out="$(node scripts/cloudflare-live-readback.mjs | tee cloudflare-after.log)"
+          json="$(printf '%s\n' "$out" | sed -n 's/^CLOUDFLARE_LIVE_READBACK=//p' | tail -1)"
+          echo "version=$(printf '%s' "$json" | jq -er '.activeVersion')" >> "$GITHUB_OUTPUT"
+
+      - name: Build stage evidence
+        id: summary
+        if: ${{ always() }}
+        env:
+          PREFLIGHT_STATUS: ${{ steps.preflight.outputs.status }}
+          CF_BEFORE: ${{ steps.cf_before.outputs.version }}
+          CF_AFTER: ${{ steps.cf_after.outputs.version }}
+        run: |
+          set -uo pipefail
+          mkdir -p large-evidence
+          cp -r large-run large-evidence/ 2>/dev/null || true
+          cp cloudflare-before.log cloudflare-after.log n8n-preflight.log large-evidence/ 2>/dev/null || true
+          status=FAIL
+          if [ "${PREFLIGHT_STATUS:-}" = "BLOCKED_EXTERNAL" ]; then
+            status=BLOCKED_EXTERNAL
+          elif [ "${PREFLIGHT_STATUS:-}" = "PASS" ] && node scripts/large-workflow-summary.mjs "$STAGE" large-run/run.log large-run/run.rc large-evidence/summary.json; then
+            stage_status="$(jq -r '.status' large-evidence/summary.json)"
+            if [ "$stage_status" = "PASS" ] && [ -n "${CF_BEFORE:-}" ] && [ "$CF_BEFORE" = "${CF_AFTER:-}" ]; then status=PASS; fi
+          fi
+          jq -n --arg status "$status" --arg sha "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" --arg stage "$STAGE" \
+            --arg preflight "${PREFLIGHT_STATUS:-}" --arg cfBefore "${CF_BEFORE:-}" --arg cfAfter "${CF_AFTER:-}" \
+            '{schema:1,roadmap:"R-08",status:$status,stage:($stage|tonumber),frontend_sha:$sha,workflow_run_id:$runId,preflight_status:$preflight,cloudflare:{version_before:$cfBefore,version_after:$cfAfter,stable:($cfBefore!="" and $cfBefore==$cfAfter)}}' \
+            > large-evidence/result.json
+          cat large-evidence/result.json
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload stage evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: large-workflow-e2e-${{ inputs.stage }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: large-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce stage outcome
+        if: ${{ always() }}
+        env:
+          STATUS: ${{ steps.summary.outputs.status }}
+        run: |
+          if [ "$STATUS" = "BLOCKED_EXTERNAL" ]; then echo "::error::BLOCKED_EXTERNAL — see docs/runbooks/pikapods-outage.md"; exit 2; fi
+          test "$STATUS" = "PASS" || exit 1
+          echo "LARGE_WORKFLOW_E2E=PASS"
