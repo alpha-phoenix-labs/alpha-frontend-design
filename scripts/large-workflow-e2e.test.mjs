@@ -138,3 +138,15 @@ test('R-08 async: the UI approval gate is awaited (bounded) and its last text is
   assert.equal(s.status, 'FAIL');
   assert.deepEqual(s.uiGate, {waitedMs: 20000, lastText: 'testing'});
 });
+
+test('R-08: each stage size is justified by exactly stage-1 distinct business steps (no filler nodes)', () => {
+  for (const stage of STAGES) {
+    const text = largeWorkflowPrompt(stage, `craftflow-large-1-1-n${stage}`);
+    const steps = text.split('\n').filter((line) => /^\d+\. /.test(line)).map((line) => line.replace(/^\d+\. /, ''));
+    assert.equal(steps.length, stage - 1, `${stage}: step count`);
+    assert.equal(new Set(steps).size, steps.length, `${stage}: duplicate steps`);
+    assert.match(text, new RegExp(`genau diesen ${stage - 1} fachlichen Schritten`));
+    assert.match(text, /Keine Füll-Nodes/);
+    assert.match(text, /ohne Schleifen/);
+  }
+});
