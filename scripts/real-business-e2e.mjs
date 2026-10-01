@@ -17,7 +17,6 @@ const prompt = process.env.E2E_BUSINESS_PROMPT?.trim() ||
 // R-05: every run carries a correlationId so the backend can remove exactly this run's test artifacts.
 const correlationId = process.env.CORRELATION_ID?.trim() ||
   `craftflow-e2e-${process.env.GITHUB_RUN_ID ?? 'local'}-${process.env.GITHUB_RUN_ATTEMPT ?? '1'}-${Date.now()}`;
-const keepArtifacts = process.env.E2E_KEEP_ARTIFACTS?.trim() === 'true';
 // R-08: optional recovery when the create request times out (0 = disabled, default for Real E2E/Gate).
 const createRecoveryMs = Math.max(0, Math.min(900_000, Number(process.env.E2E_CREATE_RECOVERY_MS) || 0));
 const RUNNING_STATUSES = new Set(['CREATED', 'PLANNED', 'BUILDING', 'SECURITY_REVIEW', 'TESTING', 'APPROVED']);
@@ -350,26 +349,9 @@ try {
   process.exitCode = 1;
 } finally {
   evidence.timingMs.total = Date.now() - startedAt;
-  // R-05: cleanup is reported separately and never turns a failed run into PASS or a passed run into FAIL.
-  if (evidence.jobId && evidence.cleanup.marked && !keepArtifacts) {
-    try {
-      const cleaned = await backendPost('/api/orchestrator/test-cleanup', { jobId: evidence.jobId, correlationId });
-      evidence.cleanup.status = cleaned.body?.status ?? `TEST_CLEANUP_HTTP_${cleaned.status}`;
-      evidence.cleanup.reason = cleaned.body?.reason ?? null;
-      evidence.cleanup.n8n = cleaned.body?.n8n ?? null;
-      evidence.cleanup.drive = cleaned.body?.drive ?? null;
-    } catch {
-      evidence.cleanup.status = 'CLEANUP_INCOMPLETE';
-      evidence.cleanup.reason = 'TEST_CLEANUP_REQUEST_FAILED';
-    }
-  } else if (keepArtifacts) {
-    evidence.cleanup.status = 'CLEANUP_SKIPPED_EVIDENCE';
-  } else if (evidence.jobId) {
-    evidence.cleanup.status = 'CLEANUP_SKIPPED_NOT_MARKED';
-  }
+  // BOSS 2026-10-01: automatic test cleanup is removed. Test jobs keep their n8n workflow and Drive
+  // archive (they stay marked isTest/correlationId for a later, manual and approved clean-up).
+  if (evidence.jobId) evidence.cleanup.status = 'CLEANUP_DISABLED';
   console.log('REAL_BUSINESS_E2E_EVIDENCE=' + JSON.stringify(evidence));
-  if (evidence.cleanup.status !== 'CLEANUP_OK' && evidence.cleanup.status !== 'NOT_RUN') {
-    console.log('::warning::R05_CLEANUP_STATUS=' + evidence.cleanup.status);
-  }
   await browser.close();
 }
