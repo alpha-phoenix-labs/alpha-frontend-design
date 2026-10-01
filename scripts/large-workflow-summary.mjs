@@ -62,6 +62,12 @@ export function summarizeStage({stage, exitCode, log}) {
       testReport: latest?.testReportBytes ?? null,
       documentation: approved?.documentationBytes ?? null,
     },
+    // R-08: cumulative LLM usage of the job as stored by the backend (numbers only).
+    llmUsage: {
+      tokens: latest?.llmTokens ?? null,
+      costUsd: latest?.llmCostUsd ?? null,
+      costUnknown: latest?.llmCostUnknown === true,
+    },
     n8n: {executionId: e?.n8n?.executionId ?? null, importedId: e?.n8n?.importedId ?? null},
     drive: e?.drive?.status ?? null,
     cleanup: e?.cleanup?.status ?? null,

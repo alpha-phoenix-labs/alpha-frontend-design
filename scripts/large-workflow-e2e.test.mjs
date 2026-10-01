@@ -150,3 +150,11 @@ test('R-08: each stage size is justified by exactly stage-1 distinct business st
     assert.match(text, /ohne Schleifen/);
   }
 });
+
+test('R-08: the stage summary reports the job LLM usage (tokens, cost) from the latest run metrics', () => {
+  const e = evidence();
+  e.runMetrics.create.llmTokens = 9000; e.runMetrics.create.llmCostUsd = 0.004;
+  e.runMetrics.approve.llmTokens = 9500; e.runMetrics.approve.llmCostUsd = 0.0042; e.runMetrics.approve.llmCostUnknown = false;
+  assert.deepEqual(summarizeStage({stage: 20, exitCode: 0, log: log(e)}).llmUsage, {tokens: 9500, costUsd: 0.0042, costUnknown: false});
+  assert.deepEqual(summarizeStage({stage: 20, exitCode: 0, log: log(evidence())}).llmUsage, {tokens: null, costUsd: null, costUnknown: false});
+});
