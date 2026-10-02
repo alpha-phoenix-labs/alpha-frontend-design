@@ -8,14 +8,15 @@ const workflow = readFileSync(new URL('../.github/workflows/large-workflow-e2e.y
 const promotion = readFileSync(new URL('../.github/workflows/production-promotion.yml', import.meta.url), 'utf8');
 const business = readFileSync(new URL('./real-business-e2e.mjs', import.meta.url), 'utf8');
 
-test('stages follow the binding order 20 → 40 → 60 → 80 → 100', () => {
-  assert.deepEqual([...STAGES], [20, 40, 60, 80, 100]);
+test('stages follow the binding order 20 → 40 → 50 → 60 → 80 → 100', () => {
+  assert.deepEqual([...STAGES], [20, 40, 50, 60, 80, 100]);
 });
 
 test('each stage prompt is realistic, names its branch flow and target node count and fits the backend limit', () => {
   const flows = {
     20: ['Friseur', 'Online-Termin', 'Bewertungsanfrage'],
     40: ['Gastronomie', 'Tischprüfung', 'Tagesübersicht'],
+    50: ['SHK', 'Dringlichkeit', 'Nachfassen'],
     60: ['SHK', 'Dringlichkeit', 'Nachfassen'],
     80: ['Dachdecker', 'Kalkulation', 'Bewertung'],
     100: ['Spedition', 'POD', 'Reporting'],
@@ -82,7 +83,7 @@ test('large workflow tool is manual-only, main-only, confirmed, single job and c
   assert.match(triggers, /workflow_dispatch:/);
   assert.doesNotMatch(triggers, /\n  (push|pull_request|workflow_run|schedule):/);
   assert.match(workflow, /if: \$\{\{ github\.ref == 'refs\/heads\/main' && inputs\.confirm == 'R-08' \}\}/);
-  assert.match(workflow, /case "\$STAGE" in 20\|40\|60\|80\|100\)/);
+  assert.match(workflow, /case "\$STAGE" in 20\|40\|50\|60\|80\|100\)/);
   assert.doesNotMatch(workflow, /wrangler|versions (upload|deploy)|npm run build|cloudflare\/wrangler-action|E2E_KEEP_ARTIFACTS/);
   assert.doesNotMatch(promotion, /R-08 Large Workflow E2E/);
   assert.match(workflow, /CORRELATION_ID=craftflow-large-\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}-n\$\{STAGE\}/);
@@ -231,4 +232,15 @@ test('R-08 T2: a target above the backend limit builds an over-limit order; the 
   assert.match(script, /BUSINESS_E2E_PROMPT_NOT_REJECTED/);
   assert.match(workflow, /-le 8100/);
   assert.match(workflow, /SUMMARY_MODE=expect-prompt-rejected/);
+});
+
+test('R-08 stage 50 (operating limit): the stage-60 order without ten secondary steps, same branch and closing step', () => {
+  const p50 = largeWorkflowPrompt(50, 'craftflow-large-1-1-n50');
+  const p60 = largeWorkflowPrompt(60, 'craftflow-large-1-1-n60');
+  const steps = (text) => text.split('\n').filter((line) => /^\d+\. /.test(line)).map((line) => line.replace(/^\d+\. /, ''));
+  assert.equal(steps(p50).length, 49);
+  assert.ok(steps(p50).every((step) => steps(p60).includes(step)), 'subset of the 60 order');
+  assert.equal(steps(p50).at(-1), steps(p60).at(-1));
+  assert.match(p50, /genau diesen 49 fachlichen Schritten .*insgesamt genau 50 Nodes/);
+  assert.ok(p50.length <= 8000);
 });
