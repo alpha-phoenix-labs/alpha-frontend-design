@@ -4,7 +4,7 @@ import {pathToFileURL} from 'node:url';
 import {parseRunLog} from './parallel-load-summary.mjs';
 import {STAGES, QUALITY_REFERENCE_STAGE} from './large-workflow-prompts.mjs';
 
-export function summarizeStage({stage, exitCode, log}) {
+export function summarizeStage({stage, exitCode, log, expectPromptRejected = false}) {
   if (!STAGES.includes(stage)) throw new Error('STAGE_NOT_ALLOWED');
   const {evidence: e, passed, error} = parseRunLog(log);
   const created = e?.runMetrics?.create ?? null;
@@ -12,14 +12,23 @@ export function summarizeStage({stage, exitCode, log}) {
   const latest = approved ?? created;
   const nodeCount = Number.isInteger(latest?.nodeCount) ? latest.nodeCount : null;
   const e2ePass = exitCode === 0 && passed && e?.phase === 'final';
-  const checks = {
-    e2ePass,
-    nodeCountReached: nodeCount !== null && nodeCount >= stage,
-    runtimeTruthMatch: e?.runtimeTruth?.matches === true,
-  };
+  const checks = expectPromptRejected
+    // R-08 T2: PASS = the over-limit order is rejected with 400 and no job exists for its clientRequestId.
+    ? {
+      e2ePass,
+      runtimeTruthMatch: e?.runtimeTruth?.matches === true,
+      promptOverLimit: Number.isInteger(e?.promptChars) && e.promptChars > 8000,
+      promptRejected: e?.createHttpStatus === 400 && e?.promptLimit?.rejectedStatus === 400,
+      noJobCreated: (e?.jobId ?? null) === null && e?.promptLimit?.noJobLookupStatus === 404,
+    }
+    : {
+      e2ePass,
+      nodeCountReached: nodeCount !== null && nodeCount >= stage,
+      runtimeTruthMatch: e?.runtimeTruth?.matches === true,
+    };
   // QG-001 §8: the quality reference passes only with every failure case verified and the package archived in Drive.
   const quality = latest?.quality ?? null;
-  if (stage === QUALITY_REFERENCE_STAGE) {
+  if (stage === QUALITY_REFERENCE_STAGE && !expectPromptRejected) {
     checks.qualityCasesPass = quality?.status === 'PASS' && quality.definedCases > 0 && quality.passedCases === quality.definedCases;
     checks.webhookAuthVerified = quality?.webhookAuth === 'VERIFIED';
     checks.errorWorkflow = quality?.errorWorkflow === true;
@@ -78,6 +87,7 @@ export function summarizeStage({stage, exitCode, log}) {
     // QG-001: quality case outcome as reported by the backend (codes and counts only).
     quality,
     n8n: {executionId: e?.n8n?.executionId ?? null, importedId: e?.n8n?.importedId ?? null},
+    promptLimit: e?.promptLimit ?? null,
     drive: e?.drive?.status ?? null,
     cleanup: e?.cleanup?.status ?? null,
   };
@@ -85,10 +95,10 @@ export function summarizeStage({stage, exitCode, log}) {
 
 // CLI: node scripts/large-workflow-summary.mjs <stage> <run.log> <run.rc> <out.json>
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const [stageArg, logFile, rcFile, out] = process.argv.slice(2);
+  const [stageArg, logFile, rcFile, out, mode] = process.argv.slice(2);
   const read = (f) => { try { return readFileSync(f, 'utf8'); } catch { return ''; } };
   const rc = read(rcFile).trim();
-  const summary = summarizeStage({stage: Number(stageArg), exitCode: rc === '' ? null : Number(rc), log: read(logFile)});
+  const summary = summarizeStage({stage: Number(stageArg), exitCode: rc === '' ? null : Number(rc), log: read(logFile), expectPromptRejected: mode === 'expect-prompt-rejected'});
   writeFileSync(out, JSON.stringify(summary, null, 2));
   console.log('LARGE_WORKFLOW_SUMMARY=' + JSON.stringify(summary));
 }
