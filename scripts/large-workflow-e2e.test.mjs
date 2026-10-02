@@ -194,3 +194,19 @@ test('QG-001: stage 20 passes only with every quality case verified, webhook aut
   const s40 = summarizeStage({stage: 40, exitCode: 0, log: log(forty)});
   assert.equal('qualityCasesPass' in s40.checks, false);
 });
+
+test('R-08 T1: an optional prompt length target adds only background facts, keeps the steps and stays within the backend limit', () => {
+  const id = 'craftflow-large-36994530333-1-n60';
+  const base = largeWorkflowPrompt(60, id);
+  const long = largeWorkflowPrompt(60, id, 7900);
+  assert.ok(Math.abs(long.length - 7900) <= 20 && long.length <= 8000, `length ${long.length}`);
+  const steps = (text) => text.split('\n').filter((line) => /^\d+\. /.test(line));
+  assert.deepEqual(steps(long), steps(base), 'same business steps, no extra node');
+  assert.match(long, /Betriebskontext \(nur Hintergrund, keine zusätzlichen Schritte, Nodes oder Regeln\):/);
+  assert.equal(long.replace(/Betriebskontext[^]*?\n(?=Der Workflow besteht)/, ''), base, 'only the context block differs');
+  assert.equal(largeWorkflowPrompt(60, id, ''), base);
+  for (const bad of [8001, 1000, 'abc', 7900.5]) assert.throws(() => largeWorkflowPrompt(60, id, bad), /INVALID_PROMPT_TARGET/);
+  assert.match(workflow, /prompt_chars:/);
+  assert.match(workflow, /PROMPT_CHARS_INVALID/);
+  assert.match(workflow, /large-workflow-prompts\.mjs "\$STAGE" "\$CORRELATION_ID" "\$\{PROMPT_CHARS:-\}"/);
+});
