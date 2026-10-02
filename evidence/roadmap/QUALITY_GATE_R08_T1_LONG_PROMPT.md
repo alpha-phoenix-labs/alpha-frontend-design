@@ -1,6 +1,6 @@
 # QUALITY GATE R-08 / T1 – Langprompt-Grenztest (60-Node-Betriebsgrenze)
 
-Stand: 2026-10-02 · Ergebnis: **FAIL** · Kennzeichnung: BELEGT · ANNAHME · NICHT GEPRÜFT
+Stand: 2026-10-02 · Ergebnis: **FAIL, reproduziert (2/2)** · Kennzeichnung: BELEGT · ANNAHME · NICHT GEPRÜFT
 
 ## Lauf
 | Feld | Wert |
@@ -58,4 +58,19 @@ Job-Status `FAILED` nach 235,3 s (`WORKER_JOB END`).
 - Die Ablehnung kommt aus der bestehenden Verbindungsprüfung (`validateWorkflow`), nicht aus einem Prompt-Limit. BELEGT.
 - 120 statt 118 reparierter Verweise deuten auf eine zusätzliche bzw. fehlerhafte Verbindung hin (Code `TRIGGER` = Verbindung auf den Auslöser). ANNAHME.
 - Welcher Verbindungsverweis betroffen ist, steht nicht in den Logs: `BUILDER_REJECT` deckt nur Parameterfehler ab; die Liste der fehlerhaften Verweise steht nur im internen Retry-Feedback. NICHT GEPRÜFT.
-- Ein Lauf; Reproduzierbarkeit NICHT GEPRÜFT.
+- Reproduziert, siehe Wiederholung.
+
+## Wiederholung (BELEGT)
+| Feld | Wert |
+|---|---|
+| Run | 37000098816 (11:16:26Z – 11:20:46Z), FE `bac4ba9c1399ec77323a64f70fa9539b04c8c8cf`, BE `5db194c` |
+| jobId | `cmuqvby0500074ugqie05d478` |
+| Prompt-Länge | 7 897 Zeichen |
+| BUILDER-Versuche | 3: `INVALID_CONNECTION_TARGET:INVALID_FORMAT` (69,5 s / 68,8 s / 69,6 s), je `connectionIdRefs` 120 |
+| Job | `FAILED` nach 216,1 s; kein n8n, kein Drive |
+| Artifact | 11223371475 |
+
+Ergebnis über beide Läufe: Standardauftrag 60 Nodes 2/2 PASS (36905703518, 36994530333), Langprompt 60 Nodes 2/2 FAIL. `INVALID_FORMAT` heißt laut `lib/orchestrator/core.ts:155-157`: ein Verbindungsziel hat kein Text-`node`, kein `type: "main"` oder keinen ganzzahligen `index` ≥ 0. Welches Feld betroffen ist: NICHT GEPRÜFT (Ausgaben nicht gespeichert; DB-Lesezugriff blockiert, IP-Allowlist leer und bleibt unverändert).
+
+## Entscheidung
+BOSS 2026-10-02: Betriebsgrenze **50 Nodes**; 60 Nodes bleibt historisch erfolgreich getestete Obergrenze (Standardauftrag).
