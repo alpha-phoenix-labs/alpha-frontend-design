@@ -35,10 +35,10 @@ Quelle: BOSS-Vorgabe „CRAFTFLOW_POST_M1_ROADMAP_1-20“ (Wortlaut der Punkte 1
 - Graph-Optimierung [BOSS-Entscheidung 2026-10-02, QA-Audit].
 
 ## Arbeitsreihenfolge ab Punkt 8 [BOSS-Entscheidung 2026-10-02]
-Betriebsgrenze 60 Nodes (Stufen 80/100 nicht geplant).
-1. T1 Langprompt (60 Nodes, ≈ 7 900 Zeichen)
+Betriebsgrenze **50 Nodes** [BOSS-Entscheidung 2026-10-02, ersetzt die vorläufige Grenze 60]. Begründung: 40 Nodes PASS, 60 Nodes Standardauftrag PASS, 60 Nodes mit Langprompt reproduzierbar FAIL (T1, Runs 36997147458 und 37000098816). 60 Nodes bleibt als historisch erfolgreich getestete Obergrenze dokumentiert. Stufen 80/100 sind nicht geplant.
+1. T1 Langprompt (60 Nodes, ≈ 7 900 Zeichen) – erledigt: reproduzierbar FAIL, Grundlage der 50-Node-Grenze
 2. T2 Prompt-Limit (> 8 000 Zeichen wird abgelehnt, kein Job)
 3. R-20-QUALITY (Definition v1 unverändert)
 4. 8b Graph-Integrität (Hardening)
-5. Regression 40/60
+5. Regression 40 und Betriebsgrenze 50 (Werkzeug hat bisher keine Stufe 50; 60 nur als historische Referenz)
 6. Punkt 9 Recovery
