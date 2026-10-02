@@ -415,6 +415,8 @@ const CONTEXT_FACTS = [
 const CONTEXT_HEADER = 'Betriebskontext (nur Hintergrund, keine zusätzlichen Schritte, Nodes oder Regeln):';
 export const PROMPT_LIMIT = 8000;
 export const PROMPT_TOLERANCE = 20;
+// R-08 T2: a target above the backend limit (max. +100) builds an order the backend must reject.
+export const PROMPT_OVER_LIMIT_MAX = PROMPT_LIMIT + 100;
 
 function contextBlock(chars) {
   let out = CONTEXT_HEADER;
@@ -433,13 +435,14 @@ export function largeWorkflowPrompt(stage, correlationId, targetChars) {
   const base = buildPrompt(order, stage, correlationId, null);
   if (targetChars === undefined || targetChars === null || targetChars === '') return base;
   const target = Number(targetChars);
-  if (!Number.isInteger(target) || target > PROMPT_LIMIT || target <= base.length + CONTEXT_HEADER.length + 1) throw new Error('INVALID_PROMPT_TARGET');
-  const text = buildPrompt(order, stage, correlationId, contextBlock(target - base.length - 1));
-  if (Math.abs(text.length - target) > PROMPT_TOLERANCE || text.length > PROMPT_LIMIT) throw new Error('PROMPT_TARGET_MISSED');
+  if (!Number.isInteger(target) || target > PROMPT_OVER_LIMIT_MAX || target <= base.length + CONTEXT_HEADER.length + 1) throw new Error('INVALID_PROMPT_TARGET');
+  const overLimit = target > PROMPT_LIMIT;
+  const text = buildPrompt(order, stage, correlationId, contextBlock(target - base.length - 1), overLimit);
+  if (Math.abs(text.length - target) > PROMPT_TOLERANCE || (text.length > PROMPT_LIMIT) !== overLimit) throw new Error('PROMPT_TARGET_MISSED');
   return text;
 }
 
-function buildPrompt(order, stage, correlationId, context) {
+function buildPrompt(order, stage, correlationId, context, overLimit = false) {
   const text = [
     `Correlation ID ${correlationId}.`,
     `Erstelle einen realistischen n8n-Workflow für einen Betrieb der Branche ${order.branch}.`,
@@ -452,7 +455,7 @@ function buildPrompt(order, stage, correlationId, context) {
     ...(order.quality ?? []),
     order.quality ? QUALITY_RULES : SANDBOX_RULES,
   ].join('\n');
-  if (text.length > 8000) throw new Error('PROMPT_TOO_LONG');
+  if (text.length > PROMPT_LIMIT && !overLimit) throw new Error('PROMPT_TOO_LONG');
   return text;
 }
 

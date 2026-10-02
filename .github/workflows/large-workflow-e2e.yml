@@ -23,7 +23,7 @@ on:
         required: true
         type: string
       prompt_chars:
-        description: Optional (R-08 T1) – lengthen the order with background facts to this many characters (max 8000); empty = standard order
+        description: Optional (R-08 T1/T2) – lengthen the order with background facts to this many characters; up to 8000 = normal run, 8001-8100 = T2 (backend must reject, no job); empty = standard order
         required: false
         type: string
         default: ''
@@ -64,7 +64,8 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           case "$STAGE" in 20|40|60|80|100) ;; *) echo "::error::STAGE_NOT_ALLOWED"; exit 1 ;; esac
-          case "${PROMPT_CHARS:-}" in '') ;; *[!0-9]*) echo "::error::PROMPT_CHARS_INVALID"; exit 1 ;; *) test "$PROMPT_CHARS" -le 8000 || { echo "::error::PROMPT_CHARS_INVALID"; exit 1; } ;; esac
+          case "${PROMPT_CHARS:-}" in '') ;; *[!0-9]*) echo "::error::PROMPT_CHARS_INVALID"; exit 1 ;; *) test "$PROMPT_CHARS" -le 8100 || { echo "::error::PROMPT_CHARS_INVALID"; exit 1; } ;; esac
+          if [ -n "${PROMPT_CHARS:-}" ] && [ "$PROMPT_CHARS" -gt 8000 ]; then echo "E2E_EXPECT_PROMPT_REJECTED=1" >> "$GITHUB_ENV"; echo "SUMMARY_MODE=expect-prompt-rejected" >> "$GITHUB_ENV"; fi
           echo "E2E_FRONTEND_SHA=$GITHUB_SHA" >> "$GITHUB_ENV"
           echo "CORRELATION_ID=craftflow-large-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-n${STAGE}" >> "$GITHUB_ENV"
 
@@ -145,7 +146,7 @@ jobs:
           status=FAIL
           if [ "${PREFLIGHT_STATUS:-}" = "BLOCKED_EXTERNAL" ]; then
             status=BLOCKED_EXTERNAL
-          elif [ "${PREFLIGHT_STATUS:-}" = "PASS" ] && node scripts/large-workflow-summary.mjs "$STAGE" large-run/run.log large-run/run.rc large-evidence/summary.json; then
+          elif [ "${PREFLIGHT_STATUS:-}" = "PASS" ] && node scripts/large-workflow-summary.mjs "$STAGE" large-run/run.log large-run/run.rc large-evidence/summary.json "${SUMMARY_MODE:-}"; then
             stage_status="$(jq -r '.status' large-evidence/summary.json)"
             if [ "$stage_status" = "PASS" ] && [ -n "${CF_BEFORE:-}" ] && [ "$CF_BEFORE" = "${CF_AFTER:-}" ]; then status=PASS; fi
           fi

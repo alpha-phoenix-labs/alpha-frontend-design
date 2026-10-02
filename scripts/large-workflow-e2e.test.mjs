@@ -205,8 +205,30 @@ test('R-08 T1: an optional prompt length target adds only background facts, keep
   assert.match(long, /Betriebskontext \(nur Hintergrund, keine zusätzlichen Schritte, Nodes oder Regeln\):/);
   assert.equal(long.replace(/Betriebskontext[^]*?\n(?=Der Workflow besteht)/, ''), base, 'only the context block differs');
   assert.equal(largeWorkflowPrompt(60, id, ''), base);
-  for (const bad of [8001, 1000, 'abc', 7900.5]) assert.throws(() => largeWorkflowPrompt(60, id, bad), /INVALID_PROMPT_TARGET/);
+  for (const bad of [8101, 1000, 'abc', 7900.5]) assert.throws(() => largeWorkflowPrompt(60, id, bad), /INVALID_PROMPT_TARGET/);
   assert.match(workflow, /prompt_chars:/);
   assert.match(workflow, /PROMPT_CHARS_INVALID/);
   assert.match(workflow, /large-workflow-prompts\.mjs "\$STAGE" "\$CORRELATION_ID" "\$\{PROMPT_CHARS:-\}"/);
+});
+
+test('R-08 T2: a target above the backend limit builds an over-limit order; the summary passes only for a 400 rejection without a job', () => {
+  const id = 'craftflow-large-1-1-n60';
+  const over = largeWorkflowPrompt(60, id, 8050);
+  assert.ok(over.length > 8000 && Math.abs(over.length - 8050) <= 20, `length ${over.length}`);
+  assert.throws(() => largeWorkflowPrompt(60, id, 8101), /INVALID_PROMPT_TARGET/);
+  const run = (patch) => {
+    const e = {phase: 'final', promptChars: 8048, jobId: null, createHttpStatus: 400, runtimeTruth: {matches: true}, promptLimit: {rejectedStatus: 400, noJobLookupStatus: 404}, ...patch};
+    return summarizeStage({stage: 60, exitCode: 0, log: `REAL_BUSINESS_E2E_EVIDENCE=${JSON.stringify(e)}\nREAL_E2E_PASS`, expectPromptRejected: true});
+  };
+  assert.equal(run({}).status, 'PASS');
+  assert.deepEqual(run({}).promptLimit, {rejectedStatus: 400, noJobLookupStatus: 404});
+  assert.equal(run({createHttpStatus: 202, promptLimit: {rejectedStatus: 202, noJobLookupStatus: 404}}).status, 'FAIL', 'accepted = FAIL');
+  assert.equal(run({jobId: 'cmx'}).status, 'FAIL', 'job created = FAIL');
+  assert.equal(run({promptLimit: {rejectedStatus: 400, noJobLookupStatus: 200}}).status, 'FAIL', 'job found = FAIL');
+  assert.equal(run({promptChars: 7990}).status, 'FAIL', 'not over the limit = FAIL');
+  const script = readFileSync('scripts/real-business-e2e.mjs', 'utf8');
+  assert.match(script, /E2E_EXPECT_PROMPT_REJECTED === '1'/);
+  assert.match(script, /BUSINESS_E2E_PROMPT_NOT_REJECTED/);
+  assert.match(workflow, /-le 8100/);
+  assert.match(workflow, /SUMMARY_MODE=expect-prompt-rejected/);
 });
