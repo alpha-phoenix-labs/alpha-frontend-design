@@ -32,7 +32,15 @@ Kennzeichnung: BELEGT = geprüft · ANNAHME · NICHT GEPRÜFT
 - Cleanup-Pfad: Testmarker `isTest` / `correlationId` / `cleanupStatus` / `cleanedAt` (BE#39). Zeilen werden markiert, nicht gelöscht. Der Altbestand ohne Marker bleibt.
 - Risiko: `handwerkflows-test-db` läuft im Free-Plan am 2026-10-25T04:44Z ab. Das Upgrade übernimmt der BOSS; Erinnerungen am 15.10. und 22.10.
 
-## Punkt 5 – Automatisches E2E-Cleanup: ERLEDIGT / ABGENOMMEN
+## Punkt 5 – Automatisches E2E-Cleanup: ZURÜCKGENOMMEN (2026-10-01/02, BOSS-Entscheidung)
+> Nachtrag 2026-10-02: Der Abschnitt unten beschreibt den Stand vom 2026-09-30 und bleibt als Verlauf erhalten. Er gilt nicht mehr.
+> - BOSS 2026-10-01: In n8n und Google Drive wird nichts gelöscht.
+> - FE#57 (merged 2026-10-01 20:06 UTC): Das automatische Test-Cleanup wurde aus dem Business-E2E entfernt; Drive- und n8n-Artefakte bleiben erhalten. BELEGT (Git).
+> - BE#51 → main `7c016be` (merged 2026-10-02 04:59 UTC), Render `dep-davjkplckfvc73brevng`: Route `/api/orchestrator/test-cleanup`, `lib/orchestrator/test-cleanup.ts` und die Drive-Trash-Funktionen sind entfernt; `test-mark` bleibt. BELEGT (Git, Render).
+> - Seitdem melden E2E-Läufe `cleanup.status: CLEANUP_DISABLED` (z. B. Real E2E 36974817418, Job `cmuqlj1kb00004ugq1jil0pd1`). BELEGT.
+> - Folge: Der 60-Node-Lauf 36905703518 (Job `cmupuxez10003101ebc4hzd7x`, `CLEANUP_OK`) hat heute keine Pipeline-Dateien mehr in Drive. BELEGT (Drive-Suche 2026-10-02).
+
+Stand 2026-09-30 (Verlauf):
 - BE#39 gemergt (main `5a38424`), Render-Deploy `dep-daulbim0tbcc73dpdaig`, Migration `20260930120000_add_test_cleanup_fields` angewendet (Render-Log). BELEGT.
 - FE#37 gemergt (main `1a64751`); Cloudflare-Version 4f236955-8e6c-418f-9b21-49463cb4642c. BELEGT.
 - Abnahme (2 aufeinanderfolgende Läufe, 0 Reste):
