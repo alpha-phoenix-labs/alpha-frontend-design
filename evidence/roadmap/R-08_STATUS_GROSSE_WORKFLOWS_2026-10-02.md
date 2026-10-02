@@ -2,9 +2,11 @@
 
 Stand: 2026-10-02 10:20 UTC · Quelle: CRAFTFLOW_POST_M1_ROADMAP (20 Punkte), Punkt 8
 Kennzeichnung: BELEGT = geprüft · ANNAHME · NICHT GEPRÜFT
-Status: **IN ARBEIT** – Betriebsgrenze 50 Nodes festgelegt; 40 und 60 Nodes (Standardauftrag) auf dem aktuellen Stand bestanden, 60 Nodes mit Langprompt reproduzierbar FAIL; T2, R-20-QUALITY und 8b offen.
+Status: **IN ARBEIT** – Betriebsgrenze 40 Nodes (BOSS 2026-10-02, ersetzt 50; `OPERATING_LIMIT_40_NODES_2026-10-02.md`); 40 und 60 Nodes (Standardauftrag) auf dem aktuellen Stand bestanden, 60 Nodes mit Langprompt reproduzierbar FAIL; T2, R-20-QUALITY und 8b offen.
 
-BOSS-Entscheidung 2026-10-02 (aktualisiert): Betriebsgrenze **50 Nodes**. Das System wird nur vom Betreiber bedient; Aufträge über 50 Nodes werden nicht angefordert. Stufen 80/100 sind nicht geplant.
+BOSS-Entscheidung 2026-10-02 (zweite Aktualisierung): Betriebsgrenze **40 Nodes**, gültig bis Abschluss H1–H6, danach Requalifizierung 60 (H7). Die folgende Festlegung auf 50 ist ersetzt.
+
+BOSS-Entscheidung 2026-10-02 (aktualisiert, ersetzt): Betriebsgrenze **50 Nodes**. Das System wird nur vom Betreiber bedient; Aufträge über 50 Nodes werden nicht angefordert. Stufen 80/100 sind nicht geplant.
 - Begründung: 40 Nodes PASS, 60 Nodes Standardauftrag PASS, 60 Nodes mit Langprompt (7 897 Zeichen) reproduzierbar FAIL (T1, s. u.).
 - **60 Nodes** bleibt als historisch erfolgreich getestete Obergrenze dokumentiert (Standardauftrag 3 906 Zeichen, Runs 36905703518 und 36994530333); sie ist keine Betriebsgrenze.
 - Die vorläufige Festlegung „60 Nodes“ vom selben Tag ist damit ersetzt.
@@ -70,5 +72,5 @@ R-20-QUALITY: Definition v1 (archiviert 2026-10-01) bleibt unverändert; Graph-I
 2. T2 Prompt-Limit
 3. R-20-QUALITY
 4. 8b Graph-Integrität (Hardening)
-5. Regression 40 und Betriebsgrenze 50
+5. Regression 40 (Betriebsgrenze)
 6. Punkt 9 Recovery
