@@ -46,3 +46,25 @@ Die 60er-Stufe brauchte heute 1 statt 3 BUILDER-Versuche und rund ein Drittel de
 2. R-20-QUALITY (Stufe 20 mit Qualitätsmechanismen) auf `5db194c`.
 3. Ob n8n Webhook-`options: null` akzeptiert (seit BE#54 zulässig), ist NICHT GEPRÜFT.
 4. Je Stufe nur ein Lauf; Reproduzierbarkeit der großen Stufen NICHT GEPRÜFT.
+5. T1 Langprompt (Run 36997147458, 2026-10-02 10:44 UTC, 7 897 Zeichen): **FAIL**, `INVALID_CONNECTION_TARGET` in 3/3 BUILDER-Versuchen. Ursache NICHT GEPRÜFT. Evidence: `QUALITY_GATE_R08_T1_LONG_PROMPT.md`.
+
+## 8b Graph-Integrität (Hardening)
+BOSS-Entscheidung 2026-10-02 (QA-Audit), Teil der offiziellen Roadmap (`CRAFTFLOW_POST_M1_ROADMAP.md`, Punkt 8b). Nur Dokumentation; nicht implementiert.
+
+| Regel | Heute im Code (BE `5db194c`, read-only geprüft) |
+|---|---|
+| Reachability Validation – jede Node vom Trigger erreichbar | nicht geprüft; `assertAcyclic` (`lib/orchestrator/core.ts`) prüft nur Zyklen, ausgehend von jeder Quelle |
+| Unconnected Node Detection – keine isolierten Nodes | teilweise: offene IF-/Fehlerausgänge → `UNCONNECTED_BRANCH_OUTPUT`; komplett isolierte Nodes werden akzeptiert |
+| Duplicate Connection Detection – keine doppelten Verbindungen zwischen denselben Nodes | nicht geprüft; Verbindungsprüfung kennt nur Format, unbekannte Ziele und Ziel = Trigger |
+
+Abnahme je Regel (bei späterer Umsetzung): Negativtest belegt die Lücke auf dem alten Stand, Positivtest belegt, dass bestehende gültige Workflows (Regression 40/60) weiter bestehen.
+Nicht Bestandteil von 8b: Readback Comparison (→ Punkt 9), Branch-/Depth-Limits (→ Punkt 18), Graph-Optimierung (→ Backlog).
+R-20-QUALITY: Definition v1 (archiviert 2026-10-01) bleibt unverändert; Graph-Integrität wird erst nach Umsetzung von 8b als eigene Version (v1.1) für spätere Läufe aufgenommen.
+
+## Reihenfolge ab hier (BOSS-Entscheidung 2026-10-02)
+1. T1 Langprompt
+2. T2 Prompt-Limit
+3. R-20-QUALITY
+4. 8b Graph-Integrität (Hardening)
+5. Regression 40/60
+6. Punkt 9 Recovery
