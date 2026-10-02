@@ -399,16 +399,53 @@ const ORDERS = {
   },
 };
 
-export function largeWorkflowPrompt(stage, correlationId) {
+// R-08 T1: background facts that lengthen a stage order without adding a step, node or rule.
+const CONTEXT_FACTS = [
+  'Der Betrieb arbeitet an fünf Tagen pro Woche und beschäftigt Fachkräfte, Auszubildende und eine Bürokraft.',
+  'Kundinnen und Kunden melden sich über das Formular auf der Website, telefonisch oder persönlich im Betrieb.',
+  'Die Bürokraft prüft eingehende Vorgänge morgens und nachmittags und priorisiert dringende Anliegen.',
+  'Termine werden in einem gemeinsamen Kalender geplant, der für alle Mitarbeitenden einsehbar ist.',
+  'Rechnungen werden nach Abschluss eines Vorgangs erstellt und innerhalb von vierzehn Tagen fällig.',
+  'Der Betrieb legt Wert auf freundliche, kurze und verständliche Rückmeldungen an die Kundschaft.',
+  'Personenbezogene Daten werden nur für die Bearbeitung des Vorgangs genutzt und nicht weitergegeben.',
+  'In der Hauptsaison steigt die Zahl der Anfragen deutlich, deshalb ist eine klare Reihenfolge wichtig.',
+  'Rückfragen der Kundschaft beantwortet der Betrieb in der Regel noch am selben Arbeitstag.',
+  'Die Geschäftsführung wertet einmal im Monat aus, wie viele Vorgänge abgeschlossen wurden.',
+];
+const CONTEXT_HEADER = 'Betriebskontext (nur Hintergrund, keine zusätzlichen Schritte, Nodes oder Regeln):';
+export const PROMPT_LIMIT = 8000;
+export const PROMPT_TOLERANCE = 20;
+
+function contextBlock(chars) {
+  let out = CONTEXT_HEADER;
+  for (let i = 0; out.length + 1 + CONTEXT_FACTS[i % CONTEXT_FACTS.length].length <= chars; i++) out += `\n${CONTEXT_FACTS[i % CONTEXT_FACTS.length]}`;
+  // Fill the rest with whole words of the next fact, ending on a word boundary.
+  const words = CONTEXT_FACTS[0].split(' ');
+  for (const word of words) { if (out.length + 2 + word.length > chars) break; out += (out.endsWith(':') || out.endsWith('.') ? '\n' : ' ') + word; }
+  return out.endsWith('.') || out.endsWith(':') ? out : `${out}.`;
+}
+
+export function largeWorkflowPrompt(stage, correlationId, targetChars) {
   const order = ORDERS[stage];
   if (!order) throw new Error('STAGE_NOT_ALLOWED');
   if (order.steps.length !== stage - 1) throw new Error('STAGE_STEPS_MISMATCH');
   if (typeof correlationId !== 'string' || !/^[A-Za-z0-9._-]{1,128}$/.test(correlationId)) throw new Error('INVALID_CORRELATION_ID');
+  const base = buildPrompt(order, stage, correlationId, null);
+  if (targetChars === undefined || targetChars === null || targetChars === '') return base;
+  const target = Number(targetChars);
+  if (!Number.isInteger(target) || target > PROMPT_LIMIT || target <= base.length + CONTEXT_HEADER.length + 1) throw new Error('INVALID_PROMPT_TARGET');
+  const text = buildPrompt(order, stage, correlationId, contextBlock(target - base.length - 1));
+  if (Math.abs(text.length - target) > PROMPT_TOLERANCE || text.length > PROMPT_LIMIT) throw new Error('PROMPT_TARGET_MISSED');
+  return text;
+}
+
+function buildPrompt(order, stage, correlationId, context) {
   const text = [
     `Correlation ID ${correlationId}.`,
     `Erstelle einen realistischen n8n-Workflow für einen Betrieb der Branche ${order.branch}.`,
     `Fachlicher Ablauf: ${order.flow}.`,
     ...order.detail,
+    ...(context ? [context] : []),
     // R-08: the node count follows from the listed business steps, never from padding.
     `Der Workflow besteht aus dem Webhook-Auslöser und genau diesen ${order.steps.length} fachlichen Schritten in dieser Reihenfolge, je Schritt genau ein Node (insgesamt genau ${stage} Nodes):`,
     ...order.steps.map((step, i) => `${i + 1}. ${step}`),
@@ -419,7 +456,7 @@ export function largeWorkflowPrompt(stage, correlationId) {
   return text;
 }
 
-// CLI: node scripts/large-workflow-prompts.mjs <stage> <correlationId>
+// CLI: node scripts/large-workflow-prompts.mjs <stage> <correlationId> [targetChars]
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  process.stdout.write(largeWorkflowPrompt(Number(process.argv[2]), process.argv[3]));
+  process.stdout.write(largeWorkflowPrompt(Number(process.argv[2]), process.argv[3], process.argv[4]));
 }
