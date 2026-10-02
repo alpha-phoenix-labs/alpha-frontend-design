@@ -2,7 +2,9 @@
 
 Stand: 2026-10-02 10:20 UTC · Quelle: CRAFTFLOW_POST_M1_ROADMAP (20 Punkte), Punkt 8
 Kennzeichnung: BELEGT = geprüft · ANNAHME · NICHT GEPRÜFT
-Status: **IN ARBEIT** – 40 und 60 Nodes auf dem aktuellen Stand bestanden; 80, 100 und R-20-QUALITY offen.
+Status: **IN ARBEIT** – 40 und 60 Nodes auf dem aktuellen Stand bestanden; R-20-QUALITY sowie lange Prompts / Payload-Grenzen offen.
+
+BOSS-Entscheidung 2026-10-02: Betriebsgrenze **60 Nodes**. Das System wird nur vom Betreiber bedient; Aufträge über 60 Nodes werden nicht angefordert. Stufen 80/100 sind nicht geplant.
 
 ## Ziel laut Roadmap
 Viele Nodes, lange Prompts, große Reports, maximale Payloads.
@@ -40,7 +42,7 @@ Die 60er-Stufe brauchte heute 1 statt 3 BUILDER-Versuche und rund ein Drittel de
 - R-20-QUALITY Run 36968257610 (05:17 UTC, Backend `1b06277`): FAIL `INVALID_PARAMETERS` in allen 3 BUILDER-Versuchen. BE#54 macht die Ursache messbar (Log `BUILDER_REJECT`); ein erneuter Lauf auf `5db194c` steht aus.
 
 ## Offen
-1. Stufe 80 und Stufe 100. Das konfigurierte Node-Limit (`MAX_WORKFLOW_NODES`) ist NICHT GEPRÜFT; belegt ist nur ≥ 60.
+1. Lange Prompts und Payload-Grenzen: Prompt-Limit im Code 8 000 Zeichen (`lib/orchestrator/core.ts:37`, `app/api/orchestrator/route.ts:101`), getestet bisher bis 3 906 Zeichen. Fallpayload je Testfall ≤ 2 000 Zeichen (`lib/orchestrator/quality.ts:44`). Das konfigurierte Node-Limit (`MAX_WORKFLOW_NODES`) ist NICHT GEPRÜFT; belegt ist nur ≥ 60; es wird betrieblich nicht über 60 angefordert (s. o.).
 2. R-20-QUALITY (Stufe 20 mit Qualitätsmechanismen) auf `5db194c`.
 3. Ob n8n Webhook-`options: null` akzeptiert (seit BE#54 zulässig), ist NICHT GEPRÜFT.
 4. Je Stufe nur ein Lauf; Reproduzierbarkeit der großen Stufen NICHT GEPRÜFT.
