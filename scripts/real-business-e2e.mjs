@@ -69,6 +69,9 @@ const context = await browser.newContext();
 const page = await context.newPage();
 
 const fail = (message) => { throw new Error(message); };
+// R-08 T2: an order above the backend prompt limit must be rejected (400) and must never create a job.
+const expectPromptRejected = process.env.E2E_EXPECT_PROMPT_REJECTED === '1';
+class PromptRejectedPass extends Error {}
 const jsonOf = async (response) => {
   try { return await response.json(); } catch { return null; }
 };
@@ -219,6 +222,16 @@ try {
   let created = await jsonOf(createResponse);
   evidence.runMetrics.create = created?.runMetrics ?? null;
   evidence.createErrorMessage = typeof created?.errorMessage === 'string' ? created.errorMessage.slice(0, 300) : null;
+  if (expectPromptRejected) {
+    evidence.phase = 'prompt-limit-rejection';
+    if (createResponse.status() !== 400 || typeof created?.jobId === 'string') fail('BUSINESS_E2E_PROMPT_NOT_REJECTED');
+    const lookup = evidence.clientRequestId
+      ? await backendGet(`/api/orchestrator?clientRequestId=${encodeURIComponent(evidence.clientRequestId)}`).catch(() => ({ status: 0 }))
+      : { status: null };
+    evidence.promptLimit = { rejectedStatus: createResponse.status(), noJobLookupStatus: lookup.status };
+    if (lookup.status !== 404) fail('BUSINESS_E2E_PROMPT_REJECTED_JOB_LOOKUP');
+    throw new PromptRejectedPass();
+  }
   if (!createResponse.ok() || typeof created?.jobId !== 'string') fail('BUSINESS_E2E_CREATE_FAILED');
   evidence.jobId = created.jobId;
   evidence.submittedStatus = created.status ?? null;
@@ -344,9 +357,15 @@ try {
   console.log('REAL_BUSINESS_E2E_EVIDENCE=' + JSON.stringify(evidence));
   console.log('REAL_E2E_PASS');
 } catch (error) {
+  if (error instanceof PromptRejectedPass) {
+    evidence.phase = 'final';
+    console.log('REAL_BUSINESS_E2E_EVIDENCE=' + JSON.stringify(evidence));
+    console.log('REAL_E2E_PASS');
+  } else {
   console.error('REAL_BUSINESS_E2E_EVIDENCE=' + JSON.stringify(evidence));
   console.error('::error::' + (error instanceof Error ? error.message : 'REAL_BUSINESS_E2E_FAIL'));
   process.exitCode = 1;
+  }
 } finally {
   evidence.timingMs.total = Date.now() - startedAt;
   // BOSS 2026-10-01: automatic test cleanup is removed. Test jobs keep their n8n workflow and Drive

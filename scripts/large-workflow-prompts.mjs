@@ -2,7 +2,7 @@
 // Order of execution is binding: 20 → 40 → 60 → 80 → 100 nodes (BOSS, 2026-10-01).
 import {pathToFileURL} from 'node:url';
 
-export const STAGES = Object.freeze([20, 40, 60, 80, 100]);
+export const STAGES = Object.freeze([20, 40, 50, 60, 80, 100]);
 /** QG-001: stage 20 is the R-20-QUALITY reference; 40-100 are re-validated only after it passed. */
 export const QUALITY_REFERENCE_STAGE = 20;
 
@@ -398,6 +398,21 @@ const ORDERS = {
     ],
   },
 };
+// R-08 (BOSS 2026-10-02): operating limit 50 nodes. Stage 50 is the stage-60 order without ten
+// secondary steps (same branch, flow and closing steps); stage 60 stays as the historical reference.
+const STAGE_50_DROPPED_STEPS = Object.freeze([
+  'Postleitzahl prüfen',
+  'Bestandskunden markieren',
+  'Besichtigungsprotokoll vorbereiten',
+  'Zwischensumme berechnen',
+  'Angebotsfrist setzen',
+  'Material reservieren',
+  'Ist-Material übernehmen',
+  'Offene-Posten-Status setzen',
+  'Wartungserinnerung für das Folgejahr planen',
+  'Kennzahlen je Gewerk fortschreiben',
+]);
+ORDERS[50] = {...ORDERS[60], steps: ORDERS[60].steps.filter((step) => !STAGE_50_DROPPED_STEPS.includes(step))};
 
 // R-08 T1: background facts that lengthen a stage order without adding a step, node or rule.
 const CONTEXT_FACTS = [
@@ -415,6 +430,8 @@ const CONTEXT_FACTS = [
 const CONTEXT_HEADER = 'Betriebskontext (nur Hintergrund, keine zusätzlichen Schritte, Nodes oder Regeln):';
 export const PROMPT_LIMIT = 8000;
 export const PROMPT_TOLERANCE = 20;
+// R-08 T2: a target above the backend limit (max. +100) builds an order the backend must reject.
+export const PROMPT_OVER_LIMIT_MAX = PROMPT_LIMIT + 100;
 
 function contextBlock(chars) {
   let out = CONTEXT_HEADER;
@@ -433,13 +450,14 @@ export function largeWorkflowPrompt(stage, correlationId, targetChars) {
   const base = buildPrompt(order, stage, correlationId, null);
   if (targetChars === undefined || targetChars === null || targetChars === '') return base;
   const target = Number(targetChars);
-  if (!Number.isInteger(target) || target > PROMPT_LIMIT || target <= base.length + CONTEXT_HEADER.length + 1) throw new Error('INVALID_PROMPT_TARGET');
-  const text = buildPrompt(order, stage, correlationId, contextBlock(target - base.length - 1));
-  if (Math.abs(text.length - target) > PROMPT_TOLERANCE || text.length > PROMPT_LIMIT) throw new Error('PROMPT_TARGET_MISSED');
+  if (!Number.isInteger(target) || target > PROMPT_OVER_LIMIT_MAX || target <= base.length + CONTEXT_HEADER.length + 1) throw new Error('INVALID_PROMPT_TARGET');
+  const overLimit = target > PROMPT_LIMIT;
+  const text = buildPrompt(order, stage, correlationId, contextBlock(target - base.length - 1), overLimit);
+  if (Math.abs(text.length - target) > PROMPT_TOLERANCE || (text.length > PROMPT_LIMIT) !== overLimit) throw new Error('PROMPT_TARGET_MISSED');
   return text;
 }
 
-function buildPrompt(order, stage, correlationId, context) {
+function buildPrompt(order, stage, correlationId, context, overLimit = false) {
   const text = [
     `Correlation ID ${correlationId}.`,
     `Erstelle einen realistischen n8n-Workflow für einen Betrieb der Branche ${order.branch}.`,
@@ -452,7 +470,7 @@ function buildPrompt(order, stage, correlationId, context) {
     ...(order.quality ?? []),
     order.quality ? QUALITY_RULES : SANDBOX_RULES,
   ].join('\n');
-  if (text.length > 8000) throw new Error('PROMPT_TOO_LONG');
+  if (text.length > PROMPT_LIMIT && !overLimit) throw new Error('PROMPT_TOO_LONG');
   return text;
 }
 

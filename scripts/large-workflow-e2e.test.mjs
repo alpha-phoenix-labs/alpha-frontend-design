@@ -8,14 +8,15 @@ const workflow = readFileSync(new URL('../.github/workflows/large-workflow-e2e.y
 const promotion = readFileSync(new URL('../.github/workflows/production-promotion.yml', import.meta.url), 'utf8');
 const business = readFileSync(new URL('./real-business-e2e.mjs', import.meta.url), 'utf8');
 
-test('stages follow the binding order 20 → 40 → 60 → 80 → 100', () => {
-  assert.deepEqual([...STAGES], [20, 40, 60, 80, 100]);
+test('stages follow the binding order 20 → 40 → 50 → 60 → 80 → 100', () => {
+  assert.deepEqual([...STAGES], [20, 40, 50, 60, 80, 100]);
 });
 
 test('each stage prompt is realistic, names its branch flow and target node count and fits the backend limit', () => {
   const flows = {
     20: ['Friseur', 'Online-Termin', 'Bewertungsanfrage'],
     40: ['Gastronomie', 'Tischprüfung', 'Tagesübersicht'],
+    50: ['SHK', 'Dringlichkeit', 'Nachfassen'],
     60: ['SHK', 'Dringlichkeit', 'Nachfassen'],
     80: ['Dachdecker', 'Kalkulation', 'Bewertung'],
     100: ['Spedition', 'POD', 'Reporting'],
@@ -82,7 +83,7 @@ test('large workflow tool is manual-only, main-only, confirmed, single job and c
   assert.match(triggers, /workflow_dispatch:/);
   assert.doesNotMatch(triggers, /\n  (push|pull_request|workflow_run|schedule):/);
   assert.match(workflow, /if: \$\{\{ github\.ref == 'refs\/heads\/main' && inputs\.confirm == 'R-08' \}\}/);
-  assert.match(workflow, /case "\$STAGE" in 20\|40\|60\|80\|100\)/);
+  assert.match(workflow, /case "\$STAGE" in 20\|40\|50\|60\|80\|100\)/);
   assert.doesNotMatch(workflow, /wrangler|versions (upload|deploy)|npm run build|cloudflare\/wrangler-action|E2E_KEEP_ARTIFACTS/);
   assert.doesNotMatch(promotion, /R-08 Large Workflow E2E/);
   assert.match(workflow, /CORRELATION_ID=craftflow-large-\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}-n\$\{STAGE\}/);
@@ -205,8 +206,41 @@ test('R-08 T1: an optional prompt length target adds only background facts, keep
   assert.match(long, /Betriebskontext \(nur Hintergrund, keine zusätzlichen Schritte, Nodes oder Regeln\):/);
   assert.equal(long.replace(/Betriebskontext[^]*?\n(?=Der Workflow besteht)/, ''), base, 'only the context block differs');
   assert.equal(largeWorkflowPrompt(60, id, ''), base);
-  for (const bad of [8001, 1000, 'abc', 7900.5]) assert.throws(() => largeWorkflowPrompt(60, id, bad), /INVALID_PROMPT_TARGET/);
+  for (const bad of [8101, 1000, 'abc', 7900.5]) assert.throws(() => largeWorkflowPrompt(60, id, bad), /INVALID_PROMPT_TARGET/);
   assert.match(workflow, /prompt_chars:/);
   assert.match(workflow, /PROMPT_CHARS_INVALID/);
   assert.match(workflow, /large-workflow-prompts\.mjs "\$STAGE" "\$CORRELATION_ID" "\$\{PROMPT_CHARS:-\}"/);
+});
+
+test('R-08 T2: a target above the backend limit builds an over-limit order; the summary passes only for a 400 rejection without a job', () => {
+  const id = 'craftflow-large-1-1-n60';
+  const over = largeWorkflowPrompt(60, id, 8050);
+  assert.ok(over.length > 8000 && Math.abs(over.length - 8050) <= 20, `length ${over.length}`);
+  assert.throws(() => largeWorkflowPrompt(60, id, 8101), /INVALID_PROMPT_TARGET/);
+  const run = (patch) => {
+    const e = {phase: 'final', promptChars: 8048, jobId: null, createHttpStatus: 400, runtimeTruth: {matches: true}, promptLimit: {rejectedStatus: 400, noJobLookupStatus: 404}, ...patch};
+    return summarizeStage({stage: 60, exitCode: 0, log: `REAL_BUSINESS_E2E_EVIDENCE=${JSON.stringify(e)}\nREAL_E2E_PASS`, expectPromptRejected: true});
+  };
+  assert.equal(run({}).status, 'PASS');
+  assert.deepEqual(run({}).promptLimit, {rejectedStatus: 400, noJobLookupStatus: 404});
+  assert.equal(run({createHttpStatus: 202, promptLimit: {rejectedStatus: 202, noJobLookupStatus: 404}}).status, 'FAIL', 'accepted = FAIL');
+  assert.equal(run({jobId: 'cmx'}).status, 'FAIL', 'job created = FAIL');
+  assert.equal(run({promptLimit: {rejectedStatus: 400, noJobLookupStatus: 200}}).status, 'FAIL', 'job found = FAIL');
+  assert.equal(run({promptChars: 7990}).status, 'FAIL', 'not over the limit = FAIL');
+  const script = readFileSync('scripts/real-business-e2e.mjs', 'utf8');
+  assert.match(script, /E2E_EXPECT_PROMPT_REJECTED === '1'/);
+  assert.match(script, /BUSINESS_E2E_PROMPT_NOT_REJECTED/);
+  assert.match(workflow, /-le 8100/);
+  assert.match(workflow, /SUMMARY_MODE=expect-prompt-rejected/);
+});
+
+test('R-08 stage 50 (operating limit): the stage-60 order without ten secondary steps, same branch and closing step', () => {
+  const p50 = largeWorkflowPrompt(50, 'craftflow-large-1-1-n50');
+  const p60 = largeWorkflowPrompt(60, 'craftflow-large-1-1-n60');
+  const steps = (text) => text.split('\n').filter((line) => /^\d+\. /.test(line)).map((line) => line.replace(/^\d+\. /, ''));
+  assert.equal(steps(p50).length, 49);
+  assert.ok(steps(p50).every((step) => steps(p60).includes(step)), 'subset of the 60 order');
+  assert.equal(steps(p50).at(-1), steps(p60).at(-1));
+  assert.match(p50, /genau diesen 49 fachlichen Schritten .*insgesamt genau 50 Nodes/);
+  assert.ok(p50.length <= 8000);
 });
