@@ -32,6 +32,8 @@ test('each stage prompt is realistic, names its branch flow and target node coun
   assert.throws(() => largeWorkflowPrompt(20, 'bad id'), /INVALID_CORRELATION_ID/);
 });
 
+const passingQuality = () => ({status: 'PASS', definedCases: 4, passedCases: 4, failedCases: 0, notVerifiedCases: 0, webhookAuth: 'VERIFIED', errorWorkflow: true,
+  cases: [{caseId: 'TC-1', kind: 'SUCCESS', result: 'PASS', reason: null}]});
 const evidence = (overrides = {}) => ({
   correlationId: 'craftflow-large-1-1-n20', phase: 'final', jobId: 'job-20', submittedStatus: 'WAITING_FOR_APPROVAL',
   promptChars: 1500, createErrorMessage: null, timingMs: {create: 61000, approve: 9000, total: 90000},
@@ -40,7 +42,7 @@ const evidence = (overrides = {}) => ({
   runMetrics: {
     create: {nodeCount: 20, connectionCount: 19, workflowBytes: 9000, testReportBytes: 120, builderRetries: 1, stepRuns: {BUILDER: 1},
       phaseMs: {BOSS: 900, ARCHITECT: 4000, BUILDER: 40000, SECURITY: 2, TESTER: 6000}, testerMs: {importMs: 800, activateMs: 600, webhookMs: 3000, executionReadMs: 300}},
-    approve: {nodeCount: 20, connectionCount: 19, workflowBytes: 9000, testReportBytes: 120, documentationBytes: 700, phaseMs: {DOCS: 3}},
+    approve: {nodeCount: 20, connectionCount: 19, workflowBytes: 9000, testReportBytes: 120, documentationBytes: 700, phaseMs: {DOCS: 3}, quality: passingQuality()},
   },
   ...overrides,
 });
@@ -157,4 +159,38 @@ test('R-08: the stage summary reports the job LLM usage (tokens, cost) from the 
   e.runMetrics.approve.llmTokens = 9500; e.runMetrics.approve.llmCostUsd = 0.0042; e.runMetrics.approve.llmCostUnknown = false;
   assert.deepEqual(summarizeStage({stage: 20, exitCode: 0, log: log(e)}).llmUsage, {tokens: 9500, costUsd: 0.0042, costUnknown: false});
   assert.deepEqual(summarizeStage({stage: 20, exitCode: 0, log: log(evidence())}).llmUsage, {tokens: null, costUsd: null, costUnknown: false});
+});
+
+test('QG-001: stage 20 is the R-20-QUALITY reference with fixed requirements and test cases', () => {
+  const text = largeWorkflowPrompt(20, 'craftflow-large-1-1-n20');
+  for (const part of ['REQ-1 / RISK-1', 'Header-Authentifizierung', 'echte Entscheidung (IF)', 'Stop and Error', 'kein Retry',
+    'https://api.vantarialabs.tech/api/test-fixture/transient', 'separaten Fehler-Workflow', 'TC-1 SUCCESS', 'TC-2 TRANSIENT_ERROR', 'TC-3 VALIDATION_ERROR',
+    'Correlation ID schreiben', 'keine weiteren Entscheidungen, Fehler- oder Retry-Nodes'])
+    assert.ok(text.includes(part), part);
+  assert.doesNotMatch(text, /durchgehende Kette/);
+  const forty = largeWorkflowPrompt(40, 'craftflow-large-1-1-n40');
+  assert.doesNotMatch(forty, /R-20-QUALITY/);
+});
+
+test('QG-001: stage 20 passes only with every quality case verified, webhook auth, error workflow and Drive archive', () => {
+  const pass = summarizeStage({stage: 20, exitCode: 0, log: log(evidence())});
+  assert.equal(pass.status, 'PASS');
+  assert.deepEqual(pass.quality, passingQuality());
+  const variants = [
+    ['qualityCasesPass', (q) => { q.status = 'NOT_VERIFIED'; q.notVerifiedCases = 1; q.passedCases = 3; }],
+    ['webhookAuthVerified', (q) => { q.webhookAuth = 'NOT_VERIFIED'; }],
+    ['errorWorkflow', (q) => { q.errorWorkflow = false; }],
+  ];
+  for (const [check, mutate] of variants) {
+    const e = evidence(); mutate(e.runMetrics.approve.quality);
+    const s = summarizeStage({stage: 20, exitCode: 0, log: log(e)});
+    assert.equal(s.status, 'FAIL', check); assert.equal(s.checks[check], false, check);
+  }
+  const noQuality = evidence(); noQuality.runMetrics.approve.quality = null;
+  assert.equal(summarizeStage({stage: 20, exitCode: 0, log: log(noQuality)}).status, 'FAIL');
+  const noDrive = summarizeStage({stage: 20, exitCode: 0, log: log(evidence({drive: {status: 'BLOCKED'}}))});
+  assert.equal(noDrive.checks.driveArchived, false); assert.equal(noDrive.status, 'FAIL');
+  const forty = evidence(); forty.runMetrics.approve.nodeCount = 40; forty.runMetrics.approve.quality = null;
+  const s40 = summarizeStage({stage: 40, exitCode: 0, log: log(forty)});
+  assert.equal('qualityCasesPass' in s40.checks, false);
 });
