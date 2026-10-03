@@ -44,6 +44,25 @@ Quelle: BOSS-Vorgabe „CRAFTFLOW_POST_M1_ROADMAP_1-20“ (Wortlaut der Punkte 1
   - Der Abschluss erfolgt per BOSS-Entscheidung trotz roter Kette. Die Production Promotion des Frontends `95c7e7d` hat nicht stattgefunden.
   - Drive COMPLETE wird als separater Operations-Incident weitergeführt; nicht Teil von Gate 4 oder Gate 5.
   - Nächstes Gate: 5 Modul A (Ingestion & Validation). Zuerst wird die Spezifikation am Human Gate vorgelegt; keine Implementierung ohne GO.
+- **Gate 5 Modul A (Ingestion & Validation): ABGESCHLOSSEN** [BOSS-Entscheidung 2026-10-03, „GO MERGE 63“, „GO MERGE 83“ und Entscheidung A „Gate 5 als ABGESCHLOSSEN dokumentieren“]
+  - Spezifikation: `GATE5_MODUL_A_SPEC_v1.0-draft`, 459 Zeilen, SHA-256 `ace0b1c708d4e517c1f84ca8746d2013d5728834fa1db710b0259e80b73dc8a0`, mit D1–D10 (Entscheidungen 2026-10-03). QA-GO auf Head `429fcf3`.
+  - Backend: BE#63, Merge `70990e891151f3de57ea0fb14e07c40e6bb3bf69`; `verify` 37154322944 success; Render-Deploy `dep-db0n0c0ae00c73eqa810` live.
+  - Inhalt: `lib/orchestrator/module-a.ts` mit `MODULE_A_CONTRACT`, `runModuleAReference` (Orakel, D1), `assertModuleAResult` (fail-closed, inklusive Nachprüfung des normalisierten Leads), `buildModuleAWorkflow` (deterministisches Template, D2) und `assertModuleAWorkflow`. Dazu Golden-Vektoren GV-001 bis GV-012 und 61 Gate-5-Tests. Keine Laufzeitverdrahtung, keine n8n-Aufrufe.
+  - Offen bis Gate 8 (D1): Die Äquivalenz von n8n-Expression und Orakel gegen echtes n8n ist **nicht bewiesen**.
+  - Runtime-Truth-Pin: FE#83, Merge `d936cce76cd892141eac1962fd7b5b282041f35a`.
+  - FE-Kette auf `d936cce`:
+
+    | Schritt | Run-ID | Ergebnis |
+    |---|---|---|
+    | CI | 37155052133 | success |
+    | Cloudflare Deploy Test | 37155052195 | success |
+    | Real E2E | 37155052189 | failure: `BUSINESS_E2E_DRIVE_NOT_COMPLETE` |
+    | Production Promotion | 37155116181 | skipped |
+    | Post-Deploy Production Gate | 37155127139 | skipped |
+
+  - Gate 5 ist per BOSS-Entscheidung abgeschlossen. Ein Zusammenhang zwischen Gate 5 und `BUSINESS_E2E_DRIVE_NOT_COMPLETE` ist nicht belegt.
+  - **Drive COMPLETE ist ein separater Operations-Incident**, nicht Teil von Gate 5. Die Analyse erfolgt ausschließlich im Operations-Track.
+  - Nächstes Gate: 6 Modul B. Zuerst wird die Spezifikation am Human Gate vorgelegt; keine Implementierung ohne GO.
 
 1. Alte Diagnose-PRs #28 / #35 / #37 schließen und dokumentiert archivieren.
 2. n8n-Testdaten bereinigen: importierte Test-Workflows und alte Test-Executions kontrolliert entfernen.
