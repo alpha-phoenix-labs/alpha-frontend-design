@@ -3,6 +3,14 @@
 Quelle: BOSS-Vorgabe „CRAFTFLOW_POST_M1_ROADMAP_1-20“ (Wortlaut der Punkte 1–20 unverändert; Kopfzeilen weggelassen).
 Änderungen nur per BOSS-Entscheidung; jede Ergänzung ist datiert und mit [BOSS-Entscheidung …] gekennzeichnet.
 
+## Zielbild ab 2026-10-03: modulare 20-Node-Produktfabrik [BOSS-Entscheidung 2026-10-03, Architektur-Gate 1]
+- Zielarchitektur: Parent + modulare n8n-Sub-Workflows; **maximal 20 fachliche Nodes je Modul**; Parent im ersten Prototyp maximal 7 Nodes. Spezifikation: `evidence/architecture/CRAFTFLOW_MODULAR_20_NODE_SPEC_v1.0.md`.
+- Keine neuen monolithischen Einzelworkflows (40/60/100+ Nodes) und keine neuen Großworkflow-Tests. Die bestehende Großworkflow-Evidence bleibt historisch erhalten.
+- Die Betriebsgrenze 40 Nodes gilt nur noch als **historische Monolith-Grenze** (`OPERATING_LIMIT_40_NODES_2026-10-02.md`).
+- H1 (R-20-QUALITY) und H7 (60-Node-Requalifizierung) des Hardening-Plans sind **durch den modularen Pfad ersetzt**; H1 ist historisch FAIL (`R20_QUALITY_EVIDENCE.md`). Neuer Qualitätsnachweis: modularer Prototyp bis n8n-Readback.
+- Löschstopp bleibt aktiv: nichts löschen, 0 SAFE_DELETE, keine Migration vor validiertem Ersatz; Legacy nur dokumentarisch markiert, keine Änderung in n8n.
+- Nächste Gates (je eigene Freigabe): 2 Validator-Erweiterung (Parent/Sub-Workflows) → 3 Job-Datenmodell → 4 Importlogik → 5 Modul A → 6 Modul B → 7 Parent → 8 erster kostenpflichtiger Prototyplauf → 9 QA-Abnahme.
+
 1. Alte Diagnose-PRs #28 / #35 / #37 schließen und dokumentiert archivieren.
 2. n8n-Testdaten bereinigen: importierte Test-Workflows und alte Test-Executions kontrolliert entfernen.
 3. Google-Drive-Testartefakte bereinigen und Cleanup-Regel für künftige E2E-Läufe festlegen.
@@ -35,7 +43,7 @@ Quelle: BOSS-Vorgabe „CRAFTFLOW_POST_M1_ROADMAP_1-20“ (Wortlaut der Punkte 1
 - Graph-Optimierung [BOSS-Entscheidung 2026-10-02, QA-Audit].
 
 ## Arbeitsreihenfolge ab Punkt 8 [BOSS-Entscheidung 2026-10-02]
-Betriebsgrenze **40 Nodes** [BOSS-Entscheidung 2026-10-02, ersetzt die Grenze 50; gültig bis Abschluss H1–H6 des Hardening-Plans, danach Requalifizierung 60 (H7)]. Evidence: `OPERATING_LIMIT_40_NODES_2026-10-02.md`.
+Historische Monolith-Grenze (seit 2026-10-03, siehe Zielbild oben): Betriebsgrenze **40 Nodes** [BOSS-Entscheidung 2026-10-02, ersetzt die Grenze 50; gültig bis Abschluss H1–H6 des Hardening-Plans, danach Requalifizierung 60 (H7)]. Evidence: `OPERATING_LIMIT_40_NODES_2026-10-02.md`.
 ~~Betriebsgrenze **50 Nodes** [BOSS-Entscheidung 2026-10-02, ersetzt die vorläufige Grenze 60]. Begründung: 40 Nodes PASS, 60 Nodes Standardauftrag PASS, 60 Nodes mit Langprompt reproduzierbar FAIL (T1, Runs 36997147458 und 37000098816). 60 Nodes bleibt als historisch erfolgreich getestete Obergrenze dokumentiert. Stufen 80/100 sind nicht geplant.~~ (ersetzt)
 1. T1 Langprompt (60 Nodes, ≈ 7 900 Zeichen) – erledigt: reproduzierbar FAIL, Grundlage der 50-Node-Grenze
 2. T2 Prompt-Limit (> 8 000 Zeichen wird abgelehnt, kein Job)

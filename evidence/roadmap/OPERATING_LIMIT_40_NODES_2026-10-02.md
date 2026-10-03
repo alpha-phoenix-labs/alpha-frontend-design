@@ -2,6 +2,8 @@
 
 Stand: 2026-10-02 · BOSS-Entscheidung „40 NODE EVIDENCE – OFFIZIELLE BETRIEBSGRENZE“ · Kennzeichnung: BELEGT · ANNAHME · NICHT GEPRÜFT
 Evidence-Status: **ABGENOMMEN** · Freigabestatus: **OFFIZIELLE BETRIEBSGRENZE = 40 NODES**
+**Seit 2026-10-03 historische Monolith-Grenze** [BOSS-Entscheidung 2026-10-03, Architektur-Gate 1]: neue Workflows entstehen als Parent + Module mit maximal 20 fachlichen Nodes je Modul (`evidence/architecture/CRAFTFLOW_MODULAR_20_NODE_SPEC_v1.0.md`); keine neuen 40-/60-/100+-Node-Einzelworkflows. Die Gültigkeitsbedingung H1–H6 → H7 unten ist damit gegenstandslos (H1 und H7 durch den modularen Pfad ersetzt).
+
 Ersetzt: Betriebsgrenze 50 Nodes (BOSS-Entscheidung 2026-10-02, FE#64).
 
 ## Gültigkeit

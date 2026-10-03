@@ -114,3 +114,25 @@ Ergebnis: **FAIL** – `INVALID_PLAN` exakt lokalisiert. H2 nicht gestartet.
 - Die übrigen Kandidaten sind für diesen Lauf ausgeschlossen: die Prüfungen laufen in fester Reihenfolge, Plan-Grundfelder, `plannedNodeCount` und die Mechanismen 0–1 haben bestanden; Fehlerfälle wurden nicht mehr geprüft.
 - Der konkrete Wert ist nicht geloggt (bewusst, keine Nutzdaten). Welches Zeichen bzw. welche Länge die Regel verletzt: NICHT GEPRÜFT.
 - Ob Lauf 37041965708 (gleicher Code, ohne Diagnose) dieselbe Quelle hatte: NICHT GEPRÜFT.
+
+## H1-Lauf nach ARCHITECT-Retry (2026-10-03 06:40 UTC)
+Ergebnis: **FAIL**.
+
+| Feld | Wert |
+|---|---|
+| Run / Artifact | 37103829868 / 11267160996 |
+| FE / BE | `48fab927122cd85ebe51790f584033e0f9ca3990` / `5b1b15d5c661b7fccd63cd302f2e00da76e78ba8` (BE#59) |
+| jobId | `cmus0wvj700024wgpv3o7jzr5` |
+| Runtime Truth | PASS |
+| ARCHITECT | PASS per Retry (2 Aufrufe, 16,9 s); `PLAN_REJECT` 1× `MECHANISM_ID_FORMAT`, index 2, `requirementId`; kein `PLAN_REPAIR` |
+| BUILDER | FAIL 3/3: V1 `PARAMETER_NOT_ALLOWED:HTTPREQUEST`, V2–V3 `REPEATED_REJECTED_DESTINATION`; kein `BUILDER_REJECT` |
+| Workflow-ID / Execution-ID | – / – |
+| Tokens / Kosten | 21 878 / 0,0079 USD (gesamt; Aufteilung NICHT GEPRÜFT) |
+| Laufzeit | 110,7 s |
+| Drive | keiner (0/9) |
+
+## Status H1 (BOSS-Entscheidung 2026-10-03, Architektur-Gate 1)
+**Durch Architekturentscheidung ersetzt, historisch FAIL.** Die monolithische H1-Reparaturschleife ist gestoppt; keine weitere H1-Ausführung vor dem modularen Prototyp (`evidence/architecture/CRAFTFLOW_MODULAR_20_NODE_SPEC_v1.0.md`).
+Bekannte Legacy-Befunde (offen, nicht weiter verfolgt im Monolith-Pfad):
+- `PARAMETER_NOT_ALLOWED:HTTPREQUEST` ohne Lokalisierung (Parametername nicht geloggt).
+- Mindestens ein HTTP-Zielhost nicht in der Live-`ALLOWED_HOSTS` (`REPEATED_REJECTED_DESTINATION`); welcher Host, NICHT GEPRÜFT.
