@@ -43,3 +43,49 @@ Ergebnis: **FAIL** – Exit-Kriterium (PASS) nicht erreicht. H2–H7 nicht begon
 ## Offene Entscheidungen (keine Aktion ohne Freigabe)
 - Env `ALLOWED_HOSTS` prüfen/ergänzen (Render-Env; Lesen/Ändern nur mit ausdrücklicher Freigabe).
 - Diagnose-Lücke: `PARAMETER_NOT_ALLOWED` ohne Lokalisierung (gleiche Lücke wie vor BE#55 bei Verbindungen).
+
+## H1-Retry nach ALLOWED_HOSTS-Änderung (2026-10-02 17:37 UTC)
+Ergebnis: **FAIL** – Exit-Kriterium (PASS) nicht erreicht. H2 nicht gestartet.
+
+### Voraussetzung (Render, read-only)
+| Feld | Wert |
+|---|---|
+| Deploy | `dep-davumu942hec73e8d9og`, live seit 17:36:51Z, `deploy_ended: succeeded` |
+| Backend-SHA | `963bad465b5d7ed76fe55a5538d77a856e8969a1` (unverändert) |
+| Trigger | `manual` (Betreiberkonto) |
+| `envUpdated` | **`false`** (Render-Event) – ob der neue `ALLOWED_HOSTS`-Wert im Prozess wirksam ist: NICHT GEPRÜFT |
+
+### Lauf (BELEGT)
+| Feld | Wert |
+|---|---|
+| Run / Artifact | 37041965708 / 11241659052 |
+| FE / BE | `6e0c3029ceaa30732c56a9a4cfdd677047ddf3d0` / `963bad4` |
+| jobId | `cmur8xwh10000si1d0uxuux8r` |
+| Workflow-ID / Execution-ID | – / – (nicht erreicht) |
+| Runtime Truth | PASS |
+| Kosten | unbekannt (`costUnknown: true`) |
+| Dauer | gesamt 19,4 s; BOSS 1,6 s; ARCHITECT 9,8 s |
+| Drive | keiner (`drive: null`) |
+| Ergebnis | `BUSINESS_E2E_NOT_AT_APPROVAL:BLOCKED`, `createErrorMessage: INVALID_PLAN` |
+
+### Fehlercode je Schritt (Render-Logs)
+| Schritt | Status | Fehlercode |
+|---|---|---|
+| BOSS | PLANNED | – |
+| ARCHITECT (Versuch 1) | **BLOCKED** | **`INVALID_PLAN`** |
+| BUILDER | nicht erreicht | – |
+
+`BUILDER_REJECT`: keiner (BUILDER nicht erreicht).
+
+### Root Cause (Stand Evidence)
+- BELEGT: Der Lauf stoppt in der Plan-Prüfung des ARCHITECT; `INVALID_PLAN` blockiert ohne Retry.
+- BELEGT (Code BE `963bad4`): `INVALID_PLAN` hat 9 Quellen – `lib/orchestrator/agents.ts:136–140` (Plan-Grundfelder, `plannedNodeCount`, `webhookAuthRequired`) und `lib/orchestrator/quality.ts:31–48` (Qualitätsmechanismen und Fehlerfälle: Anzahl, Feldlängen, `payloadJson`, Zuordnung `kind`/`expected`). Kein Log nennt die auslösende Quelle.
+- NICHT GEPRÜFT: welche der 9 Quellen ausgelöst hat (ARCHITECT-Ausgabe wird nicht gespeichert, nicht geloggt).
+- NICHT GEPRÜFT: ob die ALLOWED_HOSTS-Änderung wirksam war (`envUpdated: false`; BUILDER, wo der Host geprüft wird, nicht erreicht).
+
+### Vergleich H1-Läufe
+| Lauf | BE | ARCHITECT | BUILDER | Ergebnis |
+|---|---|---|---|---|
+| 36968257610 | `1b06277` | bestanden | `INVALID_PARAMETERS` ×3 | FAIL |
+| 37029807555 | `0257497` | bestanden | `PARAMETER_NOT_ALLOWED:HTTPREQUEST`, `REPEATED_REJECTED_DESTINATION` ×2 | FAIL |
+| 37041965708 | `963bad4` | **`INVALID_PLAN`** | nicht erreicht | FAIL |
