@@ -89,3 +89,28 @@ Ergebnis: **FAIL** – Exit-Kriterium (PASS) nicht erreicht. H2 nicht gestartet.
 | 36968257610 | `1b06277` | bestanden | `INVALID_PARAMETERS` ×3 | FAIL |
 | 37029807555 | `0257497` | bestanden | `PARAMETER_NOT_ALLOWED:HTTPREQUEST`, `REPEATED_REJECTED_DESTINATION` ×2 | FAIL |
 | 37041965708 | `963bad4` | **`INVALID_PLAN`** | nicht erreicht | FAIL |
+
+## H1-Lauf mit PLAN_REJECT-Diagnose (2026-10-03 05:35 UTC)
+Ergebnis: **FAIL** – `INVALID_PLAN` exakt lokalisiert. H2 nicht gestartet.
+
+| Feld | Wert |
+|---|---|
+| Run / Artifact | 37100279628 / 11265836007 |
+| FE / BE | `bb8389657a5bdb69ad9f55dac9396e7612bb9ec3` / `e54121464e277641affe08683a9fd1f7ca6ddcf1` (BE#57, Render `dep-db090d2vcj2c739359dg`) |
+| jobId | `cmurykker00029qwglhpy1kt7` |
+| Workflow-ID / Execution-ID | – / – (nicht erreicht) |
+| Runtime Truth | PASS |
+| Kosten | unbekannt (`costUnknown: true`) |
+| Dauer | gesamt 17,4 s; BOSS 0,9 s; ARCHITECT 12,0 s |
+| Drive | keiner (`drive: null`) |
+| Ergebnis | `BUSINESS_E2E_NOT_AT_APPROVAL:BLOCKED`, `INVALID_PLAN` |
+
+### PLAN_REJECT (Render-Log, 05:35:46Z, BELEGT)
+`{"event":"PLAN_REJECT","jobId":"cmurykker00029qwglhpy1kt7","reason":"MECHANISM_ID_FORMAT","index":2,"field":"requirementId"}`
+
+### Exakte Quelle (BELEGT)
+- Prüfung: `lib/orchestrator/quality.ts`, `parseQualityMechanisms`, `requirementId` muss `^[A-Za-z0-9._-]{1,40}$` erfüllen (`ID`).
+- Betroffen: `qualityMechanisms[2].requirementId` der ARCHITECT-Ausgabe.
+- Die übrigen Kandidaten sind für diesen Lauf ausgeschlossen: die Prüfungen laufen in fester Reihenfolge, Plan-Grundfelder, `plannedNodeCount` und die Mechanismen 0–1 haben bestanden; Fehlerfälle wurden nicht mehr geprüft.
+- Der konkrete Wert ist nicht geloggt (bewusst, keine Nutzdaten). Welches Zeichen bzw. welche Länge die Regel verletzt: NICHT GEPRÜFT.
+- Ob Lauf 37041965708 (gleicher Code, ohne Diagnose) dieselbe Quelle hatte: NICHT GEPRÜFT.
