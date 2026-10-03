@@ -10,6 +10,21 @@ Quelle: BOSS-Vorgabe „CRAFTFLOW_POST_M1_ROADMAP_1-20“ (Wortlaut der Punkte 1
 - H1 (R-20-QUALITY) und H7 (60-Node-Requalifizierung) des Hardening-Plans sind **durch den modularen Pfad ersetzt**; H1 ist historisch FAIL (`R20_QUALITY_EVIDENCE.md`). Neuer Qualitätsnachweis: modularer Prototyp bis n8n-Readback.
 - Löschstopp bleibt aktiv: nichts löschen, 0 SAFE_DELETE, keine Migration vor validiertem Ersatz; Legacy nur dokumentarisch markiert, keine Änderung in n8n.
 - Nächste Gates (je eigene Freigabe): 2 Validator-Erweiterung (Parent/Sub-Workflows) → 3 Job-Datenmodell → 4 Importlogik → 5 Modul A → 6 Modul B → 7 Parent → 8 erster kostenpflichtiger Prototyplauf → 9 QA-Abnahme.
+- **Gate 2 Validator-Erweiterung: ABGESCHLOSSEN** [BOSS-Entscheidung 2026-10-03, „GO MERGE 60“ und „GO MERGE 77“]
+  - Backend: BE#60, Merge `f22cb25c3cec5848938627148b185ccb457608f3`; Render-Deploy `dep-db0f28lckfvc73co22dg` live.
+  - Inhalt: `WorkflowKind` main|error|parent|module, `ValidatorContext`, Execute Sub-Workflow 1.2/1.3, Execute Sub-Workflow Trigger 1.1, Parent ≤ 7 / Modul ≤ 20 Nodes, Reachability, branch-genaue Duplicate-Edge-Prüfung, Modulaufrufgraph. main/error unverändert. Grundlage: n8n 2.40.7 (`n8n-nodes-base` 2.40.2).
+  - Runtime-Truth-Pin: FE#77, Merge `3ae09867645a635e0757f94dd4ddeb2dfa75f515`.
+  - FE-Kette auf `3ae0986` vollständig grün:
+
+    | Schritt | Run-ID |
+    |---|---|
+    | CI | 37122478450 |
+    | Cloudflare Deploy Test | 37122478578 |
+    | Real E2E | 37122478725 |
+    | Production Promotion | 37122550799 |
+    | Post-Deploy Production Gate | 37122585750 |
+
+  - Nächstes Gate: 3 Job-Datenmodell. Zuerst wird die Spezifikation am Human Gate vorgelegt; keine Implementierung ohne GO.
 
 1. Alte Diagnose-PRs #28 / #35 / #37 schließen und dokumentiert archivieren.
 2. n8n-Testdaten bereinigen: importierte Test-Workflows und alte Test-Executions kontrolliert entfernen.
