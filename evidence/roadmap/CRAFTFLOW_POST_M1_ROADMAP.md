@@ -25,6 +25,25 @@ Quelle: BOSS-Vorgabe „CRAFTFLOW_POST_M1_ROADMAP_1-20“ (Wortlaut der Punkte 1
     | Post-Deploy Production Gate | 37122585750 |
 
   - Nächstes Gate: 3 Job-Datenmodell. Zuerst wird die Spezifikation am Human Gate vorgelegt; keine Implementierung ohne GO.
+- **Gate 4 Importlogik: ABGESCHLOSSEN** [BOSS-Entscheidung 2026-10-03, „GO MERGE 62“, „GO MERGE 81“ und „Gate 4 als ABGESCHLOSSEN dokumentieren“]
+  - Spezifikation: `GATE4_IMPORTLOGIK_SPEC_v1.0-final`, Revision 4.1, SHA-256 `c87fee5cc92acddb4fd4c0fd31fa05805cdb791388c9cfedd2c601844036acdf`; QA-GO auf Head `9ca7c60`.
+  - Backend: BE#62, Merge `bdf06376d63083a8d93c3269ca140f59050643c4`; `verify` 37148099625 success; Render-Deploy `dep-db0lftjm8hqs73d87rp0` live.
+  - Inhalt: `lib/orchestrator/modular-import.ts`. Sequenzieller Import mit Fake-`ImportPort` (nur `create`/`read`), 14 Übergänge, normalisierter Projektions-Hash, Readback-Matrix, Evidence vor `readback_validated`, Rollback ohne Kompensation. Dazu `modular.ts` E2.1–E2.3 und 37 Tests. Keine echten n8n-Aufrufe; zur Laufzeit wird der Code nicht aufgerufen.
+  - Runtime-Truth-Pin: FE#81, Merge `95c7e7dd21ec30d04a19ca190c35821b4ccc6243`.
+  - FE-Kette auf `95c7e7d`:
+
+    | Schritt | Run-ID | Ergebnis |
+    |---|---|---|
+    | CI | 37148408146 | success |
+    | Cloudflare Deploy Test | 37148407959 | success |
+    | Real E2E | 37148407970 | failure: `BUSINESS_E2E_DRIVE_NOT_COMPLETE` |
+    | Production Promotion | 37148469104 | skipped |
+    | Post-Deploy Production Gate | 37148472608 | skipped |
+
+  - Real E2E im Detail: Runtime Truth `matches=true` (bdf0637), Pipeline bis `WAITING_FOR_APPROVAL`, n8n-Teil bestanden; danach `drive.status=null` und keine Drive-File-IDs. Gleiches Bild wie Real E2E 37140018914 auf Backend `55c3eac`, also vor Gate 4. Ein Zusammenhang mit Gate 4 ist nicht belegt.
+  - Der Abschluss erfolgt per BOSS-Entscheidung trotz roter Kette. Die Production Promotion des Frontends `95c7e7d` hat nicht stattgefunden.
+  - Drive COMPLETE wird als separater Operations-Incident weitergeführt; nicht Teil von Gate 4 oder Gate 5.
+  - Nächstes Gate: 5 Modul A (Ingestion & Validation). Zuerst wird die Spezifikation am Human Gate vorgelegt; keine Implementierung ohne GO.
 
 1. Alte Diagnose-PRs #28 / #35 / #37 schließen und dokumentiert archivieren.
 2. n8n-Testdaten bereinigen: importierte Test-Workflows und alte Test-Executions kontrolliert entfernen.
