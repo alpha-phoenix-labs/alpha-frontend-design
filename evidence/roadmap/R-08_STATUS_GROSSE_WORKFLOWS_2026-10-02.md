@@ -4,6 +4,8 @@ Stand: 2026-10-02 10:20 UTC · Quelle: CRAFTFLOW_POST_M1_ROADMAP (20 Punkte), Pu
 Kennzeichnung: BELEGT = geprüft · ANNAHME · NICHT GEPRÜFT
 Status: **IN ARBEIT** – Betriebsgrenze 40 Nodes (BOSS 2026-10-02, ersetzt 50; `OPERATING_LIMIT_40_NODES_2026-10-02.md`); 40 und 60 Nodes (Standardauftrag) auf dem aktuellen Stand bestanden, 60 Nodes mit Langprompt reproduzierbar FAIL; T2, R-20-QUALITY und 8b offen.
 
+BOSS-Entscheidung 2026-10-03 (Architektur-Gate 1): keine neuen monolithischen Großworkflows; Zielbild Parent + Module mit maximal 20 fachlichen Nodes je Modul (`evidence/architecture/CRAFTFLOW_MODULAR_20_NODE_SPEC_v1.0.md`). Die Grenze 40 Nodes ist eine historische Monolith-Grenze; H1 und H7 sind durch den modularen Pfad ersetzt. Die folgenden Festlegungen bleiben als Historie erhalten.
+
 BOSS-Entscheidung 2026-10-02 (zweite Aktualisierung): Betriebsgrenze **40 Nodes**, gültig bis Abschluss H1–H6, danach Requalifizierung 60 (H7). Die folgende Festlegung auf 50 ist ersetzt.
 
 BOSS-Entscheidung 2026-10-02 (aktualisiert, ersetzt): Betriebsgrenze **50 Nodes**. Das System wird nur vom Betreiber bedient; Aufträge über 50 Nodes werden nicht angefordert. Stufen 80/100 sind nicht geplant.
