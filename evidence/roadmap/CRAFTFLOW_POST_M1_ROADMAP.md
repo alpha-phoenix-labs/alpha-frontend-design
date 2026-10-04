@@ -63,6 +63,45 @@ Quelle: BOSS-Vorgabe „CRAFTFLOW_POST_M1_ROADMAP_1-20“ (Wortlaut der Punkte 1
   - Gate 5 ist per BOSS-Entscheidung abgeschlossen. Ein Zusammenhang zwischen Gate 5 und `BUSINESS_E2E_DRIVE_NOT_COMPLETE` ist nicht belegt.
   - **Drive COMPLETE ist ein separater Operations-Incident**, nicht Teil von Gate 5. Die Analyse erfolgt ausschließlich im Operations-Track.
   - Nächstes Gate: 6 Modul B. Zuerst wird die Spezifikation am Human Gate vorgelegt; keine Implementierung ohne GO.
+- **Gate 6 Modul B (Enrichment & Classification): ABGESCHLOSSEN** [BOSS-Entscheidung 2026-10-04, „GO MERGE 64“, „GO MERGE 85“; Abschluss trotz Drive-Fehler freigegeben, solange keine Kausalität zu Gate 6 belegt ist]
+  - Spezifikation: `GATE6_MODUL_B_SPEC_v1.0-draft`, 328 Zeilen, SHA-256 `fcd86af672b407269f2c421d30394f9eb808ac75a49d4f3f3ff6ceb7799f051a`, mit D-B1–D-B10 (Entscheidungen 2026-10-04):
+
+    | ID | Entscheidung |
+    |---|---|
+    | D-B1 | a) S kommt als Trigger-Input `classification`; Fixtures nur in Tests |
+    | D-B2 | `CATEGORY` mit 11 Werten (wasserschaden … sonstiges) |
+    | D-B3 | a) `Lead.trade` bleibt maßgeblich; `S.trade` nur als `classifiedTrade` |
+    | D-B4 | a) höhere Dringlichkeit gewinnt (emergency > urgent > standard) |
+    | D-B5 | b) fail-closed: `MODULE_B_CLASSIFICATION_FAILED`, kein Fallback |
+    | D-B6 | a) `routing = { country, postalCode, postalRegion, hasCoordinates }` |
+    | D-B7 | a) `usage = { source: "fixture", tokens: 0, costUsd: 0 }` |
+    | D-B8 | b) `confidence ≥ 0.80` |
+    | D-B9 | a) deterministisches Template, kein BUILDER-Workflow-JSON |
+    | D-B10 | `timeoutMs` 2000 |
+
+  - **Freigegebene Abweichung (D-B5):** Architektur §6 und Gate-1-Entscheidung 1 sehen einen dokumentierten Fallback vor. Modul B hat keinen Fallback; ein ungültiges S endet fail-closed.
+  - Backend: BE#64, Merge `055529a9b1b07426aee6c424498ffddf05b112de` (Head `c714a39` nach QA-Nachbesserung: receivedAt-Prüfung, Kausalitätsprüfung der failed-Zeilen, Golden-Vektor-Bindung B-G05); `verify` 37184333414 success; Render-Deploy `dep-db0vi73m8hqs73dg00k0` live.
+  - Inhalt: `lib/orchestrator/module-b.ts` mit `MODULE_B_CONTRACT`, `runModuleBReference` (Orakel), `assertModuleBResult` (fail-closed, inklusive Kausalitätsprüfung), `buildModuleBWorkflow` (deterministisches Template) und `assertModuleBWorkflow`. Dazu Golden-Vektoren GV-B-001 bis GV-B-010 und 37 Gate-6-Tests. Keine Laufzeitverdrahtung (Modul B wird außerhalb von `module-b.ts` nicht referenziert), keine n8n-Aufrufe.
+  - Offen bis Gate 8: Die Äquivalenz von n8n-Expression und Orakel gegen echtes n8n ist **nicht bewiesen**. Ebenfalls nicht bewiesen ist das Trigger-Verhalten bei fehlenden oder anders typisierten Inputs.
+  - Offen für Gate 7 (Parent):
+    - `classification` muss geliefert werden (D-B1); die Quelle von S wird in Gate 7 festgelegt.
+    - `MODULE_B_EXECUTION_ERROR` (Timeout, Abbruch) muss der Parent normalisieren.
+    - `assertModuleAResult` akzeptiert `MODULE_A_EXECUTION_ERROR` nicht.
+    - Die Gate-3-Prüfung `assertModularJob` lehnt eine leere `jobId` ab.
+  - Runtime-Truth-Pin: FE#85, Merge `9577c8f887295db4c1ed66c2a35f6033de88f2af`.
+  - FE-Kette auf `9577c8f`:
+
+    | Schritt | Run-ID | Ergebnis |
+    |---|---|---|
+    | CI | 37185121884 | success |
+    | Cloudflare Deploy Test | 37185121891 | success |
+    | Real E2E | 37185121915 | failure: `BUSINESS_E2E_DRIVE_NOT_COMPLETE` |
+    | Production Promotion | 37185175537 | skipped |
+    | Post-Deploy Production Gate | 37185178282 | skipped |
+
+  - Real E2E im Detail: Runtime Truth `matches=true` (055529a), Pipeline bis `WAITING_FOR_APPROVAL`, n8n-Teil bestanden (`pass=true`), danach `drive.status=null` und keine Drive-File-IDs. Das ist dasselbe Bild wie in den Ketten von Gate 4 und Gate 5. Ein Zusammenhang mit Gate 6 ist nicht belegt. Die Production Promotion des Frontends `9577c8f` hat nicht stattgefunden.
+  - **Drive COMPLETE ist ein separater Operations-Incident**, nicht Teil von Gate 6. Die Analyse erfolgt ausschließlich im Operations-Track.
+  - Nächstes Gate: 7 Parent. Zuerst wird die Spezifikation am Human Gate vorgelegt; keine Implementierung ohne GO.
 
 1. Alte Diagnose-PRs #28 / #35 / #37 schließen und dokumentiert archivieren.
 2. n8n-Testdaten bereinigen: importierte Test-Workflows und alte Test-Executions kontrolliert entfernen.
